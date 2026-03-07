@@ -603,9 +603,9 @@ h6 {
 .dashboard-page,
 .rfi-sheet-page,
 .review-page {
-  max-width: 1200px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1.5rem;
 }
 
 .dashboard-header,
@@ -1259,145 +1259,123 @@ h6 {
 
 
 /* ============================================
-   MOBILE RESPONSIVENESS & TYPOGRAPHY
+   MOBILE RESPONSIVENESS
    ============================================ */
 @media (max-width: 768px) {
-  /* Global Typography Adjustments */
-  html {
-    font-size: 13px; /* Slightly smaller base font on mobile */
+
+  /* Page layout — use full width, minimal side padding */
+  .dashboard-page,
+  .rfi-sheet-page,
+  .review-page {
+    padding: 0.75rem;
   }
-  
-  h1 { font-size: 1.5rem; }
-  h2 { font-size: 1.25rem; }
-  h3 { font-size: 1.1rem; }
-  
+
   .page-wrapper {
     padding-bottom: 2rem;
   }
 
-  /* Header Optimization */
+  /* Header */
   .app-header {
-    padding: 0 1rem;
+    padding: 0 0.75rem;
     height: 56px;
   }
-  
+
   .app-title-logo {
-    font-size: 1.1rem;
+    font-size: 1.15rem;
   }
-  
+
   .app-title {
-    display: none; /* Hide subtitle on mobile to save space */
+    display: none;
   }
-  
+
   .header-user-info {
     gap: 0.5rem;
   }
-  
+
   .header-username {
-    display: none; /* Hide username, rely on role badge / avatar */
-  }
-  
-  .header-role-badge {
-    font-size: 0.65rem;
-    padding: 0.2rem 0.4rem;
+    display: none;
   }
 
-  /* Dashboard Cards */
+  /* Stats — 2-column grid */
   .stats-grid {
-    grid-template-columns: 1fr; /* Stack stats vertically */
+    grid-template-columns: 1fr 1fr;
     gap: 0.75rem;
-    padding: 1rem;
+    padding: 0;
   }
-  
-  .stat-card {
-    padding: 1rem;
-  }
-  
-  /* Tables - Responsive scroll */
+
+  /* Tables — horizontal scroll */
   .rfi-table-wrapper {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-sm);
-    margin: 0 -1rem; /* Full bleed on mobile */
-    padding: 0 1rem;
   }
-  
+
   .rfi-table {
-    min-width: 650px; /* Force minimum width to allow scrolling instead of squishing */
+    min-width: 600px;
   }
-  
-  /* Make input fields easier to tap */
-  .cell-input, .cell-select, .btn {
-    min-height: 36px; 
+
+  /* Tap-friendly inputs */
+  .cell-input,
+  .cell-select,
+  .btn {
+    min-height: 38px;
   }
-  
-  /* Layout sections */
+
+  /* Sheet layout */
   .sheet-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 1rem;
-    padding: 1rem;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
   }
-  
+
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .dashboard-section,
   .sheet-section {
-    padding: 1rem;
-    margin: 1rem;
+    margin-bottom: 1rem;
+    border-radius: var(--radius-md);
   }
-  
+
+  .section-header {
+    padding: 0.75rem 1rem;
+  }
+
   .action-bar {
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.75rem;
   }
-  
+
   .action-buttons {
     width: 100%;
     display: flex;
     justify-content: space-between;
   }
-}
 
-@media (max-width: 480px) {
-  /* Extra small screens */
-  .stats-grid {
-    grid-template-columns: 1fr 1fr; /* 2x2 grid for stats on very small screens */
-  }
-  .stat-value {
-    font-size: 1.5rem;
-  }
-}
-
-/* --- ADDITIONAL MOBILE POLISH --- */
-@media (max-width: 768px) {
+  /* Login page */
   .login-box {
     padding: 2rem;
-    width: 90%;
-  }
-  
-  .auth-form {
-    gap: 1.25rem;
+    width: 92%;
   }
 
-  /* Review Cards */
+  /* Review cards */
   .review-card-details {
     grid-template-columns: 1fr;
     gap: 0.75rem;
   }
-  
+
   .review-card-actions {
     flex-direction: column;
   }
-  
-  /* Make sure modals dont overflow */
+
+  /* Modals */
   .modal-content {
     width: 95%;
     margin: 1rem;
     max-height: 90vh;
     overflow-y: auto;
-  }
-  
-  /* Hide optional columns on mobile review queue if needed */
-  .review-table .col-type {
-    display: none;
   }
 }
