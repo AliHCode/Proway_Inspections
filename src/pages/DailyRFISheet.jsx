@@ -6,14 +6,16 @@ import { INSPECTION_TYPES } from '../utils/constants';
 import Header from '../components/Header';
 import DateNavigator from '../components/DateNavigator';
 import StatusBadge from '../components/StatusBadge';
-import { Plus, Trash2, Send, AlertTriangle, RefreshCw, Save } from 'lucide-react';
+import { Plus, Trash2, Send, AlertTriangle, RefreshCw, Save, X } from 'lucide-react';
 
 export default function DailyRFISheet() {
     const { user } = useAuth();
-    const { createRFI, getRFIsForDate, resubmitRFI, deleteRFI } = useRFI();
+    const { createRFI, uploadImages, getRFIsForDate, resubmitRFI, deleteRFI } = useRFI();
     const [currentDate, setCurrentDate] = useState(getToday());
     const [newRows, setNewRows] = useState([createEmptyRow()]);
     const [submitMessage, setSubmitMessage] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedImages, setSelectedImages] = useState(null);
 
     const { carriedOver, newRfis } = getRFIsForDate(currentDate);
 
@@ -27,6 +29,7 @@ export default function DailyRFISheet() {
             description: '',
             location: '',
             inspectionType: INSPECTION_TYPES[0],
+            images: [],
         };
     }
 
@@ -44,7 +47,20 @@ export default function DailyRFISheet() {
         );
     }
 
-    function handleSubmit() {
+    function removeImage(tempId, imgIndex) {
+        setNewRows((prev) =>
+            prev.map((r) => {
+                if (r.tempId === tempId) {
+                    const newImages = [...r.images];
+                    newImages.splice(imgIndex, 1);
+                    return { ...r, images: newImages };
+                }
+                return r;
+            })
+        );
+    }
+
+    async function handleSubmit() {
         const validRows = newRows.filter((r) => r.description.trim() && r.location.trim());
         if (validRows.length === 0) {
             setSubmitMessage('Please fill in at least one RFI with description and location.');
@@ -52,19 +68,34 @@ export default function DailyRFISheet() {
             return;
         }
 
-        validRows.forEach((row) => {
-            createRFI({
-                description: row.description.trim(),
-                location: row.location.trim(),
-                inspectionType: row.inspectionType,
-                filedBy: user.id,
-                filedDate: currentDate,
-            });
-        });
+        setIsSubmitting(true);
+        setSubmitMessage('Uploading files and submitting RFIs...');
 
-        setNewRows([createEmptyRow()]);
-        setSubmitMessage(`✅ ${validRows.length} RFI(s) submitted successfully!`);
-        setTimeout(() => setSubmitMessage(''), 3000);
+        try {
+            for (const row of validRows) {
+                // Upload images to Supabase Storage first, if any
+                const uploadedUrls = await uploadImages(row.images);
+
+                // Then create the DB record
+                await createRFI({
+                    description: row.description.trim(),
+                    location: row.location.trim(),
+                    inspectionType: row.inspectionType,
+                    filedBy: user.id,
+                    filedDate: currentDate,
+                    images: uploadedUrls,
+                });
+            }
+
+            setNewRows([createEmptyRow()]);
+            setSubmitMessage(`✅ ${validRows.length} RFI(s) submitted successfully!`);
+        } catch (error) {
+            console.error("Submit error:", error);
+            setSubmitMessage('❌ Error submitting RFIs. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+            setTimeout(() => setSubmitMessage(''), 3000);
+        }
     }
 
     function handleResubmit(rfiId) {
@@ -192,6 +223,7 @@ export default function DailyRFISheet() {
                                     <th className="col-desc">Description *</th>
                                     <th className="col-loc">Location *</th>
                                     <th className="col-type">Inspection Type</th>
+                                    <th className="col-files">Attachments</th>
                                     <th className="col-actions"></th>
                                 </tr>
                             </thead>
@@ -228,6 +260,52 @@ export default function DailyRFISheet() {
                                                 ))}
                                             </select>
                                         </td>
+                                        <td className="col-files">
+                                            <div className="file-upload-cell">
+                                                <label className="file-upload-label">
+                                                    <input
+                                                        type="file"
+                                                        multiple
+                                                        accept="image/*"
+                                                        onChange={(e) => {
+                                                            const files = Array.from(e.target.files);
+                                                            // Append to existing images rather than replace
+                                                            updateRow(row.tempId, 'images', [...row.images, ...files]);
+                                                        }}
+                                                        className="file-input-hidden"
+                                                        style={{ display: 'none' }}
+                                                    />
+                                                    <span className="file-upload-btn btn btn-sm btn-ghost">
+                                                        Attach Photos
+                                                    </span>
+                                                </label>
+
+                                                {row.images.length > 0 && (
+                                                    <div className="image-preview-grid">
+                                                        {row.images.map((img, i) => (
+                                                            <div key={i} className="thumbnail-wrapper">
+                                                                <img
+                                                                    src={URL.createObjectURL(img)}
+                                                                    alt="preview"
+                                                                    className="thumbnail"
+                                                                    style={{ cursor: 'pointer' }}
+                                                                    onClick={() => setSelectedImages(row.images)}
+                                                                />
+                                                                <button
+                                                                    className="btn-remove-thumb"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        removeImage(row.tempId, i);
+                                                                    }}
+                                                                >
+                                                                    <X size={12} />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td className="col-actions">
                                             {newRows.length > 1 && (
                                                 <button
@@ -245,11 +323,12 @@ export default function DailyRFISheet() {
                     </div>
 
                     <div className="sheet-actions">
-                        <button className="btn btn-ghost" onClick={addRow}>
+                        <button className="btn btn-ghost" onClick={addRow} disabled={isSubmitting}>
                             <Plus size={16} /> Add Row
                         </button>
-                        <button className="btn btn-primary" onClick={handleSubmit}>
-                            <Send size={16} /> Submit RFIs
+                        <button className="btn btn-primary" onClick={handleSubmit} disabled={isSubmitting}>
+                            {isSubmitting ? <RefreshCw size={16} className="spin" /> : <Send size={16} />}
+                            {isSubmitting ? 'Submitting...' : 'Submit RFIs'}
                         </button>
                     </div>
 
@@ -259,6 +338,33 @@ export default function DailyRFISheet() {
                         </div>
                     )}
                 </div>
+
+                {/* Lightbox for Contractor Uploads */}
+                {selectedImages && (
+                    <div className="modal-overlay" onClick={() => setSelectedImages(null)}>
+                        <div className="modal lightbox" onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3>Previews ({selectedImages.length})</h3>
+                                <button className="btn-close modal-close" onClick={() => setSelectedImages(null)}>
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="lightbox-content">
+                                {selectedImages.map((img, idx) => {
+                                    const objectUrl = URL.createObjectURL(img);
+                                    return (
+                                        <div key={idx} className="lightbox-image-wrapper">
+                                            <img src={objectUrl} alt={`Attachment ${idx + 1}`} className="lightbox-image" />
+                                            <a href={objectUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-ghost lightbox-download">
+                                                Open Full Size
+                                            </a>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );

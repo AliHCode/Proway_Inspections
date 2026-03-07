@@ -7,7 +7,7 @@ import DateNavigator from '../components/DateNavigator';
 import StatusBadge from '../components/StatusBadge';
 import RejectModal from '../components/RejectModal';
 import { exportToExcel, exportToPDF } from '../utils/exportUtils';
-import { CheckCircle, XCircle, AlertTriangle, RefreshCw, MessageSquare, Filter, Download } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, RefreshCw, MessageSquare, Filter, Download, Image as ImageIcon, X } from 'lucide-react';
 
 export default function ReviewQueue() {
     const { user } = useAuth();
@@ -16,6 +16,7 @@ export default function ReviewQueue() {
     const [rejectTarget, setRejectTarget] = useState(null);
     const [filter, setFilter] = useState('to_review'); // to_review, approved, rejected
     const [actionMessage, setActionMessage] = useState('');
+    const [selectedImages, setSelectedImages] = useState(null);
 
     const queue = getReviewQueue(currentDate);
 
@@ -137,6 +138,7 @@ export default function ReviewQueue() {
                                         <th className="col-type">Type</th>
                                         <th className="col-status">Filed</th>
                                         <th className="col-remarks">Remarks/Notes</th>
+                                        <th className="col-files">Attachments</th>
                                         <th className="col-actions">{filter === 'to_review' ? 'Actions' : 'Status'}</th>
                                     </tr>
                                 </thead>
@@ -161,6 +163,31 @@ export default function ReviewQueue() {
                                                     {isCarryover && rfi.remarks ? (
                                                         <span className="remarks-text">{rfi.remarks}</span>
                                                     ) : '—'}
+                                                </td>
+                                                <td className="col-files">
+                                                    {rfi.images && rfi.images.length > 0 ? (
+                                                        <div
+                                                            className="image-preview-grid consultant-grid"
+                                                            onClick={() => setSelectedImages(rfi.images)}
+                                                            title="Click to view full size"
+                                                        >
+                                                            {rfi.images.slice(0, 3).map((url, idx) => (
+                                                                <img
+                                                                    key={idx}
+                                                                    src={url}
+                                                                    alt="attachment"
+                                                                    className="thumbnail"
+                                                                />
+                                                            ))}
+                                                            {rfi.images.length > 3 && (
+                                                                <div className="thumbnail-more">
+                                                                    +{rfi.images.length - 3}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-muted">—</span>
+                                                    )}
                                                 </td>
                                                 <td className="col-actions" style={{ width: filter === 'to_review' ? '200px' : '100px' }}>
                                                     {filter === 'to_review' ? (
@@ -200,6 +227,30 @@ export default function ReviewQueue() {
                         onReject={handleReject}
                         onClose={() => setRejectTarget(null)}
                     />
+                )}
+
+                {/* Lightbox for Images */}
+                {selectedImages && (
+                    <div className="modal-overlay" onClick={() => setSelectedImages(null)}>
+                        <div className="modal lightbox" onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3>Attachments ({selectedImages.length})</h3>
+                                <button className="btn-close" onClick={() => setSelectedImages(null)}>
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="lightbox-content">
+                                {selectedImages.map((url, idx) => (
+                                    <div key={idx} className="lightbox-image-wrapper">
+                                        <img src={url} alt={`Attachment ${idx + 1}`} className="lightbox-image" />
+                                        <a href={url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-ghost lightbox-download">
+                                            Open Full Size
+                                        </a>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 )}
             </main>
         </div>

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import toast from 'react-hot-toast';
 import { useProject } from './ProjectContext';
 import { getToday, getNextDay } from '../utils/rfiLogic';
 import { RFI_STATUS } from '../utils/constants';
@@ -42,6 +43,7 @@ export function RFIProvider({ children }) {
                 remarks: r.remarks,
                 carryoverCount: r.carryover_count,
                 carryoverTo: r.carryover_to,
+                images: r.images || [],
                 createdAt: r.created_at
             }));
             setRfis(formatted || []);
@@ -60,6 +62,11 @@ export function RFIProvider({ children }) {
             .channel('public:rfis')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'rfis' }, payload => {
                 console.log('Real-time RFI update:', payload);
+                if (payload.eventType === 'INSERT') {
+                    toast.success('New RFI submitted on this project!');
+                } else if (payload.eventType === 'UPDATE') {
+                    toast('An RFI was updated', { icon: '🔄' });
+                }
                 fetchAllRFIs(); // Simplest way to ensure data consistency
             })
             .subscribe();
@@ -82,11 +89,12 @@ export function RFIProvider({ children }) {
         remarks: rfi.remarks,
         carryover_count: rfi.carryoverCount,
         carryover_to: rfi.carryoverTo,
+        images: rfi.images || [],
         project_id: activeProject?.id,
     });
 
     /** Create a new RFI */
-    async function createRFI({ description, location, inspectionType, filedBy, filedDate }) {
+    async function createRFI({ description, location, inspectionType, filedBy, filedDate, images }) {
         const dateRfis = rfis.filter((r) => r.filedDate === filedDate);
         const serialNo = dateRfis.length > 0 ? Math.max(...dateRfis.map((r) => r.serialNo)) + 1 : 1;
 
@@ -104,6 +112,7 @@ export function RFIProvider({ children }) {
             remarks: null,
             carryoverCount: 0,
             carryoverTo: null,
+            images: images || [],
         };
 
         try {
@@ -113,6 +122,41 @@ export function RFIProvider({ children }) {
         } catch (error) {
             console.error("Error creating RFI:", error);
         }
+    }
+
+    /** Upload Images to Storage */
+    async function uploadImages(files) {
+        if (!files || files.length === 0) return [];
+
+        const uploadedUrls = [];
+
+        for (const file of files) {
+            // Generate a unique filename: timestamp_random.ext
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+            const filePath = `${activeProject?.id || 'general'}/${fileName}`;
+
+            try {
+                const { data, error } = await supabase.storage
+                    .from('rfi-images')
+                    .upload(filePath, file);
+
+                if (error) throw error;
+
+                // Get public URL
+                const { data: urlData } = supabase.storage
+                    .from('rfi-images')
+                    .getPublicUrl(filePath);
+
+                if (urlData?.publicUrl) {
+                    uploadedUrls.push(urlData.publicUrl);
+                }
+            } catch (error) {
+                console.error("Error uploading image:", error);
+            }
+        }
+
+        return uploadedUrls;
     }
 
     /** Approve an RFI */
@@ -189,6 +233,7 @@ export function RFIProvider({ children }) {
             if (updates.description !== undefined) dbUpdates.description = updates.description;
             if (updates.location !== undefined) dbUpdates.location = updates.location;
             if (updates.inspectionType !== undefined) dbUpdates.inspection_type = updates.inspectionType;
+            if (updates.images !== undefined) dbUpdates.images = updates.images;
 
             const { error } = await supabase.from('rfis').update(dbUpdates).eq('id', rfiId);
             if (error) throw error;
@@ -258,6 +303,7 @@ export function RFIProvider({ children }) {
             value={{
                 rfis,
                 loadingRfis,
+                uploadImages,
                 createRFI,
                 approveRFI,
                 rejectRFI,
