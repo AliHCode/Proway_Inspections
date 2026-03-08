@@ -122,9 +122,10 @@ export default function ReviewQueue() {
                 {/* Review Table (Excel-like format) */}
                 {filteredItems.length === 0 ? (
                     <div className="empty-state">
-                        <CheckCircle size={48} />
-                        <h3>No RFIs to Review</h3>
-                        <p>{filter !== 'all' ? 'Try changing the filter ' : 'All RFIs have been reviewed for this date.'}</p>
+                        <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                            <CheckCircle size={24} color="var(--clr-success)" /> All Caught Up!
+                        </h3>
+                        <p>{filter === 'to_review' ? 'All RFIs have been reviewed for this date.' : 'No items match this filter.'}</p>
                     </div>
                 ) : (
                     <div className="sheet-section">

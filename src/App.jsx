@@ -2,6 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProjectProvider } from './context/ProjectContext';
 import { RFIProvider } from './context/RFIContext';
+import ErrorBoundary from './components/ErrorBoundary';
+import LoadingSpinner from './components/LoadingSpinner';
+import { Toaster } from 'react-hot-toast';
 import LoginPage from './pages/LoginPage';
 import ContractorDashboard from './pages/ContractorDashboard';
 import DailyRFISheet from './pages/DailyRFISheet';
@@ -10,7 +13,7 @@ import ReviewQueue from './pages/ReviewQueue';
 
 function ProtectedRoute({ children, allowedRole }) {
     const { user, loading } = useAuth();
-    if (loading) return <div className="loading-screen">Loading...</div>;
+    if (loading) return <LoadingSpinner message="Authenticating..." />;
     if (!user) return <Navigate to="/" replace />;
     if (allowedRole && user.role !== allowedRole) {
         return <Navigate to={user.role === 'contractor' ? '/contractor' : '/consultant'} replace />;
@@ -74,14 +77,17 @@ function AppRoutes() {
 
 export default function App() {
     return (
-        <BrowserRouter>
-            <AuthProvider>
-                <ProjectProvider>
-                    <RFIProvider>
-                        <AppRoutes />
-                    </RFIProvider>
-                </ProjectProvider>
-            </AuthProvider>
-        </BrowserRouter>
+        <ErrorBoundary>
+            <BrowserRouter>
+                <AuthProvider>
+                    <ProjectProvider>
+                        <RFIProvider>
+                            <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+                            <AppRoutes />
+                        </RFIProvider>
+                    </ProjectProvider>
+                </AuthProvider>
+            </BrowserRouter>
+        </ErrorBoundary>
     );
 }
