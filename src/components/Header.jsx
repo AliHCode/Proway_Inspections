@@ -4,6 +4,7 @@ import { LogOut, Menu, X, Building } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import UserAvatar from './UserAvatar';
+import NotificationCenter from './NotificationCenter';
 
 export default function Header() {
     const { user, logout } = useAuth();
@@ -41,6 +42,7 @@ export default function Header() {
             )}
 
             <div className="header-user-info">
+                <NotificationCenter />
                 <div className="header-user-details">
                     <span className="header-username">{user.name}</span>
                     <span className="header-role-text" data-role={user.role}>

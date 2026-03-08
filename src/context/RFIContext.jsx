@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { supabase } from '../utils/supabaseClient';
 import toast from 'react-hot-toast';
 import { useProject } from './ProjectContext';
+import { useAuth } from './AuthContext';
 import { getToday, getNextDay } from '../utils/rfiLogic';
 import { RFI_STATUS } from '../utils/constants';
 
@@ -9,8 +10,13 @@ const RFIContext = createContext(null);
 
 export function RFIProvider({ children }) {
     const { activeProject } = useProject();
+    const { user } = useAuth();
     const [rfis, setRfis] = useState([]);
     const [loadingRfis, setLoadingRfis] = useState(true);
+
+    // Notifications State
+    const [notifications, setNotifications] = useState([]);
+    const unreadCount = notifications.filter(n => !n.is_read).length;
 
     const fetchAllRFIs = useCallback(async () => {
         if (!activeProject) {
@@ -80,11 +86,35 @@ export function RFIProvider({ children }) {
         }
     }, [activeProject]);
 
+    const fetchNotifications = useCallback(async () => {
+        if (!user) {
+            setNotifications([]);
+            return;
+        }
+
+        try {
+            const { data, error } = await supabase
+                .from('notifications')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(50); // Keep it recent
+
+            if (error) throw error;
+            setNotifications(data || []);
+        } catch (error) {
+            console.error('Error fetching notifications:', error);
+        }
+    }, [user]);
+
     useEffect(() => {
         fetchAllRFIs();
+        if (user) {
+            fetchNotifications();
+        }
 
-        // Subscribe to real-time changes
-        const subscription = supabase
+        // Subscribe to real-time changes for RFIs
+        const rfiSubscription = supabase
             .channel('public:rfis')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'rfis' }, payload => {
                 console.log('Real-time RFI update:', payload);
@@ -97,7 +127,28 @@ export function RFIProvider({ children }) {
             })
             .subscribe();
 
-        return () => supabase.removeChannel(subscription);
+        // Subscribe to real-time changes for Notifications (only for this user)
+        let notifSubscription = null;
+        if (user) {
+            notifSubscription = supabase
+                .channel(`public:notifications:user_id=eq.${user.id}`)
+                .on('postgres_changes', {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'notifications',
+                    filter: `user_id=eq.${user.id}`
+                }, payload => {
+                    console.log('New notification:', payload);
+                    toast(payload.new.title, { icon: '🔔' });
+                    fetchNotifications();
+                })
+                .subscribe();
+        }
+
+        return () => {
+            supabase.removeChannel(rfiSubscription);
+            if (notifSubscription) supabase.removeChannel(notifSubscription);
+        };
     }, [fetchAllRFIs]);
 
     // Format for DB insertion (camelCase -> snake_case)
@@ -145,6 +196,7 @@ export function RFIProvider({ children }) {
             const { error } = await supabase.from('rfis').insert([formatForDB(newRfiData)]);
             if (error) throw error;
             // State will update via real-time subscription
+            // Note: In a real app we might want to notify all admins/consultants that a new RFI was filed
         } catch (error) {
             console.error("Error creating RFI:", error);
         }
@@ -187,6 +239,9 @@ export function RFIProvider({ children }) {
 
     /** Approve an RFI */
     async function approveRFI(rfiId, reviewedBy) {
+        const targetRfi = rfis.find(r => r.id === rfiId);
+        if (!targetRfi) return;
+
         try {
             const { error } = await supabase.from('rfis').update({
                 status: RFI_STATUS.APPROVED,
@@ -196,6 +251,14 @@ export function RFIProvider({ children }) {
                 carryover_to: null,
             }).eq('id', rfiId);
             if (error) throw error;
+
+            // Notify Contractor
+            await createNotification(
+                targetRfi.filedBy,
+                "RFI Approved ✅",
+                `Your RFI #${targetRfi.serialNo} for ${targetRfi.location} was approved.`,
+                rfiId
+            );
         } catch (error) {
             console.error("Error approving RFI:", error);
         }
@@ -219,6 +282,14 @@ export function RFIProvider({ children }) {
                 carryover_to: nextDay,
             }).eq('id', rfiId);
             if (error) throw error;
+
+            // Notify Contractor
+            await createNotification(
+                targetRfi.filedBy,
+                "RFI Rejected ❌",
+                `Your RFI #${targetRfi.serialNo} was rejected. Remarks: ${remarks}`,
+                rfiId
+            );
         } catch (error) {
             console.error("Error rejecting RFI:", error);
         }
@@ -226,6 +297,9 @@ export function RFIProvider({ children }) {
 
     /** Request Info on an RFI (Kicks back to contractor without formal rejection) */
     async function requestInfo(rfiId, reviewedBy, remarks) {
+        const targetRfi = rfis.find(r => r.id === rfiId);
+        if (!targetRfi) return;
+
         try {
             const { error } = await supabase.from('rfis').update({
                 status: RFI_STATUS.INFO_REQUESTED,
@@ -234,6 +308,14 @@ export function RFIProvider({ children }) {
                 remarks: remarks,
             }).eq('id', rfiId);
             if (error) throw error;
+
+            // Notify Contractor
+            await createNotification(
+                targetRfi.filedBy,
+                "Info Requested ⚠️",
+                `Consultant requested info on RFI #${targetRfi.serialNo}: ${remarks}`,
+                rfiId
+            );
         } catch (error) {
             console.error("Error requesting info on RFI:", error);
         }
@@ -241,6 +323,9 @@ export function RFIProvider({ children }) {
 
     /** Re-submit a rejected/carried-over RFI (reset to pending for current day) */
     async function resubmitRFI(rfiId, newDate) {
+        const targetRfi = rfis.find(r => r.id === rfiId);
+        if (!targetRfi) return;
+
         try {
             const { error } = await supabase.from('rfis').update({
                 status: RFI_STATUS.PENDING,
@@ -251,8 +336,18 @@ export function RFIProvider({ children }) {
                 reviewed_at: null,
             }).eq('id', rfiId);
             if (error) throw error;
+
+            // Notify Consultant (if there was a previous reviewer)
+            if (targetRfi.reviewedBy) {
+                await createNotification(
+                    targetRfi.reviewedBy,
+                    "RFI Resubmitted 🔄",
+                    `Contractor resubmitted RFI #${targetRfi.serialNo} for review.`,
+                    rfiId
+                );
+            }
         } catch (error) {
-            console.error("Error resubmitting RFI:", error);
+            console.error("Error re-submitting RFI:", error);
         }
     }
 
@@ -264,9 +359,9 @@ export function RFIProvider({ children }) {
             const { data, error } = await supabase
                 .from('comments')
                 .select(`
-                    id, 
-                    content, 
-                    created_at, 
+                    id,
+                    content,
+                    created_at,
                     user_id,
                     profiles (name, role, company)
                 `)
@@ -289,14 +384,36 @@ export function RFIProvider({ children }) {
         }
     }
 
-    async function addComment(rfiId, userId, content) {
+    async function addComment(rfiId, content) {
+        if (!user) return;
+
+        const targetRfi = rfis.find(r => r.id === rfiId);
+        if (!targetRfi) return;
+
         try {
             const { error } = await supabase.from('comments').insert([{
                 rfi_id: rfiId,
-                user_id: userId,
+                user_id: user.id,
                 content: content
             }]);
+
             if (error) throw error;
+
+            // Notify the other party
+            // If the commenter is the contractor who filed it, notify the reviewer (if assigned/reviewed)
+            // If the commenter is the consultant, notify the contractor
+            const isFiler = user.id === targetRfi.filedBy;
+            const targetUserId = isFiler ? targetRfi.reviewedBy : targetRfi.filedBy;
+
+            if (targetUserId && targetUserId !== user.id) {
+                await createNotification(
+                    targetUserId,
+                    "New Message 💬",
+                    `New message on RFI #${targetRfi.serialNo} from ${user.name}`,
+                    rfiId
+                );
+            }
+
         } catch (error) {
             console.error("Error adding comment:", error);
             throw error;
@@ -386,11 +503,57 @@ export function RFIProvider({ children }) {
         };
     }
 
+    // --- Notifications Actions ---
+    async function markNotificationRead(notifId) {
+        try {
+            const { error } = await supabase
+                .from('notifications')
+                .update({ is_read: true })
+                .eq('id', notifId);
+            if (error) throw error;
+            fetchNotifications(); // Optimistic UI could be used here instead for speed
+        } catch (error) {
+            console.error("Error marking notification read:", error);
+        }
+    }
+
+    async function markAllNotificationsRead() {
+        if (!user) return;
+        try {
+            const { error } = await supabase
+                .from('notifications')
+                .update({ is_read: true })
+                .eq('user_id', user.id)
+                .eq('is_read', false);
+            if (error) throw error;
+            fetchNotifications();
+        } catch (error) {
+            console.error("Error marking all notifications read:", error);
+        }
+    }
+
+    // --- Helper to trigger notifications (Used internally by approve/reject/comment) ---
+    async function createNotification(userId, title, message, rfiId = null) {
+        try {
+            await supabase.from('notifications').insert([{
+                user_id: userId,
+                title,
+                message,
+                rfi_id: rfiId
+            }]);
+            // Realtime subscription will ping the user if they are online
+        } catch (error) {
+            console.error("Error creating notification:", error);
+        }
+    }
+
     return (
         <RFIContext.Provider
             value={{
                 rfis,
                 loadingRfis,
+                notifications,
+                unreadCount,
                 uploadImages,
                 createRFI,
                 approveRFI,
@@ -404,6 +567,9 @@ export function RFIProvider({ children }) {
                 getStats,
                 fetchComments,
                 addComment,
+                markNotificationRead,
+                markAllNotificationsRead,
+                createNotification
             }}
         >
             {children}

@@ -40,7 +40,7 @@ export default function ThreadedComments({ rfiId, onCommentAdded }) {
 
         setSubmitting(true);
         try {
-            await addComment(rfiId, user.id, newComment.trim());
+            await addComment(rfiId, newComment.trim());
             setNewComment('');
             await loadComments();
             if (onCommentAdded) onCommentAdded();
