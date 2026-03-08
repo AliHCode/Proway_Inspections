@@ -36,10 +36,12 @@ export default function ReviewQueue() {
         (r) => r.status === 'rejected' && r.reviewedAt && r.reviewedAt.startsWith(currentDate)
     );
 
-    let filteredItems = queue.all;
-    if (filter === 'approved') filteredItems = todayApproved;
-    if (filter === 'rejected') filteredItems = todayRejected;
-    if (filter === 'my_assigned') filteredItems = queue.all.filter(r => r.assignedTo === user.id);
+    // Show everything for the selected date: pending queue + already reviewed today
+    const filteredItems = [
+        ...queue.all,
+        ...todayApproved,
+        ...todayRejected
+    ].sort((a, b) => (b.serialNo || 0) - (a.serialNo || 0));
 
     function handleApprove(rfiId) {
         approveRFI(rfiId, user.id);
@@ -97,50 +99,7 @@ export default function ReviewQueue() {
                     </div>
                 </div>
 
-                {/* Mini Stats */}
-                <div className="review-mini-stats">
-                    <div className="mini-stat pending" onClick={() => setFilter('to_review')} style={{ cursor: 'pointer', border: filter === 'to_review' ? '2px solid var(--clr-brand-secondary)' : '' }}>
-                        <span className="mini-stat-value">{queue.all.length}</span>
-                        <span className="mini-stat-label">To Review</span>
-                    </div>
-                    <div className="mini-stat approved" onClick={() => setFilter('approved')} style={{ cursor: 'pointer', border: filter === 'approved' ? '2px solid var(--clr-success)' : '' }}>
-                        <span className="mini-stat-value">{todayApproved.length}</span>
-                        <span className="mini-stat-label">Approved Today</span>
-                    </div>
-                    <div className="mini-stat rejected" onClick={() => setFilter('rejected')} style={{ cursor: 'pointer', border: filter === 'rejected' ? '2px solid var(--clr-danger)' : '' }}>
-                        <span className="mini-stat-value">{todayRejected.length}</span>
-                        <span className="mini-stat-label">Rejected Today</span>
-                    </div>
-                </div>
 
-                {/* Filter */}
-                <div className="review-filter">
-                    <Filter size={16} />
-                    <button
-                        className={`filter-btn ${filter === 'to_review' ? 'active' : ''}`}
-                        onClick={() => setFilter('to_review')}
-                    >
-                        To Review ({queue.all.length})
-                    </button>
-                    <button
-                        className={`filter-btn ${filter === 'approved' ? 'active' : ''}`}
-                        onClick={() => setFilter('approved')}
-                    >
-                        Approved Today ({todayApproved.length})
-                    </button>
-                    <button
-                        className={`filter-btn ${filter === 'rejected' ? 'active' : ''}`}
-                        onClick={() => setFilter('rejected')}
-                    >
-                        Rejected Today ({todayRejected.length})
-                    </button>
-                    <button
-                        className={`filter-btn ${filter === 'my_assigned' ? 'active' : ''}`}
-                        onClick={() => setFilter('my_assigned')}
-                    >
-                        <UserCheck size={14} /> Assigned to Me ({queue.all.filter(r => r.assignedTo === user.id).length})
-                    </button>
-                </div>
 
                 {actionMessage && (
                     <div className={`submit-message ${actionMessage.includes('✅') ? 'success' : 'warning'}`}>
