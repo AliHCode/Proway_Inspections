@@ -111,12 +111,18 @@ export default function Header() {
                             <Shield size={16} /> Admin Panel
                         </button>
                     )}
-                    {/* Mobile Project Selector */}
-                    <div className="mobile-project-selector">
-                        <Building size={16} />
+                    {/* Mobile Project Selector (Native Icon Overlay) */}
+                    <div className="mobile-project-selector" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', width: '100%', padding: '0.75rem', background: 'var(--clr-bg-secondary)', borderRadius: 'var(--radius-md)', margin: '0.5rem 0' }}>
+                        <Building size={20} className="brand-accent" />
+                        <span style={{ marginLeft: '0.5rem', fontWeight: '500' }}>Switch Project</span>
                         <select
                             value={activeProject?.id || ''}
-                            onChange={(e) => changeActiveProject(e.target.value)}
+                            onChange={(e) => { changeActiveProject(e.target.value); setMenuOpen(false); }}
+                            style={{
+                                position: 'absolute',
+                                top: 0, left: 0, width: '100%', height: '100%',
+                                opacity: 0, cursor: 'pointer', appearance: 'none'
+                            }}
                         >
                             {projects.map(p => (
                                 <option key={p.id} value={p.id}>{p.name}</option>
