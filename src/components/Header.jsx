@@ -40,15 +40,17 @@ export default function Header() {
                 </div>
             )}
 
-            <div className="header-user-info" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.1rem' }}>
-                    <span className="header-username" style={{ fontWeight: '600', fontSize: '0.9rem' }}>{user.name}</span>
-                    <span className="header-role-badge" data-role={user.role} style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', marginTop: 0 }}>
+            <div className="header-user-info">
+                <div className="header-user-details">
+                    <span className="header-username">{user.name}</span>
+                    <span className="header-role-text" data-role={user.role}>
                         {isContractor ? 'Contractor' : 'Consultant'}
                     </span>
                 </div>
-                <UserAvatar name={user.name} size={36} />
+                <UserAvatar name={user.name} size={40} />
             </div>
+
+            <div className="header-divider"></div>
 
             <button className="header-menu-btn" onClick={() => setMenuOpen(!menuOpen)}>
                 {menuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -61,7 +63,7 @@ export default function Header() {
                         <div>
                             <strong>{user.name}</strong>
                             <span>{user.company}</span>
-                            <span className="header-role-badge" data-role={user.role}>
+                            <span className="header-role-text" data-role={user.role}>
                                 {isContractor ? 'Contractor' : 'Consultant'}
                             </span>
                         </div>
