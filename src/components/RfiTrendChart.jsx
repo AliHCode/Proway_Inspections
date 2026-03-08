@@ -22,7 +22,7 @@ export default function RfiTrendChart({ data }) {
     return (
         <div className="chart-container" style={{ width: '100%', height: 320 }}>
             <h3 className="chart-title">Weekly RFI Volume</h3>
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <AreaChart
                     data={data}
                     margin={{
