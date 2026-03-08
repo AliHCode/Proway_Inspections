@@ -6,15 +6,19 @@ import Header from '../components/Header';
 import DateNavigator from '../components/DateNavigator';
 import StatusBadge from '../components/StatusBadge';
 import RejectModal from '../components/RejectModal';
+import InfoRequestModal from '../components/InfoRequestModal';
+import RFIDetailModal from '../components/RFIDetailModal';
 import UserAvatar from '../components/UserAvatar';
 import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 import { CheckCircle, XCircle, AlertTriangle, RefreshCw, MessageSquare, Filter, Download, Image as ImageIcon, X } from 'lucide-react';
 
 export default function ReviewQueue() {
     const { user } = useAuth();
-    const { approveRFI, rejectRFI, getReviewQueue, rfis } = useRFI();
+    const { approveRFI, rejectRFI, requestInfo, getReviewQueue, rfis } = useRFI();
     const [currentDate, setCurrentDate] = useState(getToday());
     const [rejectTarget, setRejectTarget] = useState(null);
+    const [infoRequestTarget, setInfoRequestTarget] = useState(null);
+    const [detailTarget, setDetailTarget] = useState(null);
     const [filter, setFilter] = useState('to_review'); // to_review, approved, rejected
     const [actionMessage, setActionMessage] = useState('');
     const [selectedImages, setSelectedImages] = useState(null);
@@ -42,6 +46,12 @@ export default function ReviewQueue() {
     function handleReject(rfiId, remarks) {
         rejectRFI(rfiId, user.id, remarks);
         setActionMessage('❌ RFI Rejected — will carry over to next day');
+        setTimeout(() => setActionMessage(''), 3000);
+    }
+
+    function handleRequestInfo(rfiId, remarks) {
+        requestInfo(rfiId, user.id, remarks);
+        setActionMessage('⚠️ Info Requested — returned to contractor');
         setTimeout(() => setActionMessage(''), 3000);
     }
 
@@ -199,26 +209,43 @@ export default function ReviewQueue() {
                                                         <span className="text-muted">—</span>
                                                     )}
                                                 </td>
-                                                <td className="col-actions" style={{ width: filter === 'to_review' ? '200px' : '100px' }}>
+                                                <td className="col-actions" style={{ width: filter === 'to_review' ? '280px' : '100px' }}>
                                                     {filter === 'to_review' ? (
-                                                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                                                        <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
                                                             <button
                                                                 className="btn btn-sm btn-success"
                                                                 onClick={() => handleApprove(rfi.id)}
                                                                 title="Approve"
                                                             >
-                                                                <CheckCircle size={14} /> Approve
+                                                                <CheckCircle size={14} />
+                                                            </button>
+                                                            <button
+                                                                className="btn btn-sm"
+                                                                style={{ backgroundColor: 'var(--clr-brand-secondary)', color: 'white' }}
+                                                                onClick={() => setInfoRequestTarget(rfi)}
+                                                                title="Request Info"
+                                                            >
+                                                                <MessageSquare size={14} />
                                                             </button>
                                                             <button
                                                                 className="btn btn-sm btn-danger"
                                                                 onClick={() => setRejectTarget(rfi)}
                                                                 title="Reject"
                                                             >
-                                                                <XCircle size={14} /> Reject
+                                                                <XCircle size={14} />
                                                             </button>
                                                         </div>
                                                     ) : (
-                                                        <StatusBadge status={rfi.status} />
+                                                        <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', alignItems: 'center' }}>
+                                                            <StatusBadge status={rfi.status} />
+                                                            <button
+                                                                className="btn btn-sm btn-ghost"
+                                                                onClick={() => setDetailTarget(rfi)}
+                                                                title="Open Discussion"
+                                                            >
+                                                                <MessageSquare size={14} />
+                                                            </button>
+                                                        </div>
                                                     )}
                                                 </td>
                                             </tr>
@@ -230,12 +257,29 @@ export default function ReviewQueue() {
                     </div>
                 )}
 
+                {/* Detail & Comments Modal */}
+                {detailTarget && (
+                    <RFIDetailModal
+                        rfi={detailTarget}
+                        onClose={() => setDetailTarget(null)}
+                    />
+                )}
+
                 {/* Reject Modal */}
                 {rejectTarget && (
                     <RejectModal
                         rfi={rejectTarget}
                         onReject={handleReject}
                         onClose={() => setRejectTarget(null)}
+                    />
+                )}
+
+                {/* Request Info Modal */}
+                {infoRequestTarget && (
+                    <InfoRequestModal
+                        rfi={infoRequestTarget}
+                        onRequestInfo={handleRequestInfo}
+                        onClose={() => setInfoRequestTarget(null)}
                     />
                 )}
 

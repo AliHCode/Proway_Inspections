@@ -63,10 +63,10 @@ export function getRFIsForDate(allRfis, targetDate) {
         (rfi) => rfi.filedDate === targetDate
     );
 
-    // Get carried-over RFIs: rejected before this date and not yet approved
+    // Get carried-over RFIs: rejected or info_requested before this date and not yet approved
     const carriedOver = allRfis.filter(
         (rfi) =>
-            rfi.status === RFI_STATUS.REJECTED &&
+            (rfi.status === RFI_STATUS.REJECTED || rfi.status === RFI_STATUS.INFO_REQUESTED) &&
             rfi.filedDate < targetDate &&
             rfi.carryoverTo === targetDate
     );
@@ -93,6 +93,7 @@ export function getStatsForDate(allRfis, targetDate) {
         pending: all.filter((r) => r.status === RFI_STATUS.PENDING).length,
         approved: all.filter((r) => r.status === RFI_STATUS.APPROVED).length,
         rejected: all.filter((r) => r.status === RFI_STATUS.REJECTED).length,
+        infoRequested: all.filter((r) => r.status === RFI_STATUS.INFO_REQUESTED).length,
     };
 }
 
@@ -116,10 +117,10 @@ export function getPendingRFIs(allRfis, targetDate) {
  * Get all RFIs that need consultant review: pending + rejected needing re-review
  */
 export function getReviewQueue(allRfis, targetDate) {
-    // Rejected carryovers for today
+    // Rejected/Info carryovers for today
     const carriedOver = allRfis.filter(
         (rfi) =>
-            rfi.status === RFI_STATUS.REJECTED &&
+            (rfi.status === RFI_STATUS.REJECTED || rfi.status === RFI_STATUS.INFO_REQUESTED) &&
             rfi.carryoverTo === targetDate
     );
 
@@ -146,6 +147,7 @@ export function getOverallStats(allRfis) {
         pending: allRfis.filter((r) => r.status === RFI_STATUS.PENDING).length,
         approved: allRfis.filter((r) => r.status === RFI_STATUS.APPROVED).length,
         rejected: allRfis.filter((r) => r.status === RFI_STATUS.REJECTED).length,
+        infoRequested: allRfis.filter((r) => r.status === RFI_STATUS.INFO_REQUESTED).length,
     };
 }
 

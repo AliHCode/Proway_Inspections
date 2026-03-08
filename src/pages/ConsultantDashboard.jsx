@@ -30,6 +30,7 @@ export default function ConsultantDashboard() {
         { name: 'Approved', value: stats.overallApproved, color: 'var(--clr-success)' },
         { name: 'Pending', value: stats.overallPending, color: 'var(--clr-warning)' },
         { name: 'Rejected', value: stats.overallRejected, color: 'var(--clr-danger)' },
+        { name: 'Info Req.', value: stats.infoRequested, color: 'var(--clr-brand-secondary)' },
     ];
 
     // Group all RFIs by date for the area chart (last 7 days of activity)

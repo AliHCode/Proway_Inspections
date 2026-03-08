@@ -2,16 +2,18 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRFI } from '../context/RFIContext';
 import { getToday } from '../utils/rfiLogic';
-import { INSPECTION_TYPES } from '../utils/constants';
+import { INSPECTION_TYPES, RFI_STATUS } from '../utils/constants';
 import Header from '../components/Header';
 import DateNavigator from '../components/DateNavigator';
 import StatusBadge from '../components/StatusBadge';
-import { Plus, Trash2, Send, AlertTriangle, RefreshCw, Save, X } from 'lucide-react';
+import RFIDetailModal from '../components/RFIDetailModal';
+import { Plus, Trash2, Send, AlertTriangle, RefreshCw, Save, X, MessageSquare } from 'lucide-react';
 
 export default function DailyRFISheet() {
     const { user } = useAuth();
     const { createRFI, uploadImages, getRFIsForDate, resubmitRFI, deleteRFI } = useRFI();
     const [currentDate, setCurrentDate] = useState(getToday());
+    const [detailTarget, setDetailTarget] = useState(null);
     const [newRows, setNewRows] = useState([createEmptyRow()]);
     const [submitMessage, setSubmitMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -111,14 +113,14 @@ export default function DailyRFISheet() {
                     <DateNavigator currentDate={currentDate} onDateChange={setCurrentDate} />
                 </div>
 
-                {/* Carried Over Section */}
+                {/* Carried Over / Info Requested Section */}
                 {myCarriedOver.length > 0 && (
                     <div className="sheet-section carryover-section">
                         <div className="section-banner carryover-banner">
                             <AlertTriangle size={18} />
                             <span>
-                                <strong>{myCarriedOver.length} Rejected RFI{myCarriedOver.length > 1 ? 's' : ''}</strong>
-                                {' '}carried over — re-submit for re-inspection
+                                <strong>{myCarriedOver.length} Actionable RFI{myCarriedOver.length > 1 ? 's' : ''}</strong>
+                                {' '}carried over — provide requested info or fix rejections and re-submit.
                             </span>
                         </div>
                         <div className="rfi-table-wrapper">
@@ -149,13 +151,23 @@ export default function DailyRFISheet() {
                                             </td>
                                             <td className="col-remarks remarks-text">{rfi.remarks || '—'}</td>
                                             <td className="col-actions">
-                                                <button
-                                                    className="btn btn-sm btn-action btn-resubmit"
-                                                    onClick={() => handleResubmit(rfi.id)}
-                                                    title="Re-submit for inspection"
-                                                >
-                                                    <RefreshCw size={14} /> Re-submit
-                                                </button>
+                                                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                                    <button
+                                                        className="btn btn-sm btn-action btn-resubmit"
+                                                        onClick={() => handleResubmit(rfi.id)}
+                                                        title={rfi.status === RFI_STATUS.INFO_REQUESTED ? "Submit Info & Re-queue" : "Re-submit for inspection"}
+                                                        style={{ flex: 1 }}
+                                                    >
+                                                        <RefreshCw size={14} /> {rfi.status === RFI_STATUS.INFO_REQUESTED ? 'Submit Info' : 'Re-submit'}
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-sm btn-ghost"
+                                                        onClick={() => setDetailTarget(rfi)}
+                                                        title="Open Discussion"
+                                                    >
+                                                        <MessageSquare size={14} />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -192,15 +204,24 @@ export default function DailyRFISheet() {
                                             <td className="col-status"><StatusBadge status={rfi.status} /></td>
                                             <td className="col-remarks remarks-text">{rfi.remarks || '—'}</td>
                                             <td className="col-actions">
-                                                {rfi.status === 'pending' && (
+                                                <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
                                                     <button
-                                                        className="btn btn-sm btn-action btn-delete"
-                                                        onClick={() => deleteRFI(rfi.id)}
-                                                        title="Delete RFI"
+                                                        className="btn btn-sm btn-ghost"
+                                                        onClick={() => setDetailTarget(rfi)}
+                                                        title="Open Discussion"
                                                     >
-                                                        <Trash2 size={14} />
+                                                        <MessageSquare size={14} />
                                                     </button>
-                                                )}
+                                                    {rfi.status === 'pending' && (
+                                                        <button
+                                                            className="btn btn-sm btn-action btn-delete"
+                                                            onClick={() => deleteRFI(rfi.id)}
+                                                            title="Delete RFI"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -333,7 +354,7 @@ export default function DailyRFISheet() {
                     </div>
 
                     {submitMessage && (
-                        <div className={`submit-message ${submitMessage.includes('✅') ? 'success' : 'error'}`}>
+                        <div className={`submit - message ${submitMessage.includes('✅') ? 'success' : 'error'} `}>
                             {submitMessage}
                         </div>
                     )}
@@ -354,7 +375,7 @@ export default function DailyRFISheet() {
                                     const objectUrl = URL.createObjectURL(img);
                                     return (
                                         <div key={idx} className="lightbox-image-wrapper">
-                                            <img src={objectUrl} alt={`Attachment ${idx + 1}`} className="lightbox-image" />
+                                            <img src={objectUrl} alt={`Attachment ${idx + 1} `} className="lightbox-image" />
                                             <a href={objectUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-ghost lightbox-download">
                                                 Open Full Size
                                             </a>
@@ -364,6 +385,14 @@ export default function DailyRFISheet() {
                             </div>
                         </div>
                     </div>
+                )}
+
+                {/* Detail & Comments Modal */}
+                {detailTarget && (
+                    <RFIDetailModal
+                        rfi={detailTarget}
+                        onClose={() => setDetailTarget(null)}
+                    />
                 )}
             </main>
         </div>

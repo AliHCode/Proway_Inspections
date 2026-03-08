@@ -224,6 +224,21 @@ export function RFIProvider({ children }) {
         }
     }
 
+    /** Request Info on an RFI (Kicks back to contractor without formal rejection) */
+    async function requestInfo(rfiId, reviewedBy, remarks) {
+        try {
+            const { error } = await supabase.from('rfis').update({
+                status: RFI_STATUS.INFO_REQUESTED,
+                reviewed_by: reviewedBy,
+                reviewed_at: new Date().toISOString(),
+                remarks: remarks,
+            }).eq('id', rfiId);
+            if (error) throw error;
+        } catch (error) {
+            console.error("Error requesting info on RFI:", error);
+        }
+    }
+
     /** Re-submit a rejected/carried-over RFI (reset to pending for current day) */
     async function resubmitRFI(rfiId, newDate) {
         try {
@@ -238,6 +253,53 @@ export function RFIProvider({ children }) {
             if (error) throw error;
         } catch (error) {
             console.error("Error resubmitting RFI:", error);
+        }
+    }
+
+    /** -------------------------
+     *   COMMENTS (PHASE 5)
+     *  ------------------------- */
+    async function fetchComments(rfiId) {
+        try {
+            const { data, error } = await supabase
+                .from('comments')
+                .select(`
+                    id, 
+                    content, 
+                    created_at, 
+                    user_id,
+                    profiles (name, role, company)
+                `)
+                .eq('rfi_id', rfiId)
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+
+            return data.map(c => ({
+                id: c.id,
+                content: c.content,
+                createdAt: c.created_at,
+                userId: c.user_id,
+                userName: c.profiles?.name || 'Unknown User',
+                userRole: c.profiles?.role || '',
+            }));
+        } catch (error) {
+            console.error("Error fetching comments:", error);
+            return [];
+        }
+    }
+
+    async function addComment(rfiId, userId, content) {
+        try {
+            const { error } = await supabase.from('comments').insert([{
+                rfi_id: rfiId,
+                user_id: userId,
+                content: content
+            }]);
+            if (error) throw error;
+        } catch (error) {
+            console.error("Error adding comment:", error);
+            throw error;
         }
     }
 
@@ -333,12 +395,15 @@ export function RFIProvider({ children }) {
                 createRFI,
                 approveRFI,
                 rejectRFI,
+                requestInfo,
                 resubmitRFI,
                 deleteRFI,
                 updateRFI,
                 getRFIsForDate,
                 getReviewQueue,
                 getStats,
+                fetchComments,
+                addComment,
             }}
         >
             {children}
