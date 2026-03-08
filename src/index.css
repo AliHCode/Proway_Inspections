@@ -5,8 +5,10 @@
    ============================================ */
 
 @media (max-width: 768px) {
+
   /* Prevent horizontal scroll universally */
-  body, #root {
+  body,
+  #root {
     overflow-x: hidden;
     max-width: 100vw;
   }
@@ -23,13 +25,13 @@
   }
 
   .dashboard-section {
-    padding: 1rem !important; 
+    padding: 1rem !important;
     margin-bottom: 1rem !important;
   }
 
   /* Stat Cards Flex Setup */
   .stats-grid {
-    gap: 1rem; 
+    gap: 1rem;
   }
 
   .stat-card {
@@ -47,11 +49,11 @@
   .app-header {
     padding: 0 1rem;
   }
-  
+
   .dashboard-header h1 {
     font-size: 1.5rem;
   }
-  
+
   /* Make mini-stats full width */
   .review-mini-stat-card {
     width: 100%;
@@ -66,97 +68,111 @@
     gap: 0.5rem;
     margin-bottom: 1rem;
   }
-  
+
   .review-mini-stats {
-    flex-wrap: wrap; /* NEW: Let mini stats wrap */
+    flex-wrap: wrap;
+    /* NEW: Let mini stats wrap */
     gap: 1rem;
   }
-  
+
   .review-mini-stat-card {
-    flex: 1 1 100%; /* NEW: Force full width */
+    flex: 1 1 100%;
+    /* NEW: Force full width */
     padding: 1rem;
   }
-  
+
   .recent-files-list {
     padding: 0.5rem;
   }
-  
+
   .file-item {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.25rem;
   }
-  
+
   .file-actions {
     width: 100%;
     justify-content: flex-end;
     margin-top: 0.5rem;
   }
-  
+
   /* Force inputs and forms to behave */
-  input, select, textarea {
+  input,
+  select,
+  textarea {
     max-width: 100%;
     box-sizing: border-box;
   }
-  
+
   .form-group {
     margin-bottom: 0.75rem;
   }
-  
+
   .rfi-form-container {
     padding: 1rem;
   }
 }
 
-/* Extreme Typography & Layout Scaling */
-  html {
-    font-size: 11.5px !important; /* Scales down all rem units aggressively */
-  }
+/* ============================================
+   PHASE 8D: NATIVE FLEX-WRAP OPTIMIZATION
+   ============================================ */
+@media (max-width: 768px) {
 
-  body, #root {
-    overflow-x: hidden; /* Prevent horizontal scroll universally */
+  /* Prevent horizontal scroll universally */
+  body,
+  #root {
+    overflow-x: hidden;
     max-width: 100vw;
   }
 
   main {
-    padding: 0.5rem !important; /* Minimum padding */
+    padding: 1rem !important;
   }
 
-  /* Compress Dashboards */
+  /* Compress Dashboards neatly with flex-wrap */
+  .dashboard-header {
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
   .dashboard-section {
-    padding: 1rem !important; /* Reduce inner padding */
+    padding: 1rem !important;
     margin-bottom: 1rem !important;
   }
 
+  /* Stat Cards Flex Setup */
   .stats-grid {
-    gap: 0.5rem; /* Tighter layout */
+    gap: 1rem;
   }
 
   .stat-card {
-    padding: 1rem;
-    min-width: 0; /* Allow shrinking */
+    padding: 1.25rem;
+    flex: 1 1 100%;
   }
 
-  /* Universal Icon Scaling */
-  .lucide {
-    transform: scale(0.85); /* Downsize icons */
-    transform-origin: center;
+  /* Header Hiding Profile */
+  .header-user-info {
+    display: none !important;
   }
 }
 
 @media (max-width: 480px) {
   html {
-    font-size: 10.5px !important; /* Maximum scaling for very small screens */
+    font-size: 10.5px !important;
+    /* Maximum scaling for very small screens */
   }
 
   .app-header {
     padding: 0 0.5rem;
   }
-  
+
   .dashboard-header h1 {
     font-size: 1.5rem;
   }
 }
+
 /* More targeted compression for mobile */
 @media (max-width: 768px) {
   .dashboard-header {
@@ -165,43 +181,45 @@
     gap: 0.5rem;
     margin-bottom: 1rem;
   }
-  
+
   .review-mini-stats {
     flex-direction: column;
     gap: 0.5rem;
   }
-  
+
   .review-mini-stat-card {
     width: 100%;
     padding: 0.75rem 1rem;
   }
-  
+
   .recent-files-list {
     padding: 0.5rem;
   }
-  
+
   .file-item {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.25rem;
   }
-  
+
   .file-actions {
     width: 100%;
     justify-content: flex-end;
     margin-top: 0.5rem;
   }
-  
+
   /* Force inputs and forms to behave */
-  input, select, textarea {
+  input,
+  select,
+  textarea {
     max-width: 100%;
     box-sizing: border-box;
   }
-  
+
   .form-group {
     margin-bottom: 0.75rem;
   }
-  
+
   .rfi-form-container {
     padding: 1rem;
   }
@@ -212,6 +230,7 @@
    ============================================ */
 
 @media (max-width: 768px) {
+
   /* Header Polish - Make it more prominent */
   .app-header {
     height: 70px !important;
@@ -235,14 +254,17 @@
   }
 
   .mobile-project-selector {
-    padding: 0.5rem !important; /* Reduced padding from 0.75rem */
-    margin: 0.25rem 0 !important; /* Reduced margin */
+    padding: 0.5rem !important;
+    /* Reduced padding from 0.75rem */
+    margin: 0.25rem 0 !important;
+    /* Reduced margin */
     background-color: var(--clr-bg-secondary) !important;
     border: 1px solid var(--clr-border) !important;
   }
 
   .mobile-project-selector select {
-    font-size: 1.1rem !important; /* Normal font size */
+    font-size: 1.1rem !important;
+    /* Normal font size */
     height: auto !important;
     padding: 0.4rem !important;
   }
@@ -251,7 +273,8 @@
   .cell-input {
     font-size: 1.1rem !important;
     padding: 0.5rem 0.75rem !important;
-    height: 34px !important; /* Enforce smaller height */
+    height: 34px !important;
+    /* Enforce smaller height */
   }
 
   .rfi-table-wrapper {
@@ -286,4 +309,3 @@
     font-size: 1.4rem !important;
   }
 }
-
