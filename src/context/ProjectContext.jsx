@@ -76,8 +76,25 @@ export function ProjectProvider({ children }) {
         }
     }
 
+    async function inviteUser(email, role, projectId) {
+        try {
+            // In a real app, this would send an email and create a pending invite
+            // For this demo, we'll just create a notification for the admin to handle it
+            const { error } = await supabase.from('notifications').insert([{
+                user_id: user.id, // Notification to self (admin) for tracking
+                title: 'User Invitation Requested',
+                message: `Invite sent to ${email} as ${role} for project ${projectId}.`
+            }]);
+            if (error) throw error;
+            return { success: true };
+        } catch (error) {
+            console.error("Error inviting user:", error);
+            return { success: false, error: error.message };
+        }
+    }
+
     return (
-        <ProjectContext.Provider value={{ projects, activeProject, loadingProjects, changeActiveProject, createProject }}>
+        <ProjectContext.Provider value={{ projects, activeProject, loadingProjects, changeActiveProject, createProject, inviteUser }}>
             {children}
         </ProjectContext.Provider>
     );

@@ -10,21 +10,35 @@ import ContractorDashboard from './pages/ContractorDashboard';
 import DailyRFISheet from './pages/DailyRFISheet';
 import ConsultantDashboard from './pages/ConsultantDashboard';
 import ReviewQueue from './pages/ReviewQueue';
+import AdminDashboard from './pages/AdminDashboard';
+import OnboardingWizard from './pages/OnboardingWizard';
+import { useProject } from './context/ProjectContext';
 
-function ProtectedRoute({ children, allowedRole }) {
+function ProtectedRoute({ children, allowedRoles }) {
     const { user, loading } = useAuth();
     if (loading) return <LoadingSpinner message="Authenticating..." />;
     if (!user) return <Navigate to="/" replace />;
-    if (allowedRole && user.role !== allowedRole) {
-        return <Navigate to={user.role === 'contractor' ? '/contractor' : '/consultant'} replace />;
+    if (allowedRoles && !allowedRoles.includes(user.role)) {
+        const home = user.role === 'admin' ? '/admin' : user.role === 'contractor' ? '/contractor' : '/consultant';
+        return <Navigate to={home} replace />;
     }
     return children;
 }
 
 function AppRoutes() {
     const { user, loading } = useAuth();
+    const { projects, loadingProjects } = useProject();
 
-    if (loading) return <div className="loading-screen">Loading...</div>;
+    if (loading || loadingProjects) return <LoadingSpinner message="Setting up your workspace..." />;
+
+    // Redirect to onboarding if user has no projects
+    const hasNoProjects = projects.length === 0;
+    const isLoginPage = window.location.pathname === '/';
+    const isOnboardingPage = window.location.pathname === '/onboarding';
+
+    if (user && hasNoProjects && !isOnboardingPage && user.role !== 'admin') {
+        return <Navigate to="/onboarding" replace />;
+    }
 
     return (
         <Routes>
@@ -32,7 +46,10 @@ function AppRoutes() {
                 path="/"
                 element={
                     user ? (
-                        <Navigate to={user.role === 'contractor' ? '/contractor' : '/consultant'} replace />
+                        <Navigate to={
+                            user.role === 'admin' ? '/admin' :
+                                user.role === 'contractor' ? '/contractor' : '/consultant'
+                        } replace />
                     ) : (
                         <LoginPage />
                     )
@@ -41,7 +58,7 @@ function AppRoutes() {
             <Route
                 path="/contractor"
                 element={
-                    <ProtectedRoute allowedRole="contractor">
+                    <ProtectedRoute allowedRoles={['contractor']}>
                         <ContractorDashboard />
                     </ProtectedRoute>
                 }
@@ -49,7 +66,7 @@ function AppRoutes() {
             <Route
                 path="/contractor/rfi-sheet"
                 element={
-                    <ProtectedRoute allowedRole="contractor">
+                    <ProtectedRoute allowedRoles={['contractor']}>
                         <DailyRFISheet />
                     </ProtectedRoute>
                 }
@@ -57,7 +74,7 @@ function AppRoutes() {
             <Route
                 path="/consultant"
                 element={
-                    <ProtectedRoute allowedRole="consultant">
+                    <ProtectedRoute allowedRoles={['consultant']}>
                         <ConsultantDashboard />
                     </ProtectedRoute>
                 }
@@ -65,8 +82,28 @@ function AppRoutes() {
             <Route
                 path="/consultant/review"
                 element={
-                    <ProtectedRoute allowedRole="consultant">
+                    <ProtectedRoute allowedRoles={['consultant']}>
                         <ReviewQueue />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/admin"
+                element={
+                    <ProtectedRoute allowedRoles={['admin']}>
+                        <AdminDashboard />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/onboarding"
+                element={
+                    <ProtectedRoute allowedRoles={['contractor', 'consultant']}>
+                        {projects.length > 0 ? (
+                            <Navigate to="/" replace />
+                        ) : (
+                            <OnboardingWizard />
+                        )}
                     </ProtectedRoute>
                 }
             />

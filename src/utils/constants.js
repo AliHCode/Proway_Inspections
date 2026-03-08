@@ -21,6 +21,7 @@ export const RFI_STATUS = {
 export const USER_ROLES = {
   CONTRACTOR: 'contractor',
   CONSULTANT: 'consultant',
+  ADMIN: 'admin',
 };
 
 export const STATUS_COLORS = {

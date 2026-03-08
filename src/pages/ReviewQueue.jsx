@@ -9,12 +9,14 @@ import RejectModal from '../components/RejectModal';
 import InfoRequestModal from '../components/InfoRequestModal';
 import RFIDetailModal from '../components/RFIDetailModal';
 import UserAvatar from '../components/UserAvatar';
-import { exportToExcel, exportToPDF } from '../utils/exportUtils';
-import { CheckCircle, XCircle, AlertTriangle, RefreshCw, MessageSquare, Filter, Download, Image as ImageIcon, X, UserCheck } from 'lucide-react';
+import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
+import { CheckCircle, XCircle, AlertTriangle, RefreshCw, MessageSquare, Filter, Download, Image as ImageIcon, X, UserCheck, FileText } from 'lucide-react';
 
 export default function ReviewQueue() {
     const { user } = useAuth();
     const { approveRFI, rejectRFI, requestInfo, getReviewQueue, rfis } = useRFI();
+    const { activeProject } = useProject();
+    const activeProjectName = activeProject?.name || 'ClearLine Project';
     const [currentDate, setCurrentDate] = useState(getToday());
     const [rejectTarget, setRejectTarget] = useState(null);
     const [infoRequestTarget, setInfoRequestTarget] = useState(null);
@@ -80,6 +82,14 @@ export default function ReviewQueue() {
                                 title="Export to Excel"
                             >
                                 <Download size={16} /> Excel
+                            </button>
+                            <button
+                                className="btn btn-sm"
+                                style={{ backgroundColor: 'var(--clr-brand-secondary)', color: 'white', gap: '0.35rem' }}
+                                onClick={() => generateDailyReport(filteredItems, currentDate, activeProjectName)}
+                                title="Generate branded daily report"
+                            >
+                                <FileText size={16} /> Daily Report
                             </button>
                         </div>
                         <DateNavigator currentDate={currentDate} onDateChange={setCurrentDate} />

@@ -1,10 +1,12 @@
-import React from 'react';
-import { X, Calendar, MapPin, Tag, User, MessageSquare } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Calendar, MapPin, Tag, User, MessageSquare, History } from 'lucide-react';
 import ThreadedComments from './ThreadedComments';
+import AuditLog from './AuditLog';
 import StatusBadge from './StatusBadge';
 import { formatDateDisplay } from '../utils/rfiLogic';
 
 export default function RFIDetailModal({ rfi, onClose }) {
+    const [activeTab, setActiveTab] = useState('discussion');
     if (!rfi) return null;
 
     return (
@@ -99,14 +101,44 @@ export default function RFIDetailModal({ rfi, onClose }) {
                         )}
                     </div>
 
-                    {/* Right side: Threaded Comments */}
+                    {/* Right side: Tabbed Discussion / Audit */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--clr-bg-secondary)', padding: '1.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                            <MessageSquare size={18} color="var(--clr-text-main)" />
-                            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Discussion Thread</h3>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0', marginBottom: '1rem', borderBottom: '2px solid var(--clr-border)' }}>
+                            <button
+                                onClick={() => setActiveTab('discussion')}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1rem',
+                                    border: 'none', background: 'none', cursor: 'pointer',
+                                    fontWeight: activeTab === 'discussion' ? 700 : 500,
+                                    fontSize: '0.9rem', fontFamily: 'var(--font-main)',
+                                    color: activeTab === 'discussion' ? 'var(--clr-brand-secondary)' : 'var(--clr-text-muted)',
+                                    borderBottom: activeTab === 'discussion' ? '2px solid var(--clr-brand-secondary)' : '2px solid transparent',
+                                    marginBottom: '-2px',
+                                }}
+                            >
+                                <MessageSquare size={16} /> Discussion
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('audit')}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1rem',
+                                    border: 'none', background: 'none', cursor: 'pointer',
+                                    fontWeight: activeTab === 'audit' ? 700 : 500,
+                                    fontSize: '0.9rem', fontFamily: 'var(--font-main)',
+                                    color: activeTab === 'audit' ? 'var(--clr-brand-secondary)' : 'var(--clr-text-muted)',
+                                    borderBottom: activeTab === 'audit' ? '2px solid var(--clr-brand-secondary)' : '2px solid transparent',
+                                    marginBottom: '-2px',
+                                }}
+                            >
+                                <History size={16} /> Audit Trail
+                            </button>
                         </div>
                         <div style={{ flex: 1, backgroundColor: 'white', borderRadius: 'var(--radius-md)', border: '1px solid var(--clr-border)', overflow: 'hidden' }}>
-                            <ThreadedComments rfiId={rfi.id} />
+                            {activeTab === 'discussion' ? (
+                                <ThreadedComments rfiId={rfi.id} />
+                            ) : (
+                                <AuditLog rfiId={rfi.id} />
+                            )}
                         </div>
                     </div>
 

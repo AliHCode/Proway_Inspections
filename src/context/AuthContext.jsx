@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 
 const AuthContext = createContext(null);
@@ -6,8 +6,12 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const initialized = useRef(false);
 
     useEffect(() => {
+        if (initialized.current) return;
+        initialized.current = true;
+
         // Check active sessions and sets the user
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session?.user) fetchProfile(session.user.id);
@@ -37,6 +41,13 @@ export function AuthProvider({ children }) {
 
             if (error) throw error;
             if (data) {
+                // Block deactivated accounts
+                if (data.is_active === false) {
+                    await supabase.auth.signOut();
+                    setUser(null);
+                    setLoading(false);
+                    return;
+                }
                 // Ensure auth.user structure is combined with profile for easy usage
                 setUser({ ...data, email: (await supabase.auth.getUser()).data.user?.email });
             }

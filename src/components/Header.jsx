@@ -1,6 +1,6 @@
 import { useAuth } from '../context/AuthContext';
 import { useProject } from '../context/ProjectContext';
-import { LogOut, Menu, X, Building } from 'lucide-react';
+import { LogOut, Menu, X, Building, Shield } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import UserAvatar from './UserAvatar';
@@ -16,7 +16,9 @@ export default function Header() {
     if (!user) return null;
 
     const isContractor = user.role === 'contractor';
-    const dashPath = isContractor ? '/contractor' : '/consultant';
+    const isAdmin = user.role === 'admin';
+    const dashPath = isAdmin ? '/admin' : isContractor ? '/contractor' : '/consultant';
+    const roleLabel = isAdmin ? 'Admin' : isContractor ? 'Contractor' : 'Consultant';
 
     return (
         <header className="app-header">
@@ -46,7 +48,7 @@ export default function Header() {
                 <div className="header-user-details">
                     <span className="header-username">{user.name}</span>
                     <span className="header-role-text" data-role={user.role}>
-                        {isContractor ? 'Contractor' : 'Consultant'}
+                        {roleLabel}
                     </span>
                 </div>
                 <UserAvatar name={user.name} size={40} />
@@ -66,7 +68,7 @@ export default function Header() {
                             <strong>{user.name}</strong>
                             <span>{user.company}</span>
                             <span className="header-role-text" data-role={user.role}>
-                                {isContractor ? 'Contractor' : 'Consultant'}
+                                {roleLabel}
                             </span>
                         </div>
                     </div>
@@ -85,12 +87,20 @@ export default function Header() {
                             Daily RFI Sheet
                         </button>
                     )}
-                    {!isContractor && (
+                    {user.role === 'consultant' && (
                         <button
                             onClick={() => { navigate('/consultant/review'); setMenuOpen(false); }}
                             className={`header-dropdown-item ${location.pathname.includes('review') ? 'active' : ''}`}
                         >
                             Review Queue
+                        </button>
+                    )}
+                    {isAdmin && (
+                        <button
+                            onClick={() => { navigate('/admin'); setMenuOpen(false); }}
+                            className={`header-dropdown-item ${location.pathname === '/admin' ? 'active' : ''}`}
+                        >
+                            <Shield size={16} /> Admin Panel
                         </button>
                     )}
                     <hr />

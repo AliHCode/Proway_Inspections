@@ -221,6 +221,11 @@ export function RFIProvider({ children }) {
             const { data: insertedData, error } = await supabase.from('rfis').insert([formatForDB(newRfiData)]).select();
             if (error) throw error;
 
+            // Audit log
+            if (insertedData?.[0]) {
+                await logAuditEvent(insertedData[0].id, 'created', { description, location });
+            }
+
             // Notify the assigned consultant
             if (assignedTo && insertedData?.[0]) {
                 await createNotification(
@@ -229,6 +234,7 @@ export function RFIProvider({ children }) {
                     `A new RFI (#${serialNo}) at ${location} has been assigned to you.`,
                     insertedData[0].id
                 );
+                await logAuditEvent(insertedData[0].id, 'assigned', { assignee: assignedTo });
             }
         } catch (error) {
             console.error("Error creating RFI:", error);
@@ -316,6 +322,7 @@ export function RFIProvider({ children }) {
                 `Your RFI #${targetRfi.serialNo} for ${targetRfi.location} was approved.`,
                 rfiId
             );
+            await logAuditEvent(rfiId, 'approved');
         } catch (error) {
             console.error("Error approving RFI:", error);
         }
@@ -347,6 +354,7 @@ export function RFIProvider({ children }) {
                 `Your RFI #${targetRfi.serialNo} was rejected. Remarks: ${remarks}`,
                 rfiId
             );
+            await logAuditEvent(rfiId, 'rejected', { remarks });
         } catch (error) {
             console.error("Error rejecting RFI:", error);
         }
@@ -373,6 +381,7 @@ export function RFIProvider({ children }) {
                 `Consultant requested info on RFI #${targetRfi.serialNo}: ${remarks}`,
                 rfiId
             );
+            await logAuditEvent(rfiId, 'info_requested', { remarks });
         } catch (error) {
             console.error("Error requesting info on RFI:", error);
         }
@@ -403,6 +412,7 @@ export function RFIProvider({ children }) {
                     rfiId
                 );
             }
+            await logAuditEvent(rfiId, 'resubmitted');
         } catch (error) {
             console.error("Error re-submitting RFI:", error);
         }
@@ -471,6 +481,7 @@ export function RFIProvider({ children }) {
                 );
             }
 
+            await logAuditEvent(rfiId, 'commented', { content });
         } catch (error) {
             console.error("Error adding comment:", error);
             throw error;
@@ -598,9 +609,23 @@ export function RFIProvider({ children }) {
                 message,
                 rfi_id: rfiId
             }]);
-            // Realtime subscription will ping the user if they are online
         } catch (error) {
             console.error("Error creating notification:", error);
+        }
+    }
+
+    // --- Audit Trail Logger ---
+    async function logAuditEvent(rfiId, action, details = {}) {
+        if (!user) return;
+        try {
+            await supabase.from('audit_log').insert([{
+                rfi_id: rfiId,
+                user_id: user.id,
+                action,
+                details
+            }]);
+        } catch (error) {
+            console.error("Error logging audit event:", error);
         }
     }
 
