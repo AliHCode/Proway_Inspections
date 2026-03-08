@@ -19,7 +19,7 @@ export function ProjectProvider({ children }) {
         }
 
         async function fetchProjects() {
-            setLoadingProjects(true);
+            if (projects.length === 0) setLoadingProjects(true);
             try {
                 // In a full app, you might only fetch projects the user is assigned to
                 const { data, error } = await supabase.from('projects').select('*').order('name');
