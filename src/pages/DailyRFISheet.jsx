@@ -8,7 +8,8 @@ import DateNavigator from '../components/DateNavigator';
 import StatusBadge from '../components/StatusBadge';
 import RFIDetailModal from '../components/RFIDetailModal';
 import EditRFIModal from '../components/EditRFIModal';
-import { Plus, Trash2, Send, AlertTriangle, RefreshCw, X, MessageSquare, Pencil, FileDown, Table, ClipboardList } from 'lucide-react';
+import ImageMarkupModal from '../components/ImageMarkupModal';
+import { Plus, Trash2, Send, AlertTriangle, RefreshCw, X, MessageSquare, Pencil, FileDown, Table, ClipboardList, Brush } from 'lucide-react';
 import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
 import { useProject } from '../context/ProjectContext';
 
@@ -16,7 +17,7 @@ export default function DailyRFISheet() {
     const { user } = useAuth();
     const { activeProject } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
-    const { createRFI, uploadImages, updateRFI, getRFIsForDate, resubmitRFI, deleteRFI, consultants, rfis } = useRFI();
+    const { createRFI, uploadImages, updateRFI, getRFIsForDate, resubmitRFI, deleteRFI, consultants, rfis, pendingSyncCount } = useRFI();
     const [currentDate, setCurrentDate] = useState(getToday());
     const [detailTarget, setDetailTarget] = useState(null);
     const [editTarget, setEditTarget] = useState(null);
@@ -24,6 +25,7 @@ export default function DailyRFISheet() {
     const [submitMessage, setSubmitMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedImages, setSelectedImages] = useState(null);
+    const [markupTarget, setMarkupTarget] = useState(null);
 
     const { carriedOver, newRfis } = getRFIsForDate(currentDate);
 
@@ -36,6 +38,10 @@ export default function DailyRFISheet() {
         (r.status === 'approved' || r.status === 'rejected') &&
         ((r.reviewedAt && r.reviewedAt.startsWith(currentDate)) || r.filedDate === currentDate)
     ) : [];
+
+    const markupImage = markupTarget
+        ? newRows.find((r) => r.tempId === markupTarget.tempId)?.images?.[markupTarget.imageIndex] || null
+        : null;
 
     function createEmptyRow() {
         return {
@@ -75,6 +81,24 @@ export default function DailyRFISheet() {
         );
     }
 
+    function replaceImage(tempId, imgIndex, file) {
+        setNewRows((prev) =>
+            prev.map((r) => {
+                if (r.tempId === tempId) {
+                    const nextImages = [...r.images];
+                    nextImages[imgIndex] = file;
+                    return { ...r, images: nextImages };
+                }
+                return r;
+            })
+        );
+    }
+
+    function getImagePreviewSrc(image) {
+        if (!image) return '';
+        return typeof image === 'string' ? image : URL.createObjectURL(image);
+    }
+
     async function handleSubmit() {
         const validRows = newRows.filter((r) => r.description.trim() && r.location.trim());
         if (validRows.length === 0) {
@@ -83,28 +107,29 @@ export default function DailyRFISheet() {
             return;
         }
 
+        const offline = !navigator.onLine;
         setIsSubmitting(true);
-        setSubmitMessage('Uploading files and submitting RFIs...');
+        setSubmitMessage(offline ? 'No signal. Saving RFIs offline...' : 'Uploading files and submitting RFIs...');
 
         try {
             for (const row of validRows) {
-                // Upload images to Supabase Storage first, if any
-                const uploadedUrls = await uploadImages(row.images);
-
-                // Then create the DB record
                 await createRFI({
                     description: row.description.trim(),
                     location: row.location.trim(),
                     inspectionType: row.inspectionType,
                     filedBy: user.id,
                     filedDate: currentDate,
-                    images: uploadedUrls,
+                    images: row.images,
                     assignedTo: row.assignedTo || null,
                 });
             }
 
             setNewRows([createEmptyRow()]);
-            setSubmitMessage(`✅ ${validRows.length} RFI(s) submitted successfully!`);
+            setSubmitMessage(
+                offline
+                    ? `✅ ${validRows.length} RFI(s) saved offline. They will auto-sync when Wi-Fi returns.`
+                    : `✅ ${validRows.length} RFI(s) submitted successfully!`
+            );
         } catch (error) {
             console.error("Submit error:", error);
             setSubmitMessage('❌ Error submitting RFIs. Please try again.');
@@ -162,6 +187,11 @@ export default function DailyRFISheet() {
                 <div className="sheet-header">
                     <div>
                         <h1>📋 Daily RFI Sheet</h1>
+                        {pendingSyncCount > 0 && (
+                            <p className="subtitle" style={{ marginTop: '0.2rem' }}>
+                                {pendingSyncCount} offline RFI{pendingSyncCount > 1 ? 's' : ''} queued for auto-sync.
+                            </p>
+                        )}
                     </div>
                     <div className="review-header-controls" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                         {myNewRfis.length > 0 && (
@@ -463,12 +493,23 @@ export default function DailyRFISheet() {
                                                         {row.images.map((img, i) => (
                                                             <div key={i} className="thumbnail-wrapper">
                                                                 <img
-                                                                    src={URL.createObjectURL(img)}
+                                                                    src={getImagePreviewSrc(img)}
                                                                     alt="preview"
                                                                     className="thumbnail"
                                                                     style={{ cursor: 'pointer' }}
                                                                     onClick={() => setSelectedImages(row.images)}
                                                                 />
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn-thumb-markup"
+                                                                    title="Markup photo"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setMarkupTarget({ tempId: row.tempId, imageIndex: i });
+                                                                    }}
+                                                                >
+                                                                    <Brush size={12} />
+                                                                </button>
                                                                 <button
                                                                     className="btn-remove-thumb"
                                                                     onClick={(e) => {
@@ -542,6 +583,17 @@ export default function DailyRFISheet() {
                             </div>
                         </div>
                     </div>
+                )}
+
+                {markupTarget && markupImage && (
+                    <ImageMarkupModal
+                        image={markupImage}
+                        onClose={() => setMarkupTarget(null)}
+                        onSave={(annotatedFile) => {
+                            replaceImage(markupTarget.tempId, markupTarget.imageIndex, annotatedFile);
+                            setMarkupTarget(null);
+                        }}
+                    />
                 )}
 
                 {/* Detail & Comments Modal */}

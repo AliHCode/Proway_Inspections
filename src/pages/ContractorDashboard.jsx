@@ -53,10 +53,10 @@ export default function ContractorDashboard() {
 
     // --- Chart Data Preparation ---
     const pieData = [
-        { name: 'Approved', value: stats.overallApproved, color: 'var(--clr-success)' },
-        { name: 'Pending', value: stats.overallPending, color: 'var(--clr-warning)' },
-        { name: 'Rejected', value: stats.overallRejected, color: 'var(--clr-danger)' },
-        { name: 'Info Req.', value: stats.infoRequested, color: 'var(--clr-brand-secondary)' },
+        { name: 'Approved', value: stats.todayApproved, color: 'var(--clr-success)' },
+        { name: 'Pending', value: stats.todayPending, color: 'var(--clr-warning)' },
+        { name: 'Rejected', value: stats.todayRejected, color: 'var(--clr-danger)' },
+        { name: 'Info Req.', value: stats.todayTotal - (stats.todayApproved + stats.todayPending + stats.todayRejected), color: 'var(--clr-brand-secondary)' },
     ];
 
     // Group RFIs by date for the area chart (last 7 days of activity)
@@ -105,28 +105,28 @@ export default function ContractorDashboard() {
                     <StatsCard
                         icon={<FileText size={24} />}
                         label="Total Filed"
-                        value={stats.overallTotal}
+                        value={stats.todayTotal}
                         color="#6366f1"
-                        subtitle="All time"
+                        subtitle="Today"
                     />
                     <StatsCard
                         icon={<Clock size={24} />}
                         label="Pending"
-                        value={stats.overallPending}
+                        value={stats.todayPending}
                         color="#f59e0b"
                         subtitle="Awaiting review"
                     />
                     <StatsCard
                         icon={<CheckCircle size={24} />}
                         label="Approved"
-                        value={stats.overallApproved}
+                        value={stats.todayApproved}
                         color="#10b981"
-                        subtitle="All time"
+                        subtitle="Daily"
                     />
                     <StatsCard
                         icon={<XCircle size={24} />}
                         label="Rejected"
-                        value={stats.overallRejected}
+                        value={stats.todayRejected}
                         color="#ef4444"
                         subtitle="Needs attention"
                     />
@@ -142,7 +142,7 @@ export default function ContractorDashboard() {
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'stretch', flexWrap: 'wrap' }}>
                     <div className="dashboard-section" style={{ flex: '2 1 300px', minWidth: 0, margin: 0, maxWidth: '100%' }}>
                         <div className="section-header">
                             <h2><TrendingUp size={20} /> Recent RFIs</h2>

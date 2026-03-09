@@ -1,10 +1,18 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import toast from 'react-hot-toast';
 import { useProject } from './ProjectContext';
 import { useAuth } from './AuthContext';
 import { getToday, getNextDay } from '../utils/rfiLogic';
 import { RFI_STATUS } from '../utils/constants';
+import {
+    enqueuePendingRFI,
+    listPendingRFIs,
+    removePendingRFI,
+    countPendingRFIs,
+    serializeImagesForQueue,
+    deserializeQueuedImages,
+} from '../utils/offlineQueue';
 
 const RFIContext = createContext(null);
 
@@ -13,6 +21,8 @@ export function RFIProvider({ children }) {
     const { user } = useAuth();
     const [rfis, setRfis] = useState([]);
     const [loadingRfis, setLoadingRfis] = useState(true);
+    const [pendingSyncCount, setPendingSyncCount] = useState(0);
+    const isSyncingOfflineRef = useRef(false);
 
     // Consultants list for Direct Assign
     const [consultants, setConsultants] = useState([]);
@@ -21,6 +31,40 @@ export function RFIProvider({ children }) {
     // Notifications State
     const [notifications, setNotifications] = useState([]);
     const unreadCount = notifications.filter(n => !n.is_read).length;
+
+    const refreshPendingSyncCount = useCallback(async () => {
+        try {
+            if (!activeProject?.id) {
+                setPendingSyncCount(0);
+                return;
+            }
+            const count = await countPendingRFIs(activeProject.id);
+            setPendingSyncCount(count);
+        } catch (error) {
+            console.error('Error reading offline queue count:', error);
+        }
+    }, [activeProject]);
+
+    const getNextSerialNoForDate = useCallback(async (filedDate) => {
+        const { data, error } = await supabase
+            .from('rfis')
+            .select('serial_no')
+            .eq('project_id', activeProject?.id)
+            .eq('filed_date', filedDate);
+
+        if (error) throw error;
+
+        const maxSerial = (data || []).reduce((max, row) => Math.max(max, row.serial_no || 0), 0);
+        return maxSerial + 1;
+    }, [activeProject]);
+
+    const normalizeImagesForSubmission = useCallback(async (images = []) => {
+        const files = images.filter((img) => img instanceof File);
+        const urls = images.filter((img) => typeof img === 'string');
+
+        const uploadedUrls = files.length > 0 ? await uploadImages(files) : [];
+        return [...urls, ...uploadedUrls];
+    }, [uploadImages]);
 
     const fetchAllRFIs = useCallback(async () => {
         if (!activeProject) {
@@ -149,8 +193,13 @@ export function RFIProvider({ children }) {
         fetchAllRFIs();
         fetchConsultants();
         fetchContractors();
+        refreshPendingSyncCount();
         if (user) {
             fetchNotifications();
+        }
+
+        if (navigator.onLine) {
+            syncPendingRFIs();
         }
 
         // Subscribe to real-time changes for RFIs
@@ -188,14 +237,29 @@ export function RFIProvider({ children }) {
         const refreshInterval = setInterval(() => {
             fetchAllRFIs();
             if (user) fetchNotifications();
+            if (navigator.onLine) syncPendingRFIs();
         }, 15000);
+
+        const handleOnline = () => {
+            toast('Back online. Syncing pending RFIs...', { icon: '🌐' });
+            syncPendingRFIs();
+        };
+        window.addEventListener('online', handleOnline);
 
         return () => {
             clearInterval(refreshInterval);
+            window.removeEventListener('online', handleOnline);
             supabase.removeChannel(rfiSubscription);
             if (notifSubscription) supabase.removeChannel(notifSubscription);
         };
-    }, [fetchAllRFIs, fetchConsultants, fetchContractors, fetchNotifications, user]);
+    }, [
+        fetchAllRFIs,
+        fetchConsultants,
+        fetchContractors,
+        fetchNotifications,
+        refreshPendingSyncCount,
+        user,
+    ]);
 
     // Format for DB insertion (camelCase -> snake_case)
     const formatForDB = (rfi) => ({
@@ -223,49 +287,106 @@ export function RFIProvider({ children }) {
             throw new Error('No active project selected.');
         }
 
-        const dateRfis = rfis.filter((r) => r.filedDate === filedDate);
-        const serialNo = dateRfis.length > 0 ? Math.max(...dateRfis.map((r) => r.serialNo)) + 1 : 1;
+        const normalizedImagesInput = images || [];
 
-        const newRfiData = {
-            serialNo,
-            description,
-            location,
-            inspectionType,
-            filedBy,
-            filedDate,
-            originalFiledDate: filedDate,
-            status: RFI_STATUS.PENDING,
-            reviewedBy: null,
-            reviewedAt: null,
-            remarks: null,
-            carryoverCount: 0,
-            carryoverTo: null,
-            images: images || [],
-            assignedTo: assignedTo || null,
-        };
+        // Dead-zone flow: persist request in IndexedDB and optimistically show it in the UI.
+        if (!navigator.onLine) {
+            const queuedImages = await serializeImagesForQueue(normalizedImagesInput);
+
+            await enqueuePendingRFI({
+                projectId: activeProject.id,
+                payload: {
+                    description,
+                    location,
+                    inspectionType,
+                    filedBy,
+                    filedDate,
+                    assignedTo: assignedTo || null,
+                    images: queuedImages,
+                },
+            });
+
+            const localDateRfis = rfis.filter((r) => r.filedDate === filedDate);
+            const localSerial = localDateRfis.length > 0 ? Math.max(...localDateRfis.map((r) => r.serialNo)) + 1 : 1;
+            const assignee = consultants.find((c) => c.id === assignedTo);
+
+            setRfis((prev) => ([
+                {
+                    id: `offline-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                    serialNo: localSerial,
+                    description,
+                    location,
+                    inspectionType,
+                    filedBy,
+                    filerName: user?.name || 'Offline User',
+                    filerCompany: user?.company || '',
+                    filedDate,
+                    originalFiledDate: filedDate,
+                    status: RFI_STATUS.PENDING,
+                    reviewedBy: null,
+                    reviewerName: '',
+                    reviewedAt: null,
+                    remarks: 'Queued offline. Will sync when online.',
+                    carryoverCount: 0,
+                    carryoverTo: null,
+                    images: normalizedImagesInput.filter((img) => typeof img === 'string'),
+                    assignedTo: assignedTo || null,
+                    assigneeName: assignee?.name || '',
+                    createdAt: new Date().toISOString(),
+                    pendingSync: true,
+                },
+                ...prev,
+            ]));
+
+            await refreshPendingSyncCount();
+            toast('Saved offline. Auto-sync will run when connection returns.', { icon: '📡' });
+            return { queued: true };
+        }
 
         try {
+            const serialNo = await getNextSerialNoForDate(filedDate);
+            const imageUrls = await normalizeImagesForSubmission(normalizedImagesInput);
+
+            const newRfiData = {
+                serialNo,
+                description,
+                location,
+                inspectionType,
+                filedBy,
+                filedDate,
+                originalFiledDate: filedDate,
+                status: RFI_STATUS.PENDING,
+                reviewedBy: null,
+                reviewedAt: null,
+                remarks: null,
+                carryoverCount: 0,
+                carryoverTo: null,
+                images: imageUrls,
+                assignedTo: assignedTo || null,
+            };
+
             const { data: insertedData, error } = await supabase.from('rfis').insert([formatForDB(newRfiData)]).select();
             if (error) throw error;
 
-            // Audit log
             if (insertedData?.[0]) {
                 await logAuditEvent(insertedData[0].id, 'created', { description, location });
             }
 
-            // Notify the assigned consultant
             if (assignedTo && insertedData?.[0]) {
                 await createNotification(
                     assignedTo,
-                    "RFI Assigned to You 📌",
+                    'RFI Assigned to You 📌',
                     `A new RFI (#${serialNo}) at ${location} has been assigned to you.`,
                     insertedData[0].id
                 );
                 await logAuditEvent(insertedData[0].id, 'assigned', { assignee: assignedTo });
             }
+
             await fetchAllRFIs();
+            await refreshPendingSyncCount();
+            return { queued: false };
         } catch (error) {
-            console.error("Error creating RFI:", error);
+            console.error('Error creating RFI:', error);
             throw error;
         }
     }
@@ -329,6 +450,84 @@ export function RFIProvider({ children }) {
 
         return uploadedUrls;
     }
+
+    const syncPendingRFIs = useCallback(async () => {
+        if (!navigator.onLine || !activeProject?.id || isSyncingOfflineRef.current) return;
+
+        isSyncingOfflineRef.current = true;
+        let syncedCount = 0;
+
+        try {
+            const queued = await listPendingRFIs(activeProject.id);
+            if (queued.length === 0) {
+                await refreshPendingSyncCount();
+                return;
+            }
+
+            for (const item of queued) {
+                try {
+                    const payload = item.payload || {};
+                    const reconstructedImages = deserializeQueuedImages(payload.images || []);
+                    const imageUrls = await normalizeImagesForSubmission(reconstructedImages);
+                    const serialNo = await getNextSerialNoForDate(payload.filedDate);
+
+                    const syncedRfi = {
+                        serialNo,
+                        description: payload.description,
+                        location: payload.location,
+                        inspectionType: payload.inspectionType,
+                        filedBy: payload.filedBy,
+                        filedDate: payload.filedDate,
+                        originalFiledDate: payload.filedDate,
+                        status: RFI_STATUS.PENDING,
+                        reviewedBy: null,
+                        reviewedAt: null,
+                        remarks: null,
+                        carryoverCount: 0,
+                        carryoverTo: null,
+                        images: imageUrls,
+                        assignedTo: payload.assignedTo || null,
+                    };
+
+                    const { data: insertedData, error } = await supabase.from('rfis').insert([formatForDB(syncedRfi)]).select();
+                    if (error) throw error;
+
+                    if (payload.assignedTo && insertedData?.[0]) {
+                        await createNotification(
+                            payload.assignedTo,
+                            'RFI Assigned to You 📌',
+                            `A new RFI (#${serialNo}) at ${payload.location} has been assigned to you.`,
+                            insertedData[0].id
+                        );
+                        await logAuditEvent(insertedData[0].id, 'assigned', { assignee: payload.assignedTo });
+                    }
+
+                    if (insertedData?.[0]) {
+                        await logAuditEvent(insertedData[0].id, 'created', {
+                            description: payload.description,
+                            location: payload.location,
+                            source: 'offline-sync',
+                        });
+                    }
+
+                    await removePendingRFI(item.id);
+                    syncedCount += 1;
+                } catch (itemError) {
+                    console.error('Error syncing queued RFI:', itemError);
+                }
+            }
+
+            await refreshPendingSyncCount();
+            if (syncedCount > 0) {
+                toast.success(`${syncedCount} offline RFI${syncedCount > 1 ? 's' : ''} synced.`);
+                await fetchAllRFIs();
+            }
+        } catch (error) {
+            console.error('Offline sync failed:', error);
+        } finally {
+            isSyncingOfflineRef.current = false;
+        }
+    }, [activeProject, fetchAllRFIs, getNextSerialNoForDate, normalizeImagesForSubmission, refreshPendingSyncCount]);
 
     /** Approve an RFI */
     async function approveRFI(rfiId, reviewedBy) {
@@ -721,6 +920,7 @@ export function RFIProvider({ children }) {
                 contractors,
                 notifications,
                 unreadCount,
+                pendingSyncCount,
                 uploadImages,
                 createRFI,
                 assignRFI,
