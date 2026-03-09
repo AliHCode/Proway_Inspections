@@ -1,13 +1,23 @@
 import { useState } from 'react';
 import { X, AlertTriangle } from 'lucide-react';
 
-export default function RejectModal({ rfi, onReject, onClose }) {
+export default function RejectModal({ rfi, onReject, onClose, contractors = [] }) {
     const [remarks, setRemarks] = useState('');
+    const [files, setFiles] = useState([]);
+
+    function toMentionKey(name) {
+        return name.toLowerCase().replace(/\s+/g, '');
+    }
+
+    function appendMention(name) {
+        const mention = `@${toMentionKey(name)}`;
+        setRemarks((prev) => (prev.trim().length ? `${prev} ${mention}` : mention));
+    }
 
     function handleSubmit(e) {
         e.preventDefault();
         if (!remarks.trim()) return;
-        onReject(rfi.id, remarks.trim());
+        onReject(rfi.id, remarks.trim(), files);
         onClose();
     }
 
@@ -77,6 +87,43 @@ export default function RejectModal({ rfi, onReject, onClose }) {
                                     backgroundColor: 'var(--clr-surface)'
                                 }}
                             />
+                            {contractors.length > 0 && (
+                                <div style={{ marginTop: '0.6rem' }}>
+                                    <div style={{ fontSize: '0.78rem', color: 'var(--clr-text-secondary)', marginBottom: '0.35rem' }}>
+                                        Tag contractors in remarks with <strong>@</strong>
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                        {contractors.slice(0, 8).map((contractor) => (
+                                            <button
+                                                key={contractor.id}
+                                                type="button"
+                                                className="btn btn-ghost btn-sm"
+                                                onClick={() => appendMention(contractor.name)}
+                                                title={`Tag @${toMentionKey(contractor.name)}`}
+                                            >
+                                                @{toMentionKey(contractor.name)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label className="modal-label" style={{ marginBottom: '0.5rem', fontWeight: 600, color: 'var(--clr-text)', display: 'block' }}>
+                                Attachments from Consultant (optional)
+                            </label>
+                            <input
+                                type="file"
+                                multiple
+                                accept="image/*"
+                                onChange={(e) => setFiles(Array.from(e.target.files || []))}
+                            />
+                            {files.length > 0 && (
+                                <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--clr-text-secondary)' }}>
+                                    {files.length} attachment(s) selected
+                                </div>
+                            )}
                         </div>
 
                         <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid var(--clr-border)', paddingTop: '1.5rem', marginTop: '1rem' }}>

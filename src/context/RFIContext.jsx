@@ -16,6 +16,7 @@ export function RFIProvider({ children }) {
 
     // Consultants list for Direct Assign
     const [consultants, setConsultants] = useState([]);
+    const [contractors, setContractors] = useState([]);
 
     // Notifications State
     const [notifications, setNotifications] = useState([]);
@@ -129,9 +130,25 @@ export function RFIProvider({ children }) {
         }
     }, []);
 
+    const fetchContractors = useCallback(async () => {
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('id, name, company, role')
+                .eq('role', 'contractor')
+                .order('name');
+
+            if (error) throw error;
+            setContractors(data || []);
+        } catch (error) {
+            console.error('Error fetching contractors:', error);
+        }
+    }, []);
+
     useEffect(() => {
         fetchAllRFIs();
         fetchConsultants();
+        fetchContractors();
         if (user) {
             fetchNotifications();
         }
@@ -178,7 +195,7 @@ export function RFIProvider({ children }) {
             supabase.removeChannel(rfiSubscription);
             if (notifSubscription) supabase.removeChannel(notifSubscription);
         };
-    }, [fetchAllRFIs, fetchConsultants, fetchNotifications, user]);
+    }, [fetchAllRFIs, fetchConsultants, fetchContractors, fetchNotifications, user]);
 
     // Format for DB insertion (camelCase -> snake_case)
     const formatForDB = (rfi) => ({
@@ -343,7 +360,7 @@ export function RFIProvider({ children }) {
     }
 
     /** Reject an RFI with remarks, and set carryover to next day */
-    async function rejectRFI(rfiId, reviewedBy, remarks) {
+    async function rejectRFI(rfiId, reviewedBy, remarks, consultantAttachments = []) {
         const today = getToday();
         const nextDay = getNextDay(today);
 
@@ -351,6 +368,10 @@ export function RFIProvider({ children }) {
         if (!targetRfi) return;
 
         try {
+            const mergedImages = [
+                ...(targetRfi.images || []),
+                ...(consultantAttachments || []),
+            ];
             const { error } = await supabase.from('rfis').update({
                 status: RFI_STATUS.REJECTED,
                 reviewed_by: reviewedBy,
@@ -358,6 +379,7 @@ export function RFIProvider({ children }) {
                 remarks: remarks,
                 carryover_count: targetRfi.carryoverCount + 1,
                 carryover_to: nextDay,
+                images: mergedImages,
             }).eq('id', rfiId);
             if (error) throw error;
 
@@ -368,6 +390,22 @@ export function RFIProvider({ children }) {
                 `Your RFI #${targetRfi.serialNo} was rejected. Remarks: ${remarks}`,
                 rfiId
             );
+            const mentionMatches = remarks.match(/@([a-z0-9._-]+)/gi) || [];
+            const mentionKeys = new Set(mentionMatches.map((m) => m.slice(1).toLowerCase()));
+            const taggedContractors = contractors.filter((c) =>
+                mentionKeys.has(c.name.toLowerCase().replace(/\s+/g, ''))
+            );
+            for (const tagged of taggedContractors) {
+                if (tagged.id !== targetRfi.filedBy) {
+                    await createNotification(
+                        tagged.id,
+                        "Tagged in Rejection Remarks",
+                        `You were tagged on RFI #${targetRfi.serialNo}: ${remarks}`,
+                        rfiId
+                    );
+                }
+            }
+
             await logAuditEvent(rfiId, 'rejected', { remarks });
             await fetchAllRFIs();
         } catch (error) {
@@ -703,6 +741,7 @@ export function RFIProvider({ children }) {
                 rfis,
                 loadingRfis,
                 consultants,
+                contractors,
                 notifications,
                 unreadCount,
                 uploadImages,

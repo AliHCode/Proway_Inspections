@@ -15,7 +15,7 @@ import { CheckCircle, XCircle, MessageSquare, X, FileText, FileSpreadsheet } fro
 
 export default function ReviewQueue() {
     const { user } = useAuth();
-    const { approveRFI, rejectRFI, requestInfo, getReviewQueue, rfis } = useRFI();
+    const { approveRFI, rejectRFI, requestInfo, getReviewQueue, rfis, uploadImages, contractors } = useRFI();
     const { activeProject } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
     const [currentDate, setCurrentDate] = useState(getToday());
@@ -47,9 +47,10 @@ export default function ReviewQueue() {
         setTimeout(() => setActionMessage(''), 2000);
     }
 
-    function handleReject(rfiId, remarks) {
-        rejectRFI(rfiId, user.id, remarks);
-        setActionMessage('❌ RFI Rejected — will carry over to next day');
+    async function handleReject(rfiId, remarks, files = []) {
+        const uploaded = files.length > 0 ? await uploadImages(files) : [];
+        rejectRFI(rfiId, user.id, remarks, uploaded);
+        setActionMessage('RFI Rejected and sent back to contractor.');
         setTimeout(() => setActionMessage(''), 3000);
     }
 
@@ -214,7 +215,7 @@ export default function ReviewQueue() {
                                                         <span className="text-muted">—</span>
                                                     )}
                                                 </td>
-                                                <td className="col-actions" style={{ width: (filter === 'to_review' || filter === 'my_assigned') ? '280px' : '100px' }}>
+                                                <td className="col-actions" style={{ width: (filter === 'to_review' || filter === 'my_assigned') ? '340px' : '100px' }}>
                                                     {(filter === 'to_review' || filter === 'my_assigned') ? (
                                                         <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
                                                             <button
@@ -228,9 +229,9 @@ export default function ReviewQueue() {
                                                                 className="btn btn-sm"
                                                                 style={{ backgroundColor: 'var(--clr-brand-secondary)', color: 'white' }}
                                                                 onClick={() => setInfoRequestTarget(rfi)}
-                                                                title="Request Info"
+                                                                title="Cancel"
                                                             >
-                                                                <MessageSquare size={14} />
+                                                                <X size={14} />
                                                             </button>
                                                             <button
                                                                 className="btn btn-sm btn-danger"
@@ -238,6 +239,13 @@ export default function ReviewQueue() {
                                                                 title="Reject"
                                                             >
                                                                 <XCircle size={14} />
+                                                            </button>
+                                                            <button
+                                                                className="btn btn-sm btn-ghost"
+                                                                onClick={() => setDetailTarget(rfi)}
+                                                                title="Chat"
+                                                            >
+                                                                <MessageSquare size={14} />
                                                             </button>
                                                         </div>
                                                     ) : (
@@ -275,6 +283,7 @@ export default function ReviewQueue() {
                     <RejectModal
                         rfi={rejectTarget}
                         onReject={handleReject}
+                        contractors={contractors}
                         onClose={() => setRejectTarget(null)}
                     />
                 )}
@@ -315,3 +324,4 @@ export default function ReviewQueue() {
         </div>
     );
 }
+

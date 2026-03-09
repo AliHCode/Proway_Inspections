@@ -119,8 +119,8 @@ CREATE POLICY "Contractors can insert RFIs" ON public.rfis FOR INSERT WITH CHECK
 DROP POLICY IF EXISTS "Authenticated users can update RFIs" ON public.rfis;
 CREATE POLICY "Authenticated users can update RFIs" ON public.rfis FOR UPDATE USING (auth.role() = 'authenticated');
 
-DROP POLICY IF EXISTS "Contractors can delete own pending RFIs" ON public.rfis;
-CREATE POLICY "Contractors can delete own pending RFIs" ON public.rfis FOR DELETE USING (auth.uid() = filed_by AND status = 'pending');
+DROP POLICY IF EXISTS "Contractors can delete own RFIs" ON public.rfis;
+CREATE POLICY "Contractors can delete own RFIs" ON public.rfis FOR DELETE USING (auth.uid() = filed_by);
 
 -- Comments Policies
 DROP POLICY IF EXISTS "Comments viewable by authenticated" ON public.comments;

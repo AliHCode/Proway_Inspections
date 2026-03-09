@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRFI } from '../context/RFIContext';
 import { getToday } from '../utils/rfiLogic';
@@ -7,13 +7,15 @@ import Header from '../components/Header';
 import DateNavigator from '../components/DateNavigator';
 import StatusBadge from '../components/StatusBadge';
 import RFIDetailModal from '../components/RFIDetailModal';
-import { Plus, Trash2, Send, AlertTriangle, RefreshCw, Save, X, MessageSquare } from 'lucide-react';
+import EditRFIModal from '../components/EditRFIModal';
+import { Plus, Trash2, Send, AlertTriangle, RefreshCw, X, MessageSquare, Pencil } from 'lucide-react';
 
 export default function DailyRFISheet() {
     const { user } = useAuth();
-    const { createRFI, uploadImages, getRFIsForDate, resubmitRFI, deleteRFI, consultants } = useRFI();
+    const { createRFI, uploadImages, updateRFI, getRFIsForDate, resubmitRFI, deleteRFI, consultants } = useRFI();
     const [currentDate, setCurrentDate] = useState(getToday());
     const [detailTarget, setDetailTarget] = useState(null);
+    const [editTarget, setEditTarget] = useState(null);
     const [newRows, setNewRows] = useState([createEmptyRow()]);
     const [submitMessage, setSubmitMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -104,6 +106,17 @@ export default function DailyRFISheet() {
 
     function handleResubmit(rfiId) {
         resubmitRFI(rfiId, currentDate);
+    }
+
+    async function handleSaveEdit(payload) {
+        if (!editTarget) return;
+        const uploaded = payload.newFiles.length > 0 ? await uploadImages(payload.newFiles) : [];
+        await updateRFI(editTarget.id, {
+            description: payload.description,
+            location: payload.location,
+            inspectionType: payload.inspectionType,
+            images: [...payload.existingImages, ...uploaded],
+        });
     }
 
     return (
@@ -214,15 +227,20 @@ export default function DailyRFISheet() {
                                                     >
                                                         <MessageSquare size={14} />
                                                     </button>
-                                                    {rfi.status === 'pending' && (
-                                                        <button
-                                                            className="btn btn-sm btn-action btn-delete"
-                                                            onClick={() => deleteRFI(rfi.id)}
-                                                            title="Delete RFI"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
-                                                    )}
+                                                    <button
+                                                        className="btn btn-sm btn-ghost"
+                                                        onClick={() => setEditTarget(rfi)}
+                                                        title="Edit RFI"
+                                                    >
+                                                        <Pencil size={14} />
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-sm btn-action btn-delete"
+                                                        onClick={() => deleteRFI(rfi.id)}
+                                                        title="Delete RFI"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -407,6 +425,14 @@ export default function DailyRFISheet() {
                     <RFIDetailModal
                         rfi={detailTarget}
                         onClose={() => setDetailTarget(null)}
+                    />
+                )}
+
+                {editTarget && (
+                    <EditRFIModal
+                        rfi={editTarget}
+                        onSave={handleSaveEdit}
+                        onClose={() => setEditTarget(null)}
                     />
                 )}
             </main>
