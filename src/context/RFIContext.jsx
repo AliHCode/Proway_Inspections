@@ -602,9 +602,9 @@ export function RFIProvider({ children }) {
         const sortedCarried = [...carriedOver].sort(sortRFIs);
 
         return {
-            carriedOver: sortedCarried,
+            carriedOver: [],
             newRfis: sortedTodays,
-            all: [...sortedCarried, ...sortedTodays],
+            all: sortedTodays,
         };
     }
 
