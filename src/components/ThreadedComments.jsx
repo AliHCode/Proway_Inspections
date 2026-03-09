@@ -11,17 +11,27 @@ export default function ThreadedComments({ rfiId, onCommentAdded }) {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [newComment, setNewComment] = useState('');
+    const isFirstLoad = useRef(true);
+    const prevCommentsLength = useRef(0);
     const messagesEndRef = useRef(null);
 
     useEffect(() => {
         loadComments();
-        // Set up polling since we are inside a modal, real-time context subscription might be too broad for individual comments right now
+        // Set up polling (5s)
         const interval = setInterval(loadComments, 5000);
         return () => clearInterval(interval);
     }, [rfiId]);
 
     useEffect(() => {
-        scrollToBottom();
+        // Only scroll on first load OR if length increased (new message)
+        if (isFirstLoad.current && comments.length > 0) {
+            scrollToBottom();
+            isFirstLoad.current = false;
+        } else if (comments.length > prevCommentsLength.current) {
+            // Optional: only scroll if the new message is from 'me' or if user is near bottom
+            // For now, let's just do it on first load as requested to stop the "again and again" jumps
+        }
+        prevCommentsLength.current = comments.length;
     }, [comments]);
 
     const loadComments = async () => {
@@ -43,6 +53,7 @@ export default function ThreadedComments({ rfiId, onCommentAdded }) {
             await addComment(rfiId, newComment.trim());
             setNewComment('');
             await loadComments();
+            scrollToBottom(); // Manually scroll when the user themselves sends a message
             if (onCommentAdded) onCommentAdded();
         } catch (error) {
             console.error(error);

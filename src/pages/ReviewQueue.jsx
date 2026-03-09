@@ -228,14 +228,6 @@ export default function ReviewQueue() {
                                                                 <CheckCircle size={14} />
                                                             </button>
                                                             <button
-                                                                className="btn btn-sm"
-                                                                style={{ backgroundColor: 'var(--clr-brand-secondary)', color: 'white' }}
-                                                                onClick={() => setInfoRequestTarget(rfi)}
-                                                                title="Cancel"
-                                                            >
-                                                                <X size={14} />
-                                                            </button>
-                                                            <button
                                                                 className="btn btn-sm btn-danger"
                                                                 onClick={() => setRejectTarget(rfi)}
                                                                 title="Reject"
@@ -243,7 +235,8 @@ export default function ReviewQueue() {
                                                                 <XCircle size={14} />
                                                             </button>
                                                             <button
-                                                                className="btn btn-sm btn-ghost"
+                                                                className="btn btn-sm"
+                                                                style={{ backgroundColor: '#000000', color: 'white', borderRadius: '4px', padding: '0.35rem 0.5rem' }}
                                                                 onClick={() => setDetailTarget(rfi)}
                                                                 title="Chat"
                                                             >
@@ -254,7 +247,8 @@ export default function ReviewQueue() {
                                                         <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', alignItems: 'center' }}>
                                                             <StatusBadge status={rfi.status} />
                                                             <button
-                                                                className="btn btn-sm btn-ghost"
+                                                                className="btn btn-sm"
+                                                                style={{ backgroundColor: '#000000', color: 'white', borderRadius: '4px', padding: '0.35rem 0.5rem' }}
                                                                 onClick={() => setDetailTarget(rfi)}
                                                                 title="Open Discussion"
                                                             >

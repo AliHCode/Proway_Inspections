@@ -2323,7 +2323,10 @@ h6 {
 
   .rfi-detail-body {
     flex-direction: column;
-    overflow-y: auto;
+    overflow-y: visible;
+    /* Prevent nested scroll */
+    flex: none;
+    /* Let content height grow */
   }
 
   .rfi-details-pane {
@@ -2331,10 +2334,32 @@ h6 {
     border-right: none;
     border-bottom: 1px solid var(--clr-border);
     max-height: none;
+    overflow: visible;
+    /* Prevent nested scroll */
   }
 
   .rfi-discussion-pane {
-    min-height: 360px;
+    min-height: 480px;
+    /* Give enough room for chat */
+    padding: 0.75rem;
+  }
+
+  .rfi-tab-panel {
+    overflow: visible;
+    /* Let children expand */
+  }
+
+  .threaded-comments,
+  .audit-log {
+    max-height: none;
+    /* Let parent scroll */
+    overflow: visible;
+  }
+
+  .comments-list {
+    max-height: 60vh;
+    /* Restore some limit/structure if needed, or set to none */
+    overflow: visible;
   }
 
   /* Modals */
@@ -2826,6 +2851,7 @@ body,
 }
 
 @media (max-width: 768px) {
+
   .dashboard-page,
   .rfi-sheet-page,
   .review-page,
@@ -2999,6 +3025,7 @@ body,
 }
 
 @media (max-width: 480px) {
+
   .dashboard-page,
   .rfi-sheet-page,
   .review-page,
