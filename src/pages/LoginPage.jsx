@@ -65,8 +65,8 @@ export default function LoginPage() {
             <div className="auth-wrapper">
                 {/* Branding Hero */}
                 <div className="auth-hero">
-                    <div className="auth-logo-text">
-                        <span className="logo-accent">Clear</span>Line
+                    <div className="auth-logo-img">
+                        <img src="/dashboardlogo.png" alt="ClearLine Logo" style={{ height: '64px', marginBottom: '1.5rem' }} />
                     </div>
                     <h1 className="hero-title">Build with <span className="text-accent">Confidence.</span></h1>
                     <p className="hero-subtitle">
