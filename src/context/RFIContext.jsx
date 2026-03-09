@@ -546,8 +546,8 @@ export function RFIProvider({ children }) {
         // Sorting strategy: Priority Rejected/Carryover, then serial number
         const sortRFIs = (a, b) => {
             // Rule 1: Rejected items/Carried items first
-            const aIsPriority = a.status === RFI_STATUS.REJECTED || (a.status === RFI_STATUS.INFO_REQUESTED);
-            const bIsPriority = b.status === RFI_STATUS.REJECTED || (b.status === RFI_STATUS.INFO_REQUESTED);
+            const aIsPriority = a.status === RFI_STATUS.REJECTED || a.status === RFI_STATUS.INFO_REQUESTED;
+            const bIsPriority = b.status === RFI_STATUS.REJECTED || b.status === RFI_STATUS.INFO_REQUESTED;
 
             if (aIsPriority && !bIsPriority) return -1;
             if (!aIsPriority && bIsPriority) return 1;
