@@ -543,20 +543,31 @@ export function RFIProvider({ children }) {
                 rfi.carryoverTo === targetDate
         );
 
-        // Sort properly: Rejected first, then serial number
-        const sortedTodaysRfis = todaysRfis.sort((a, b) => {
-            if (a.status === RFI_STATUS.REJECTED && b.status !== RFI_STATUS.REJECTED) return -1;
-            if (a.status !== RFI_STATUS.REJECTED && b.status === RFI_STATUS.REJECTED) return 1;
-            return a.serialNo - b.serialNo;
-        });
+        // Sorting strategy: Priority Rejected/Carryover, then serial number
+        const sortRFIs = (a, b) => {
+            // Rule 1: Rejected items/Carried items first
+            const aIsPriority = a.status === RFI_STATUS.REJECTED || (a.status === RFI_STATUS.INFO_REQUESTED);
+            const bIsPriority = b.status === RFI_STATUS.REJECTED || (b.status === RFI_STATUS.INFO_REQUESTED);
 
-        // Sort carried over: by serial number
-        const sortedCarriedOver = carriedOver.sort((a, b) => a.serialNo - b.serialNo);
+            if (aIsPriority && !bIsPriority) return -1;
+            if (!aIsPriority && bIsPriority) return 1;
+
+            // Rule 2: Carryover count (Previously rejected items first)
+            if (a.carryoverCount !== b.carryoverCount) {
+                return b.carryoverCount - a.carryoverCount;
+            }
+
+            // Rule 3: Serial number
+            return a.serialNo - b.serialNo;
+        };
+
+        const sortedTodays = [...todaysRfis].sort(sortRFIs);
+        const sortedCarried = [...carriedOver].sort(sortRFIs);
 
         return {
-            carriedOver: sortedCarriedOver,
-            newRfis: sortedTodaysRfis,
-            all: [...sortedCarriedOver, ...sortedTodaysRfis],
+            carriedOver: sortedCarried,
+            newRfis: sortedTodays,
+            all: [...sortedCarried, ...sortedTodays],
         };
     }
 
@@ -568,13 +579,38 @@ export function RFIProvider({ children }) {
         const carriedOver = rfis.filter(
             (rfi) =>
                 rfi.status === RFI_STATUS.REJECTED &&
-                rfi.carryoverTo === targetDate &&
-                rfi.filedDate < targetDate
+                rfi.carryoverTo === targetDate
         );
+
+        // Sorting strategy:
+        // 1. Rejected Carried Over (Must re-inspect)
+        // 2. High Carryover Count (Previously rejected multiple times)
+        // 3. Filed Date (Oldest first)
+        // 4. Serial Number
+        const sortQueue = (a, b) => {
+            // Rule A: Strictly Rejected status first (Consultant needs to see these carryovers)
+            if (a.status === RFI_STATUS.REJECTED && b.status !== RFI_STATUS.REJECTED) return -1;
+            if (a.status !== RFI_STATUS.REJECTED && b.status === RFI_STATUS.REJECTED) return 1;
+
+            // Rule B: Higher carryover count first (Priority re-inspections)
+            if (a.carryoverCount !== b.carryoverCount) {
+                return b.carryoverCount - a.carryoverCount;
+            }
+
+            // Rule C: Older content first
+            if (a.filedDate !== b.filedDate) {
+                return a.filedDate.localeCompare(b.filedDate);
+            }
+
+            return a.serialNo - b.serialNo;
+        };
+
+        const combined = [...carriedOver, ...pending].sort(sortQueue);
+
         return {
-            carriedOver: carriedOver.sort((a, b) => a.originalFiledDate.localeCompare(b.originalFiledDate)),
-            pending: pending.sort((a, b) => a.filedDate.localeCompare(b.filedDate) || a.serialNo - b.serialNo),
-            all: [...carriedOver, ...pending],
+            carriedOver: combined.filter(r => r.status === RFI_STATUS.REJECTED),
+            pending: combined.filter(r => r.status === RFI_STATUS.PENDING),
+            all: combined,
         };
     }
 
