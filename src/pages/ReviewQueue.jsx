@@ -17,7 +17,7 @@ export default function ReviewQueue() {
     const { user } = useAuth();
     const { approveRFI, rejectRFI, requestInfo, getReviewQueue, rfis } = useRFI();
     const { activeProject } = useProject();
-    const activeProjectName = activeProject?.name || 'ClearLine Project';
+    const activeProjectName = activeProject?.name || 'ProWay Project';
     const [currentDate, setCurrentDate] = useState(getToday());
     const [rejectTarget, setRejectTarget] = useState(null);
     const [infoRequestTarget, setInfoRequestTarget] = useState(null);
@@ -72,7 +72,7 @@ export default function ReviewQueue() {
                         <div className="export-actions review-export-actions">
                             <button
                                 className="btn btn-ghost btn-sm export-icon-btn pdf-icon-btn"
-                                onClick={() => exportToPDF(filteredItems, `ClearLine_Inspections_${currentDate}`)}
+                                onClick={() => exportToPDF(filteredItems, `ProWay_Inspections_${currentDate}`)}
                                 title="Export to PDF"
                                 aria-label="Export to PDF"
                             >
@@ -80,7 +80,7 @@ export default function ReviewQueue() {
                             </button>
                             <button
                                 className="btn btn-ghost btn-sm export-icon-btn excel-icon-btn"
-                                onClick={() => exportToExcel(filteredItems, `ClearLine_Inspections_${currentDate}`)}
+                                onClick={() => exportToExcel(filteredItems, `ProWay_Inspections_${currentDate}`)}
                                 title="Export to Excel"
                                 aria-label="Export to Excel"
                             >

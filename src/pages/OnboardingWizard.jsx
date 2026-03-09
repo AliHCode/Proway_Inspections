@@ -68,7 +68,7 @@ export default function OnboardingWizard() {
                             <div className="wizard-icon welcome">
                                 <Rocket size={48} />
                             </div>
-                            <h1>Welcome to ClearLine!</h1>
+                            <h1>Welcome to ProWay!</h1>
                             <p>Let's get your workspace ready in a few simple steps. First, tell us about your company.</p>
 
                             <div className="wizard-info-box">

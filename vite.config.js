@@ -13,8 +13,8 @@ export default defineConfig({
                 maximumFileSizeToCacheInBytes: 10 * 1024 * 1024 // 10 MiB limit
             },
             manifest: {
-                name: 'ClearLine Inspections',
-                short_name: 'ClearLine',
+                name: 'ProWay Inspections',
+                short_name: 'ProWay',
                 description: 'RFI Management System for Construction',
                 theme_color: '#111827',
                 background_color: '#FAFAFA',

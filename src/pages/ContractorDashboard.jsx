@@ -141,14 +141,14 @@ export default function ContractorDashboard() {
                                     <div className="export-actions" style={{ display: 'flex', gap: '0.25rem', marginRight: '1rem' }}>
                                         <button
                                             className="btn btn-ghost btn-sm"
-                                            onClick={() => exportToPDF(allMyRfis, `ClearLine_Contractor_Report`)}
+                                            onClick={() => exportToPDF(allMyRfis, `ProWay_Contractor_Report`)}
                                             title="Export to PDF"
                                         >
                                             <Download size={16} /> PDF
                                         </button>
                                         <button
                                             className="btn btn-ghost btn-sm"
-                                            onClick={() => exportToExcel(allMyRfis, `ClearLine_Contractor_Report`)}
+                                            onClick={() => exportToExcel(allMyRfis, `ProWay_Contractor_Report`)}
                                             title="Export to Excel"
                                         >
                                             <Download size={16} /> Excel

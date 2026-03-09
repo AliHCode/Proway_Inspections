@@ -48,7 +48,7 @@ export function exportToExcel(rfis, filename = 'RFI_Report') {
 /**
  * Export RFIs to PDF Document (.pdf)
  */
-export function exportToPDF(rfis, title = 'ClearLine Inspections - RFI Report') {
+export function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report') {
     if (!rfis || rfis.length === 0) {
         alert("No data available to export.");
         return;
@@ -90,7 +90,7 @@ export function exportToPDF(rfis, title = 'ClearLine Inspections - RFI Report') 
 /**
  * Generate a branded Daily Inspection Report PDF
  */
-export function generateDailyReport(rfis, date, projectName = 'ClearLine Project') {
+export function generateDailyReport(rfis, date, projectName = 'ProWay Project') {
     if (!rfis || rfis.length === 0) {
         alert("No data available for this date.");
         return;
@@ -112,7 +112,7 @@ export function generateDailyReport(rfis, date, projectName = 'ClearLine Project
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
-    doc.text('ClearLine', 14, 16);
+    doc.text('ProWay', 14, 16);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.text('Daily Inspection Report', 14, 24);
@@ -222,7 +222,6 @@ export function generateDailyReport(rfis, date, projectName = 'ClearLine Project
     const footerY = doc.internal.pageSize.getHeight() - 10;
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
-    doc.text(`ClearLine Inspections — Daily Report — ${formatDateDisplay(date)} — Confidential`, pageWidth / 2, footerY, { align: 'center' });
-
-    doc.save(`ClearLine_Daily_Report_${date}.pdf`);
+    doc.text(`ProWay Inspections — Daily Report — ${formatDateDisplay(date)} — Confidential`, pageWidth / 2, footerY, { align: 'center' });
+    doc.save(`ProWay_Daily_Report_${date}.pdf`);
 }
