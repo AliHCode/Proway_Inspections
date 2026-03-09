@@ -542,10 +542,21 @@ export function RFIProvider({ children }) {
                 rfi.status === RFI_STATUS.REJECTED &&
                 rfi.carryoverTo === targetDate
         );
+
+        // Sort properly: Rejected first, then serial number
+        const sortedTodaysRfis = todaysRfis.sort((a, b) => {
+            if (a.status === RFI_STATUS.REJECTED && b.status !== RFI_STATUS.REJECTED) return -1;
+            if (a.status !== RFI_STATUS.REJECTED && b.status === RFI_STATUS.REJECTED) return 1;
+            return a.serialNo - b.serialNo;
+        });
+
+        // Sort carried over: by serial number
+        const sortedCarriedOver = carriedOver.sort((a, b) => a.serialNo - b.serialNo);
+
         return {
-            carriedOver: carriedOver.sort((a, b) => a.serialNo - b.serialNo),
-            newRfis: todaysRfis.sort((a, b) => a.serialNo - b.serialNo),
-            all: [...carriedOver, ...todaysRfis],
+            carriedOver: sortedCarriedOver,
+            newRfis: sortedTodaysRfis,
+            all: [...sortedCarriedOver, ...sortedTodaysRfis],
         };
     }
 
