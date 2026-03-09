@@ -25,6 +25,7 @@ export default function ReviewQueue() {
     const [filter, setFilter] = useState('to_review'); // to_review, approved, rejected
     const [actionMessage, setActionMessage] = useState('');
     const [selectedImages, setSelectedImages] = useState(null);
+    const [scrollTrigger, setScrollTrigger] = useState(0);
 
     const queue = getReviewQueue(currentDate);
 
@@ -58,6 +59,10 @@ export default function ReviewQueue() {
         requestInfo(rfiId, user.id, remarks);
         setActionMessage('⚠️ Info Requested — returned to contractor');
         setTimeout(() => setActionMessage(''), 3000);
+    }
+
+    function scrollToPageBottom() {
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
     }
 
     return (
@@ -237,7 +242,11 @@ export default function ReviewQueue() {
                                                             <button
                                                                 className="btn btn-sm"
                                                                 style={{ backgroundColor: '#000000', color: 'white', borderRadius: '4px', padding: '0.35rem 0.5rem' }}
-                                                                onClick={() => setDetailTarget(rfi)}
+                                                                onClick={() => {
+                                                                    setDetailTarget(rfi);
+                                                                    setScrollTrigger(prev => prev + 1);
+                                                                    scrollToPageBottom();
+                                                                }}
                                                                 title="Chat"
                                                             >
                                                                 <MessageSquare size={14} />
@@ -249,7 +258,11 @@ export default function ReviewQueue() {
                                                             <button
                                                                 className="btn btn-sm"
                                                                 style={{ backgroundColor: '#000000', color: 'white', borderRadius: '4px', padding: '0.35rem 0.5rem' }}
-                                                                onClick={() => setDetailTarget(rfi)}
+                                                                onClick={() => {
+                                                                    setDetailTarget(rfi);
+                                                                    setScrollTrigger(prev => prev + 1);
+                                                                    scrollToPageBottom();
+                                                                }}
                                                                 title="Open Discussion"
                                                             >
                                                                 <MessageSquare size={14} />
@@ -269,8 +282,10 @@ export default function ReviewQueue() {
                 {/* Detail & Comments Modal */}
                 {detailTarget && (
                     <RFIDetailModal
+                        key={detailTarget.id}
                         rfi={detailTarget}
                         onClose={() => setDetailTarget(null)}
+                        externalScrollTrigger={scrollTrigger}
                     />
                 )}
 

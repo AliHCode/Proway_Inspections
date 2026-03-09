@@ -129,6 +129,10 @@ export default function DailyRFISheet() {
         });
     }
 
+    function scrollToPageBottom() {
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+    }
+
     return (
         <div className="page-wrapper">
             <Header />
@@ -240,7 +244,10 @@ export default function DailyRFISheet() {
                                                     </button>
                                                     <button
                                                         className="btn btn-sm btn-ghost"
-                                                        onClick={() => setDetailTarget(rfi)}
+                                                        onClick={() => {
+                                                            setDetailTarget(rfi);
+                                                            scrollToPageBottom();
+                                                        }}
                                                         title="Open Discussion"
                                                     >
                                                         <MessageSquare size={14} />
@@ -306,7 +313,10 @@ export default function DailyRFISheet() {
                                                 <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
                                                     <button
                                                         className="btn btn-sm btn-ghost"
-                                                        onClick={() => setDetailTarget(rfi)}
+                                                        onClick={() => {
+                                                            setDetailTarget(rfi);
+                                                            scrollToPageBottom();
+                                                        }}
                                                         title="Open Discussion"
                                                     >
                                                         <MessageSquare size={14} />

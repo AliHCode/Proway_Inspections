@@ -5,9 +5,21 @@ import AuditLog from './AuditLog';
 import StatusBadge from './StatusBadge';
 import { formatDateDisplay } from '../utils/rfiLogic';
 
-export default function RFIDetailModal({ rfi, onClose }) {
+export default function RFIDetailModal({ rfi, onClose, externalScrollTrigger }) {
     const [activeTab, setActiveTab] = useState('discussion');
+    const [tabScrollTrigger, setTabScrollTrigger] = useState(0);
+
+    // Combine triggers into a unique value that changes on every relevant click
+    const combinedTrigger = (externalScrollTrigger || 0) + tabScrollTrigger;
+
     if (!rfi) return null;
+
+    const handleTabClick = (tab) => {
+        if (tab === 'discussion') {
+            setTabScrollTrigger(prev => prev + 1);
+        }
+        setActiveTab(tab);
+    };
 
     return (
         <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1000 }}>
@@ -90,13 +102,13 @@ export default function RFIDetailModal({ rfi, onClose }) {
                     <section className="rfi-discussion-pane">
                         <div className="rfi-tabs">
                             <button
-                                onClick={() => setActiveTab('discussion')}
+                                onClick={() => handleTabClick('discussion')}
                                 className={`rfi-tab-btn ${activeTab === 'discussion' ? 'active' : ''}`}
                             >
                                 <MessageSquare size={16} /> Discussion
                             </button>
                             <button
-                                onClick={() => setActiveTab('audit')}
+                                onClick={() => handleTabClick('audit')}
                                 className={`rfi-tab-btn ${activeTab === 'audit' ? 'active' : ''}`}
                             >
                                 <History size={16} /> Audit Trail
@@ -105,7 +117,7 @@ export default function RFIDetailModal({ rfi, onClose }) {
 
                         <div className="rfi-tab-panel">
                             {activeTab === 'discussion' ? (
-                                <ThreadedComments rfiId={rfi.id} />
+                                <ThreadedComments rfiId={rfi.id} scrollTrigger={combinedTrigger} />
                             ) : (
                                 <AuditLog rfiId={rfi.id} />
                             )}

@@ -4,14 +4,13 @@ import { useRFI } from '../context/RFIContext';
 import UserAvatar from './UserAvatar';
 import { Send, Loader2 } from 'lucide-react';
 
-export default function ThreadedComments({ rfiId, onCommentAdded }) {
+export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger }) {
     const { user } = useAuth();
     const { fetchComments, addComment } = useRFI();
     const [comments, setComments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [newComment, setNewComment] = useState('');
-    const isFirstLoad = useRef(true);
     const prevCommentsLength = useRef(0);
     const messagesEndRef = useRef(null);
 
@@ -23,14 +22,18 @@ export default function ThreadedComments({ rfiId, onCommentAdded }) {
     }, [rfiId]);
 
     useEffect(() => {
-        // Only scroll on first load OR if length increased (new message)
-        if (isFirstLoad.current && comments.length > 0) {
-            scrollToBottom();
-            isFirstLoad.current = false;
-        } else if (comments.length > prevCommentsLength.current) {
-            // Optional: only scroll if the new message is from 'me' or if user is near bottom
-            // For now, let's just do it on first load as requested to stop the "again and again" jumps
+        // SCROLL ON TRIGGER (Button Click)
+        if (scrollTrigger && messagesEndRef.current) {
+            // Gentle delay for layout stability
+            const timer = setTimeout(() => {
+                scrollToBottom();
+            }, 100);
+            return () => clearTimeout(timer);
         }
+    }, [scrollTrigger, loading]); // Fire on trigger OR when loading finishes if we had a trigger
+
+    useEffect(() => {
+        // Silent updates for background polling
         prevCommentsLength.current = comments.length;
     }, [comments]);
 
@@ -41,7 +44,9 @@ export default function ThreadedComments({ rfiId, onCommentAdded }) {
     };
 
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
     };
 
     const handleSubmit = async (e) => {
