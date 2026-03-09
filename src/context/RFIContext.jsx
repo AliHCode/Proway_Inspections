@@ -608,46 +608,25 @@ export function RFIProvider({ children }) {
         };
     }
 
-    /** Get all pending + rejected-carryover RFIs for consultant review (Sync from local state array) */
+    /** Get all pending RFIs for consultant review (Sync from local state array) */
     function getReviewQueue(targetDate) {
         const pending = rfis.filter(
             (rfi) => rfi.status === RFI_STATUS.PENDING && rfi.filedDate <= targetDate
         );
-        const carriedOver = rfis.filter(
-            (rfi) =>
-                rfi.status === RFI_STATUS.REJECTED &&
-                rfi.carryoverTo &&
-                rfi.carryoverTo <= targetDate
-        );
 
-        // Sorting strategy:
-        // 1. Rejected Carried Over (Must re-inspect)
-        // 2. High Carryover Count (Previously rejected multiple times)
-        // 3. Filed Date (Oldest first)
-        // 4. Serial Number
         const sortQueue = (a, b) => {
-            // Rule A: Strictly Rejected status first (Consultant needs to see these carryovers)
-            if (a.status === RFI_STATUS.REJECTED && b.status !== RFI_STATUS.REJECTED) return -1;
-            if (a.status !== RFI_STATUS.REJECTED && b.status === RFI_STATUS.REJECTED) return 1;
-
-            // Rule B: Higher carryover count first (Priority re-inspections)
-            if (a.carryoverCount !== b.carryoverCount) {
-                return b.carryoverCount - a.carryoverCount;
-            }
-
-            // Rule C: Older content first
+            // Older content first
             if (a.filedDate !== b.filedDate) {
                 return a.filedDate.localeCompare(b.filedDate);
             }
-
             return a.serialNo - b.serialNo;
         };
 
-        const combined = [...carriedOver, ...pending].sort(sortQueue);
+        const combined = [...pending].sort(sortQueue);
 
         return {
-            carriedOver: combined.filter(r => r.status === RFI_STATUS.REJECTED),
-            pending: combined.filter(r => r.status === RFI_STATUS.PENDING),
+            carriedOver: [],
+            pending: combined,
             all: combined,
         };
     }
