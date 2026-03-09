@@ -11,7 +11,7 @@ import InfoRequestModal from '../components/InfoRequestModal';
 import RFIDetailModal from '../components/RFIDetailModal';
 import UserAvatar from '../components/UserAvatar';
 import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
-import { CheckCircle, XCircle, MessageSquare, X, FileText, FileSpreadsheet } from 'lucide-react';
+import { CheckCircle, XCircle, MessageSquare, X, FileDown, Table, ClipboardList } from 'lucide-react';
 
 export default function ReviewQueue() {
     const { user } = useAuth();
@@ -77,7 +77,7 @@ export default function ReviewQueue() {
                                 title="Export to PDF"
                                 aria-label="Export to PDF"
                             >
-                                <FileText size={16} />
+                                <FileDown size={16} /> PDF
                             </button>
                             <button
                                 className="btn btn-ghost btn-sm export-icon-btn excel-icon-btn"
@@ -85,7 +85,7 @@ export default function ReviewQueue() {
                                 title="Export to Excel"
                                 aria-label="Export to Excel"
                             >
-                                <FileSpreadsheet size={16} />
+                                <Table size={16} /> Excel
                             </button>
                             <button
                                 className="btn btn-sm"
@@ -93,7 +93,7 @@ export default function ReviewQueue() {
                                 onClick={() => generateDailyReport(filteredItems, currentDate, activeProjectName)}
                                 title="Generate branded daily report"
                             >
-                                <FileText size={16} /> Daily Report
+                                <ClipboardList size={16} /> Daily Report
                             </button>
                         </div>
                         <DateNavigator currentDate={currentDate} onDateChange={setCurrentDate} />

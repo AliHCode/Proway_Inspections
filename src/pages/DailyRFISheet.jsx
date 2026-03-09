@@ -8,10 +8,14 @@ import DateNavigator from '../components/DateNavigator';
 import StatusBadge from '../components/StatusBadge';
 import RFIDetailModal from '../components/RFIDetailModal';
 import EditRFIModal from '../components/EditRFIModal';
-import { Plus, Trash2, Send, AlertTriangle, RefreshCw, X, MessageSquare, Pencil } from 'lucide-react';
+import { Plus, Trash2, Send, AlertTriangle, RefreshCw, X, MessageSquare, Pencil, FileDown, Table, ClipboardList } from 'lucide-react';
+import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
+import { useProject } from '../context/ProjectContext';
 
 export default function DailyRFISheet() {
     const { user } = useAuth();
+    const { activeProject } = useProject();
+    const activeProjectName = activeProject?.name || 'ProWay Project';
     const { createRFI, uploadImages, updateRFI, getRFIsForDate, resubmitRFI, deleteRFI, consultants } = useRFI();
     const [currentDate, setCurrentDate] = useState(getToday());
     const [detailTarget, setDetailTarget] = useState(null);
@@ -124,8 +128,38 @@ export default function DailyRFISheet() {
             <Header />
             <main className="rfi-sheet-page">
                 <div className="sheet-header">
-                    <h1>📋 Daily RFI Sheet</h1>
-                    <DateNavigator currentDate={currentDate} onDateChange={setCurrentDate} />
+                    <div>
+                        <h1>📋 Daily RFI Sheet</h1>
+                    </div>
+                    <div className="review-header-controls" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        {myNewRfis.length > 0 && (
+                            <div className="export-actions review-export-actions" style={{ display: 'flex', gap: '0.25rem' }}>
+                                <button
+                                    className="btn btn-ghost btn-sm export-icon-btn pdf-icon-btn"
+                                    onClick={() => exportToPDF(myNewRfis, `ProWay_Contractor_Report_${currentDate}`)}
+                                    title="Export to PDF"
+                                >
+                                    <FileDown size={16} /> PDF
+                                </button>
+                                <button
+                                    className="btn btn-ghost btn-sm export-icon-btn excel-icon-btn"
+                                    onClick={() => exportToExcel(myNewRfis, `ProWay_Contractor_Report_${currentDate}`)}
+                                    title="Export to Excel"
+                                >
+                                    <Table size={16} /> Excel
+                                </button>
+                                <button
+                                    className="btn btn-sm"
+                                    style={{ backgroundColor: 'var(--clr-brand-secondary)', color: 'white', gap: '0.35rem' }}
+                                    onClick={() => generateDailyReport(myNewRfis, currentDate, activeProjectName)}
+                                    title="Generate branded daily report"
+                                >
+                                    <ClipboardList size={16} /> Daily Report
+                                </button>
+                            </div>
+                        )}
+                        <DateNavigator currentDate={currentDate} onDateChange={setCurrentDate} />
+                    </div>
                 </div>
 
                 {/* Carried Over / Info Requested Section */}

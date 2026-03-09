@@ -17,13 +17,18 @@ import {
     Plus,
     TrendingUp,
     AlertTriangle,
-    Download
+    FileDown,
+    Table,
+    ClipboardList
 } from 'lucide-react';
-import { exportToExcel, exportToPDF } from '../utils/exportUtils';
+import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
+import { useProject } from '../context/ProjectContext';
 
 export default function ContractorDashboard() {
     const { user } = useAuth();
     const { rfis, getStats } = useRFI();
+    const { activeProject } = useProject();
+    const activeProjectName = activeProject?.name || 'ProWay Project';
     const navigate = useNavigate();
     const today = getToday();
     const stats = getStats(today);
@@ -144,14 +149,22 @@ export default function ContractorDashboard() {
                                             onClick={() => exportToPDF(allMyRfis, `ProWay_Contractor_Report`)}
                                             title="Export to PDF"
                                         >
-                                            <Download size={16} /> PDF
+                                            <FileDown size={16} /> PDF
                                         </button>
                                         <button
                                             className="btn btn-ghost btn-sm"
                                             onClick={() => exportToExcel(allMyRfis, `ProWay_Contractor_Report`)}
                                             title="Export to Excel"
                                         >
-                                            <Download size={16} /> Excel
+                                            <Table size={16} /> Excel
+                                        </button>
+                                        <button
+                                            className="btn btn-sm"
+                                            style={{ backgroundColor: 'var(--clr-brand-secondary)', color: 'white', gap: '0.35rem' }}
+                                            onClick={() => generateDailyReport(allMyRfis, today, activeProjectName)}
+                                            title="Generate branded daily report"
+                                        >
+                                            <ClipboardList size={16} /> Daily Report
                                         </button>
                                     </div>
                                 )}
