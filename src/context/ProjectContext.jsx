@@ -20,19 +20,25 @@ export function ProjectProvider({ children }) {
     // ─── Fetch Projects ───
     const fetchProjects = useCallback(async () => {
         if (!user) return;
-        setLoadingProjects(true);
+        
+        // Only show global loader if we have no projects yet
+        setProjects(prev => {
+            if (prev.length === 0) setLoadingProjects(true);
+            return prev;
+        });
+
         try {
             const { data, error } = await supabase.from('projects').select('*').order('name');
             if (error) throw error;
-
-            setProjects(data || []);
+            const fetchedProjects = data || [];
+            setProjects(fetchedProjects);
 
             if (user.current_project_id) {
-                const saved = data.find(p => p.id === user.current_project_id);
+                const saved = fetchedProjects.find(p => p.id === user.current_project_id);
                 if (saved) setActiveProject(saved);
-                else if (data.length > 0) setActiveProject(data[0]);
-            } else if (data.length > 0) {
-                setActiveProject(data[0]);
+                else if (fetchedProjects.length > 0) setActiveProject(fetchedProjects[0]);
+            } else if (fetchedProjects.length > 0) {
+                setActiveProject(fetchedProjects[0]);
             }
         } catch (err) {
             console.error("Error loading projects:", err);

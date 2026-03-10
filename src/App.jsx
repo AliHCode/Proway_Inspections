@@ -29,7 +29,7 @@ function AppRoutes() {
     const { user, loading } = useAuth();
     const { projects, loadingProjects } = useProject();
 
-    if (loading || loadingProjects) return <LoadingSpinner message="Setting up your workspace..." />;
+    if (loading || (loadingProjects && projects.length === 0)) return <LoadingSpinner message="Setting up your workspace..." />;
 
     // Redirect to onboarding if user has no projects
     const hasNoProjects = projects.length === 0;

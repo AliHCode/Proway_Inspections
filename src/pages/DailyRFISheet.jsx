@@ -150,6 +150,10 @@ export default function DailyRFISheet() {
             }
 
             setNewRows([createEmptyRow()]);
+            // Clear local storage draft after successful submit
+            const draftKey = `rfi_draft_${user.id}_${activeProject?.id || 'default'}`;
+            localStorage.removeItem(draftKey);
+
             setSubmitMessage(
                 offline
                     ? `✅ ${validRows.length} RFI(s) saved offline. They will auto-sync when Wi-Fi returns.`
@@ -178,6 +182,41 @@ export default function DailyRFISheet() {
             images: [...payload.existingImages, ...uploaded],
         });
     }
+
+    // ─── Draft Persistence ───
+    useEffect(() => {
+        if (!user) return;
+        const draftKey = `rfi_draft_${user.id}_${activeProject?.id || 'default'}`;
+        const saved = localStorage.getItem(draftKey);
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    setNewRows(parsed.map(r => ({ ...r, images: [] }))); // Images cannot be recovered easily from JSON
+                    console.log("Restored RFI draft from local storage");
+                }
+            } catch (e) {
+                console.error("Failed to restore draft", e);
+            }
+        }
+    }, [user, activeProject?.id]);
+
+    useEffect(() => {
+        if (!user) return;
+        const draftKey = `rfi_draft_${user.id}_${activeProject?.id || 'default'}`;
+        // Only save if there's actual content to prevent overwriting with empty defaults prematurely
+        const hasContent = newRows.some(r => r.description.trim() || r.location.trim());
+        if (hasContent) {
+            // Strip images as they are File objects and can't be JSON serialized
+            const toSave = newRows.map(r => {
+                const { images, ...rest } = r;
+                return rest;
+            });
+            localStorage.setItem(draftKey, JSON.stringify(toSave));
+        } else {
+            localStorage.removeItem(draftKey);
+        }
+    }, [newRows, user, activeProject?.id]);
 
     useEffect(() => {
         // If the timeline date changes, close any previously opened discussion modal.
