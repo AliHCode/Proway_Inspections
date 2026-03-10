@@ -11,7 +11,6 @@ import DailyRFISheet from './pages/DailyRFISheet';
 import ConsultantDashboard from './pages/ConsultantDashboard';
 import ReviewQueue from './pages/ReviewQueue';
 import AdminDashboard from './pages/AdminDashboard';
-import OnboardingWizard from './pages/OnboardingWizard';
 import { useProject } from './context/ProjectContext';
 
 function ProtectedRoute({ children, allowedRoles }) {
@@ -30,15 +29,6 @@ function AppRoutes() {
     const { projects, loadingProjects } = useProject();
 
     if (loading || (loadingProjects && projects.length === 0)) return <LoadingSpinner message="Setting up your workspace..." />;
-
-    // Redirect to onboarding if user has no projects
-    const hasNoProjects = projects.length === 0;
-    const isLoginPage = window.location.pathname === '/';
-    const isOnboardingPage = window.location.pathname === '/onboarding';
-
-    if (user && hasNoProjects && !isOnboardingPage && user.role !== 'admin') {
-        return <Navigate to="/onboarding" replace />;
-    }
 
     return (
         <Routes>
@@ -92,18 +82,6 @@ function AppRoutes() {
                 element={
                     <ProtectedRoute allowedRoles={['admin']}>
                         <AdminDashboard />
-                    </ProtectedRoute>
-                }
-            />
-            <Route
-                path="/onboarding"
-                element={
-                    <ProtectedRoute allowedRoles={['contractor', 'consultant']}>
-                        {projects.length > 0 ? (
-                            <Navigate to="/" replace />
-                        ) : (
-                            <OnboardingWizard />
-                        )}
                     </ProtectedRoute>
                 }
             />
