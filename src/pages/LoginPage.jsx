@@ -10,6 +10,7 @@ export default function LoginPage() {
     const [isRegister, setIsRegister] = useState(false);
     const [form, setForm] = useState({ name: '', email: '', password: '', company: '' });
     const [error, setError] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
@@ -28,6 +29,8 @@ export default function LoginPage() {
                 const result = await register(form.name, form.email, form.password, form.company);
                 if (result.success) {
                     setIsRegister(false); // Switch to login view which will show pending message
+                    setSuccessMessage(`Welcome, ${form.name.split(' ')[0]}! Your account has been created. Please wait for admin approval. You will be notified by email.`);
+                    setForm((prev) => ({ ...prev, password: '' }));
                 } else {
                     setError(result.error);
                 }
@@ -69,7 +72,7 @@ export default function LoginPage() {
                         <p className="hero-subtitle">
                             Welcome, {user.name.split(' ')[0]}! Your account has been created.
                             <br /><br />
-                            An administrator is currently reviewing your application. You will be assigned as a Contractor or Consultant once verified.
+                            Please wait for admin approval. You will be notified by email.
                         </p>
                         <div style={{ marginTop: '2rem' }}>
                             <button className="auth-submit" onClick={logout} style={{ maxWidth: '200px', margin: '0 auto' }}>
@@ -111,7 +114,7 @@ export default function LoginPage() {
                         </button>
                         <button
                             className={`auth-tab ${isRegister ? 'active' : ''}`}
-                            onClick={() => { setIsRegister(true); setError(''); }}
+                            onClick={() => { setIsRegister(true); setError(''); setSuccessMessage(''); }}
                         >
                             Create Account
                         </button>
@@ -181,6 +184,7 @@ export default function LoginPage() {
                             </div>
                         </div>
 
+                        {successMessage && !isRegister && <div className="auth-success">{successMessage}</div>}
                         {error && <div className="auth-error">{error}</div>}
 
                         <button

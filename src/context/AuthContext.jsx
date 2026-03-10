@@ -32,15 +32,53 @@ export function AuthProvider({ children }) {
         return () => subscription.unsubscribe();
     }, []);
 
+    async function ensureProfileExists(authUser) {
+        const metadata = authUser?.user_metadata || {};
+        const fallbackName =
+            metadata.name ||
+            metadata.full_name ||
+            (authUser?.email ? authUser.email.split('@')[0] : 'New User');
+
+        const { error } = await supabase
+            .from('profiles')
+            .upsert(
+                {
+                    id: authUser.id,
+                    name: fallbackName,
+                    role: USER_ROLES.PENDING,
+                    company: metadata.company || '',
+                },
+                { onConflict: 'id' }
+            );
+
+        if (error) throw error;
+    }
+
     async function fetchProfile(userId) {
         try {
-            const { data, error } = await supabase
+            const { data: authData } = await supabase.auth.getUser();
+            const authUser = authData?.user;
+
+            let { data, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', userId)
                 .maybeSingle();
 
             if (error) throw error;
+            if (!data && authUser?.id === userId) {
+                // Self-heal users that were created in auth.users without a profile row.
+                await ensureProfileExists(authUser);
+                const retry = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', userId)
+                    .maybeSingle();
+
+                if (retry.error) throw retry.error;
+                data = retry.data;
+            }
+
             if (data) {
                 // Block deactivated accounts
                 if (data.is_active === false) {
@@ -50,7 +88,9 @@ export function AuthProvider({ children }) {
                     return;
                 }
                 // Ensure auth.user structure is combined with profile for easy usage
-                setUser({ ...data, email: (await supabase.auth.getUser()).data.user?.email });
+                setUser({ ...data, email: authUser?.email || '' });
+            } else {
+                setUser(null);
             }
         } catch (error) {
             console.error('Error fetching profile:', error.message);
@@ -81,27 +121,51 @@ export function AuthProvider({ children }) {
             const { data, error: signUpError } = await supabase.auth.signUp({
                 email,
                 password,
+                options: {
+                    data: {
+                        name,
+                        company,
+                    },
+                },
             });
             if (signUpError) throw signUpError;
             if (!data.user) throw new Error('Registration failed');
 
-            // 2. Insert into profiles table with PENDING role
+            // 2. Insert into profiles table
             const { error: profileError } = await supabase
                 .from('profiles')
-                .insert([
+                .upsert(
                     {
                         id: data.user.id,
                         name,
                         role: USER_ROLES.PENDING,
                         company,
-                    }
-                ]);
+                    },
+                    { onConflict: 'id' }
+                );
 
             if (profileError) {
                 console.error("Profile creation error:", profileError);
+                const isConflict = profileError?.code === '23505' || profileError?.status === 409;
+
+                // If DB trigger created the row first, treat duplicate conflict as success.
+                if (isConflict) {
+                    const { data: existingProfile, error: existingProfileError } = await supabase
+                        .from('profiles')
+                        .select('id')
+                        .eq('id', data.user.id)
+                        .maybeSingle();
+
+                    if (!existingProfileError && existingProfile) {
+                        return { success: true };
+                    }
+                }
+
+                // Rollback could be complex, but we notify the user
                 throw new Error('Failed to create user profile in database.');
             }
 
+            // Successfully registered and logged in (if auto-confirm is on)
             return { success: true };
         } catch (error) {
             console.error('Registration error:', error.message);
