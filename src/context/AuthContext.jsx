@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import { USER_ROLES } from '../utils/constants';
 
 const AuthContext = createContext(null);
 
@@ -73,7 +74,7 @@ export function AuthProvider({ children }) {
         }
     }
 
-    async function register(name, email, password, role, company) {
+    async function register(name, email, password, company) {
         setLoading(true);
         try {
             // 1. Sign up user via GoTrue
@@ -84,25 +85,23 @@ export function AuthProvider({ children }) {
             if (signUpError) throw signUpError;
             if (!data.user) throw new Error('Registration failed');
 
-            // 2. Insert into profiles table
+            // 2. Insert into profiles table with PENDING role
             const { error: profileError } = await supabase
                 .from('profiles')
                 .insert([
                     {
                         id: data.user.id,
                         name,
-                        role,
+                        role: USER_ROLES.PENDING,
                         company,
                     }
                 ]);
 
             if (profileError) {
                 console.error("Profile creation error:", profileError);
-                // Rollback could be complex, but we notify the user
                 throw new Error('Failed to create user profile in database.');
             }
 
-            // Successfully registered and logged in (if auto-confirm is on)
             return { success: true };
         } catch (error) {
             console.error('Registration error:', error.message);

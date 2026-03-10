@@ -22,6 +22,7 @@ export const USER_ROLES = {
   CONTRACTOR: 'contractor',
   CONSULTANT: 'consultant',
   ADMIN: 'admin',
+  PENDING: 'pending',
 };
 
 export const STATUS_COLORS = {

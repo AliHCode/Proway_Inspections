@@ -81,6 +81,7 @@ export default function AdminDashboard() {
         contractors: users.filter(u => u.role === 'contractor').length,
         consultants: users.filter(u => u.role === 'consultant').length,
         admins: users.filter(u => u.role === 'admin').length,
+        pending: users.filter(u => u.role === 'pending').length,
         inactive: users.filter(u => u.is_active === false).length,
     };
 
@@ -116,6 +117,10 @@ export default function AdminDashboard() {
                         <span className="admin-stat-value">{stats.admins}</span>
                         <span className="admin-stat-label">Admins</span>
                     </div>
+                    <div className="admin-stat-card warning">
+                        <span className="admin-stat-value">{stats.pending}</span>
+                        <span className="admin-stat-label">Pending</span>
+                    </div>
                     <div className="admin-stat-card danger">
                         <span className="admin-stat-value">{stats.inactive}</span>
                         <span className="admin-stat-label">Deactivated</span>
@@ -139,6 +144,7 @@ export default function AdminDashboard() {
                             <option value="contractor">Contractors</option>
                             <option value="consultant">Consultants</option>
                             <option value="admin">Admins</option>
+                            <option value="pending">Pending Approval</option>
                         </select>
                     </div>
                 </div>
@@ -202,15 +208,21 @@ export default function AdminDashboard() {
                                                         onChange={e => changeUserRole(u.id, e.target.value)}
                                                         disabled={isSelf}
                                                         title={isSelf ? 'Cannot change your own role' : 'Change role'}
+                                                        style={{ 
+                                                            backgroundColor: u.role === 'pending' ? 'rgba(245, 158, 11, 0.1)' : 'transparent',
+                                                            color: u.role === 'pending' ? '#d97706' : 'inherit',
+                                                            fontWeight: u.role === 'pending' ? '600' : 'normal'
+                                                        }}
                                                     >
+                                                        <option value="pending">Pending</option>
                                                         <option value="contractor">Contractor</option>
                                                         <option value="consultant">Consultant</option>
                                                         <option value="admin">Admin</option>
                                                     </select>
                                                 </td>
                                                 <td>
-                                                    <span className={`status-badge-admin ${isInactive ? 'inactive' : 'active'}`}>
-                                                        {isInactive ? 'Deactivated' : 'Active'}
+                                                    <span className={`status-badge-admin ${isInactive ? 'inactive' : u.role === 'pending' ? 'warning' : 'active'}`}>
+                                                        {isInactive ? 'Deactivated' : u.role === 'pending' ? 'Wait Approval' : 'Active'}
                                                     </span>
                                                 </td>
                                                 <td style={{ textAlign: 'center' }}>

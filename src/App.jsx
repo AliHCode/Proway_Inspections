@@ -19,7 +19,7 @@ function ProtectedRoute({ children, allowedRoles }) {
     if (loading) return <LoadingSpinner message="Authenticating..." />;
     if (!user) return <Navigate to="/" replace />;
     if (allowedRoles && !allowedRoles.includes(user.role)) {
-        const home = user.role === 'admin' ? '/admin' : user.role === 'contractor' ? '/contractor' : '/consultant';
+        const home = user.role === 'admin' ? '/admin' : user.role === 'contractor' ? '/contractor' : user.role === 'consultant' ? '/consultant' : '/';
         return <Navigate to={home} replace />;
     }
     return children;
@@ -48,7 +48,7 @@ function AppRoutes() {
                     user ? (
                         <Navigate to={
                             user.role === 'admin' ? '/admin' :
-                                user.role === 'contractor' ? '/contractor' : '/consultant'
+                                user.role === 'contractor' ? '/contractor' : user.role === 'consultant' ? '/consultant' : '/'
                         } replace />
                     ) : (
                         <LoginPage />

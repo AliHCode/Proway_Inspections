@@ -5,10 +5,9 @@ import { USER_ROLES } from '../utils/constants';
 import { Eye, EyeOff, HardHat, UserCheck, ArrowRight, Shield } from 'lucide-react';
 
 export default function LoginPage() {
-    const { login, register } = useAuth();
+    const { user, login, register, logout } = useAuth();
     const navigate = useNavigate();
     const [isRegister, setIsRegister] = useState(false);
-    const [role, setRole] = useState(USER_ROLES.CONTRACTOR);
     const [form, setForm] = useState({ name: '', email: '', password: '', company: '' });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -26,9 +25,9 @@ export default function LoginPage() {
                     setLoading(false);
                     return;
                 }
-                const result = await register(form.name, form.email, form.password, role, form.company);
+                const result = await register(form.name, form.email, form.password, form.company);
                 if (result.success) {
-                    navigate(role === USER_ROLES.CONTRACTOR ? '/contractor' : '/consultant');
+                    setIsRegister(false); // Switch to login view which will show pending message
                 } else {
                     setError(result.error);
                 }
@@ -55,6 +54,32 @@ export default function LoginPage() {
     function handleChange(field, value) {
         setForm((prev) => ({ ...prev, [field]: value }));
         setError('');
+    }
+
+    if (user && user.role === USER_ROLES.PENDING) {
+        return (
+            <div className="auth-page">
+                <div className="auth-bg-pattern"></div>
+                <div className="auth-wrapper">
+                    <div className="auth-hero" style={{ textAlign: 'center' }}>
+                        <div className="auth-logo-img">
+                            <img src="/dashboardlogo.png" alt="ClearLine Logo" style={{ height: '90px', marginBottom: '0.5rem' }} />
+                        </div>
+                        <h2 className="hero-title">Approval <span className="text-accent">Pending.</span></h2>
+                        <p className="hero-subtitle">
+                            Welcome, {user.name.split(' ')[0]}! Your account has been created.
+                            <br /><br />
+                            An administrator is currently reviewing your application. You will be assigned as a Contractor or Consultant once verified.
+                        </p>
+                        <div style={{ marginTop: '2rem' }}>
+                            <button className="auth-submit" onClick={logout} style={{ maxWidth: '200px', margin: '0 auto' }}>
+                                Sign Out
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -92,36 +117,6 @@ export default function LoginPage() {
                         </button>
                     </div>
 
-                    {/* Role Selector (Register only) */}
-                    {isRegister && (
-                        <div className="auth-role-selector">
-                            <p className="auth-role-label">I am a...</p>
-                            <div className="auth-roles">
-                                <button
-                                    className={`auth-role-card ${role === USER_ROLES.CONTRACTOR ? 'active' : ''}`}
-                                    onClick={() => setRole(USER_ROLES.CONTRACTOR)}
-                                    type="button"
-                                >
-                                    <HardHat size={28} />
-                                    <div className="auth-role-info">
-                                        <span className="auth-role-name">Contractor</span>
-                                        <span className="auth-role-desc">File & track RFIs</span>
-                                    </div>
-                                </button>
-                                <button
-                                    className={`auth-role-card ${role === USER_ROLES.CONSULTANT ? 'active' : ''}`}
-                                    onClick={() => setRole(USER_ROLES.CONSULTANT)}
-                                    type="button"
-                                >
-                                    <UserCheck size={28} />
-                                    <div className="auth-role-info">
-                                        <span className="auth-role-name">Consultant</span>
-                                        <span className="auth-role-desc">Review & approve</span>
-                                    </div>
-                                </button>
-                            </div>
-                        </div>
-                    )}
 
                     {/* Form */}
                     <form onSubmit={handleSubmit} className="auth-form">

@@ -2803,6 +2803,12 @@ h6 {
   color: var(--clr-danger);
 }
 
+.status-badge-admin.warning {
+  background: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fef3c7;
+}
+
 .you-badge {
   display: inline-block;
   background: var(--clr-info-bg);
