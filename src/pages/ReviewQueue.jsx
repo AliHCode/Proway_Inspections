@@ -27,7 +27,6 @@ export default function ReviewQueue() {
     const [selectedImages, setSelectedImages] = useState(null);
     const [scrollTrigger, setScrollTrigger] = useState(0);
     const [selectedRfiIds, setSelectedRfiIds] = useState([]);
-    const [bulkAssignee, setBulkAssignee] = useState('');
 
     const queue = getReviewQueue(currentDate);
 
@@ -63,7 +62,7 @@ export default function ReviewQueue() {
         setTimeout(() => setActionMessage(''), 3000);
     }
 
-    const { bulkApproveRFI, bulkAssignRFI, consultants } = useRFI();
+    const { bulkApproveRFI } = useRFI();
 
     function toggleSelect(id) {
         setSelectedRfiIds(prev =>
@@ -84,13 +83,6 @@ export default function ReviewQueue() {
             await bulkApproveRFI(selectedRfiIds, user.id);
             setSelectedRfiIds([]);
         }
-    }
-
-    async function handleBulkAssign() {
-        if (!bulkAssignee) return;
-        await bulkAssignRFI(selectedRfiIds, bulkAssignee);
-        setSelectedRfiIds([]);
-        setBulkAssignee('');
     }
 
     useEffect(() => {
@@ -452,51 +444,20 @@ export default function ReviewQueue() {
 
                 {/* Batch Action Bar */}
                 {selectedRfiIds.length > 0 && (
-                    <div className="batch-action-bar" style={{
-                        position: 'fixed',
-                        bottom: '2rem',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        background: '#0f172a',
-                        color: 'white',
-                        padding: '1rem 2rem',
-                        borderRadius: '1rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '2rem',
-                        boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)',
-                        zIndex: 1000,
-                        animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '2rem' }}>
-                            <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{selectedRfiIds.length} Selected</span>
-                            <button className="btn btn-sm btn-ghost" onClick={() => setSelectedRfiIds([])} style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.75rem' }}>Clear</button>
+                    <div className="batch-action-bar">
+                        <div className="batch-action-selected">
+                            <span className="selected-count">{selectedRfiIds.length} Selected</span>
+                            <button className="btn btn-sm btn-ghost clear-btn" onClick={() => setSelectedRfiIds([])}>Clear</button>
                         </div>
-                        
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <button className="btn btn-primary" onClick={handleBulkApprove} style={{ backgroundColor: 'var(--clr-success)', borderColor: 'var(--clr-success)', color: 'white' }}>
+                        <div className="batch-divider"></div>
+                        <div className="batch-action-ops">
+                            <button className="btn btn-primary approve-btn" onClick={handleBulkApprove}>
                                 <CheckCircle size={18} /> Bulk Approve
                             </button>
-                            
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <select 
-                                    className="cell-select" 
-                                    style={{ width: '160px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.3)' }}
-                                    value={bulkAssignee}
-                                    onChange={(e) => setBulkAssignee(e.target.value)}
-                                >
-                                    <option value="" style={{ color: 'black' }}>Assign To...</option>
-                                    {consultants.map(c => (
-                                        <option key={c.id} value={c.id} style={{ color: 'black' }}>{c.name}</option>
-                                    ))}
-                                </select>
-                                <button className="btn btn-primary" onClick={handleBulkAssign} disabled={!bulkAssignee}>
-                                    Apply
-                                </button>
-                            </div>
                         </div>
                     </div>
                 )}
+                        
             </main>
             <style>
                 {`
@@ -504,9 +465,91 @@ export default function ReviewQueue() {
                     from { transform: translate(-50%, 20px); opacity: 0; }
                     to { transform: translate(-50%, 0); opacity: 1; }
                 }
-                .batch-action-bar .btn {
-                    padding: 0.5rem 1rem;
-                    font-size: 0.85rem;
+
+                .batch-action-bar {
+                    position: fixed;
+                    bottom: 2rem;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: #0f172a;
+                    color: white;
+                    padding: 0.75rem 1.5rem;
+                    border-radius: 999px;
+                    display: flex;
+                    align-items: center;
+                    gap: 1.5rem;
+                    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.1);
+                    z-index: 1000;
+                    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                    width: max-content;
+                    max-width: 95vw;
+                }
+
+                .batch-action-selected {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                }
+
+                .batch-divider {
+                    width: 1px;
+                    height: 1.5rem;
+                    background: rgba(255,255,255,0.2);
+                }
+
+                .selected-count {
+                    font-size: 0.95rem;
+                    font-weight: 700;
+                    color: white;
+                    white-space: nowrap;
+                }
+
+                .clear-btn {
+                    color: rgba(255,255,255,0.6);
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                }
+
+                .batch-action-ops {
+                    display: flex;
+                    align-items: center;
+                }
+
+                .approve-btn {
+                    background-color: var(--clr-success) !important;
+                    border-color: var(--clr-success) !important;
+                    color: white !important;
+                    font-weight: 600 !important;
+                    border-radius: 999px !important;
+                    padding: 0.5rem 1.5rem !important;
+                    white-space: nowrap;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    transition: all 0.2s;
+                }
+
+                .approve-btn:hover {
+                    box-shadow: 0 0 15px rgba(5, 150, 105, 0.4);
+                    transform: translateY(-1px);
+                }
+
+                @media (max-width: 600px) {
+                    .batch-action-bar {
+                        bottom: 1.5rem;
+                        padding: 0.75rem 1.25rem;
+                        gap: 1rem;
+                        border-radius: 1rem;
+                    }
+                    .selected-count {
+                        font-size: 0.85rem;
+                    }
+                    .approve-btn {
+                        padding: 0.5rem 1rem !important;
+                        font-size: 0.8rem !important;
+                    }
                 }
                 `}
             </style>
