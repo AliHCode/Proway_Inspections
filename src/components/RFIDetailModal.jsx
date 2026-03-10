@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Calendar, MapPin, Tag, User, MessageSquare, History } from 'lucide-react';
+import { X, Calendar, MapPin, Tag, User, MessageSquare, History, List } from 'lucide-react';
 import ThreadedComments from './ThreadedComments';
 import AuditLog from './AuditLog';
 import StatusBadge from './StatusBadge';
@@ -108,6 +108,24 @@ export default function RFIDetailModal({ rfi, onClose, externalScrollTrigger }) 
                                 </div>
                             </div>
                         </div>
+
+                        {/* Custom fields */}
+                        {rfi.customFields && Object.keys(rfi.customFields).length > 0 && (
+                            <div style={{ marginTop: '1rem' }}>
+                                <h4 className="rfi-pane-heading">Additional Fields</h4>
+                                <div className="rfi-detail-list">
+                                    {Object.entries(rfi.customFields).map(([key, value]) => (
+                                        <div className="rfi-detail-item" key={key}>
+                                            <List size={18} color="var(--clr-text-muted)" />
+                                            <div>
+                                                <div className="rfi-detail-label">{key.replace(/_/g, ' ')}</div>
+                                                <div className="rfi-detail-value">{value || '—'}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {rfi.remarks && (
                             <div className="rfi-latest-remarks">

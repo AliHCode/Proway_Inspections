@@ -16,7 +16,7 @@ import { CheckCircle, XCircle, MessageSquare, X, FileDown, Table, ClipboardList 
 export default function ReviewQueue() {
     const { user } = useAuth();
     const { approveRFI, rejectRFI, requestInfo, getReviewQueue, rfis, uploadImages, contractors } = useRFI();
-    const { activeProject } = useProject();
+    const { activeProject, projectFields } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
     const [currentDate, setCurrentDate] = useState(getToday());
     const [rejectTarget, setRejectTarget] = useState(null);
@@ -214,6 +214,9 @@ export default function ReviewQueue() {
                                         <th className="col-desc">Description</th>
                                         <th className="col-loc">Location</th>
                                         <th className="col-type">Type</th>
+                                        {projectFields.map(f => (
+                                            <th key={f.id}>{f.field_name}</th>
+                                        ))}
                                         <th className="col-assign">Assigned To</th>
                                         <th className="col-status">Filed</th>
                                         <th className="col-remarks">Remarks/Notes</th>
@@ -254,6 +257,9 @@ export default function ReviewQueue() {
                                                 <td className="col-desc" data-label="Description">{rfi.description}</td>
                                                 <td className="col-loc" data-label="Location">{rfi.location}</td>
                                                 <td className="col-type" data-label="Type">{rfi.inspectionType}</td>
+                                                {projectFields.map(f => (
+                                                    <td key={f.id} data-label={f.field_name}>{rfi.customFields?.[f.field_key] || '—'}</td>
+                                                ))}
                                                 <td className="col-assign" data-label="Assigned To">
                                                     {rfi.assigneeName ? (
                                                         <span className={`assign-badge ${rfi.assignedTo === user.id ? 'is-me' : ''}`}>

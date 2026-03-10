@@ -15,7 +15,7 @@ import { useProject } from '../context/ProjectContext';
 
 export default function DailyRFISheet() {
     const { user } = useAuth();
-    const { activeProject } = useProject();
+    const { activeProject, projectFields } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
     const { createRFI, uploadImages, updateRFI, getRFIsForDate, resubmitRFI, deleteRFI, consultants, rfis, pendingSyncCount } = useRFI();
     const [currentDate, setCurrentDate] = useState(getToday());
@@ -52,6 +52,7 @@ export default function DailyRFISheet() {
             assignedTo: '',
             images: [],
             parentId: null,
+            customFields: {},
         };
     }
 
@@ -144,6 +145,7 @@ export default function DailyRFISheet() {
                     images: row.images,
                     assignedTo: row.assignedTo || null,
                     parentId: row.parentId || null,
+                    customFields: Object.keys(row.customFields).length > 0 ? row.customFields : null,
                 });
             }
 
@@ -278,6 +280,9 @@ export default function DailyRFISheet() {
                                         <th className="col-desc">Description</th>
                                         <th className="col-loc">Location</th>
                                         <th className="col-type">Type</th>
+                                        {projectFields.map(f => (
+                                            <th key={f.id}>{f.field_name}</th>
+                                        ))}
                                         <th className="col-status">Status</th>
                                         <th className="col-remarks">Remarks</th>
                                         <th className="col-files">Attachments</th>
@@ -291,6 +296,9 @@ export default function DailyRFISheet() {
                                             <td className="col-desc" data-label="Description">{rfi.description}</td>
                                             <td className="col-loc" data-label="Location">{rfi.location}</td>
                                             <td className="col-type" data-label="Type">{rfi.inspectionType}</td>
+                                            {projectFields.map(f => (
+                                                <td key={f.id} data-label={f.field_name}>{rfi.customFields?.[f.field_key] || '—'}</td>
+                                            ))}
                                             <td className="col-status" data-label="Status">
                                                 <StatusBadge status={rfi.status} />
                                                 {rfi.carryoverCount > 0 && (
@@ -372,6 +380,9 @@ export default function DailyRFISheet() {
                                         <th className="col-desc">Description</th>
                                         <th className="col-loc">Location</th>
                                         <th className="col-type">Type</th>
+                                        {projectFields.map(f => (
+                                            <th key={f.id}>{f.field_name}</th>
+                                        ))}
                                         <th className="col-status">Status</th>
                                         <th className="col-remarks">Remarks</th>
                                         <th className="col-files">Attachments</th>
@@ -385,6 +396,9 @@ export default function DailyRFISheet() {
                                             <td className="col-desc" data-label="Description">{rfi.description}</td>
                                             <td className="col-loc" data-label="Location">{rfi.location}</td>
                                             <td className="col-type" data-label="Type">{rfi.inspectionType}</td>
+                                            {projectFields.map(f => (
+                                                <td key={f.id} data-label={f.field_name}>{rfi.customFields?.[f.field_key] || '—'}</td>
+                                            ))}
                                             <td className="col-status" data-label="Status"><StatusBadge status={rfi.status} /></td>
                                             <td className="col-remarks remarks-text" data-label="Remarks">{rfi.remarks || '—'}</td>
                                             <td className="col-files" data-label="Attachments">
@@ -479,6 +493,9 @@ export default function DailyRFISheet() {
                                     <th className="col-desc">Description *</th>
                                     <th className="col-loc">Location *</th>
                                     <th className="col-type">Inspection Type</th>
+                                    {projectFields.map(f => (
+                                        <th key={f.id}>{f.field_name}{f.is_required ? ' *' : ''}</th>
+                                    ))}
                                     <th className="col-assign">Assign To</th>
                                     <th className="col-files">Attachments</th>
                                     <th className="col-actions"></th>
@@ -517,6 +534,47 @@ export default function DailyRFISheet() {
                                                 ))}
                                             </select>
                                         </td>
+                                        {projectFields.map(f => (
+                                            <td key={f.id}>
+                                                {f.field_type === 'select' ? (
+                                                    <select
+                                                        className="cell-select"
+                                                        value={row.customFields?.[f.field_key] || ''}
+                                                        onChange={e => {
+                                                            const updated = { ...row.customFields, [f.field_key]: e.target.value };
+                                                            updateRow(row.tempId, 'customFields', updated);
+                                                        }}
+                                                    >
+                                                        <option value="">— Select —</option>
+                                                        {(f.options || []).map(o => (
+                                                            <option key={o} value={o}>{o}</option>
+                                                        ))}
+                                                    </select>
+                                                ) : f.field_type === 'textarea' ? (
+                                                    <textarea
+                                                        className="cell-input"
+                                                        rows={2}
+                                                        value={row.customFields?.[f.field_key] || ''}
+                                                        onChange={e => {
+                                                            const updated = { ...row.customFields, [f.field_key]: e.target.value };
+                                                            updateRow(row.tempId, 'customFields', updated);
+                                                        }}
+                                                        placeholder={f.field_name}
+                                                    />
+                                                ) : (
+                                                    <input
+                                                        type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : 'text'}
+                                                        className="cell-input"
+                                                        value={row.customFields?.[f.field_key] || ''}
+                                                        onChange={e => {
+                                                            const updated = { ...row.customFields, [f.field_key]: e.target.value };
+                                                            updateRow(row.tempId, 'customFields', updated);
+                                                        }}
+                                                        placeholder={f.field_name}
+                                                    />
+                                                )}
+                                            </td>
+                                        ))}
                                         <td className="col-assign">
                                             <select
                                                 className="cell-select"

@@ -27,7 +27,7 @@ import { useProject } from '../context/ProjectContext';
 export default function ContractorDashboard() {
     const { user } = useAuth();
     const { rfis, getStats } = useRFI();
-    const { activeProject } = useProject();
+    const { activeProject, projectFields } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
     const navigate = useNavigate();
     const today = getToday();
@@ -199,6 +199,9 @@ export default function ContractorDashboard() {
                                             <th className="col-desc">Description</th>
                                             <th className="col-loc">Location</th>
                                             <th className="col-type">Type</th>
+                                            {projectFields.map(f => (
+                                                <th key={f.id}>{f.field_name}</th>
+                                            ))}
                                             <th>Date</th>
                                             <th className="col-status">Status</th>
                                         </tr>
@@ -210,6 +213,9 @@ export default function ContractorDashboard() {
                                                 <td className="col-desc" data-label="Description">{rfi.description}</td>
                                                 <td className="col-loc" data-label="Location">{rfi.location}</td>
                                                 <td className="col-type" data-label="Type">{rfi.inspectionType}</td>
+                                                {projectFields.map(f => (
+                                                    <td key={f.id} data-label={f.field_name}>{rfi.customFields?.[f.field_key] || '—'}</td>
+                                                ))}
                                                 <td data-label="Date">{rfi.filedDate}</td>
                                                 <td className="col-status" data-label="Status"><StatusBadge status={rfi.status} /></td>
                                             </tr>

@@ -128,7 +128,8 @@ export function RFIProvider({ children }) {
                 assignedTo: r.assigned_to,
                 assigneeName: userMap[r.assigned_to]?.name || '',
                 parentId: r.parent_id,
-                createdAt: r.created_at
+                createdAt: r.created_at,
+                customFields: r.custom_fields || {},
             }));
             setRfis(formatted || []);
         } catch (error) {
@@ -290,10 +291,11 @@ export function RFIProvider({ children }) {
         assigned_to: rfi.assignedTo || null,
         project_id: activeProject?.id,
         parent_id: rfi.parentId || null,
+        custom_fields: rfi.customFields || null,
     });
 
     /** Create a new RFI */
-    async function createRFI({ description, location, inspectionType, filedBy, filedDate, images, assignedTo, parentId = null }) {
+    async function createRFI({ description, location, inspectionType, filedBy, filedDate, images, assignedTo, parentId = null, customFields = null }) {
         if (!activeProject?.id) {
             throw new Error('No active project selected.');
         }
@@ -377,6 +379,7 @@ export function RFIProvider({ children }) {
                 images: imageUrls,
                 assignedTo: assignedTo || null,
                 parentId,
+                customFields: customFields || null,
             };
 
             const { data: insertedData, error } = await supabase.from('rfis').insert([formatForDB(newRfiData)]).select();
