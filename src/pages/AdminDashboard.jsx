@@ -33,6 +33,8 @@ export default function AdminDashboard() {
     const [searchTerm, setSearchTerm] = useState('');
     const [roleFilter, setRoleFilter] = useState('all');
     const [actionMessage, setActionMessage] = useState('');
+    const [pendingApprove, setPendingApprove] = useState({});
+    const [rejectedCollapsed, setRejectedCollapsed] = useState(false);
 
     // Project creation form
     const [showNewProject, setShowNewProject] = useState(false);
@@ -55,6 +57,7 @@ export default function AdminDashboard() {
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
+                .not('is_archived', 'eq', true)
                 .order('name');
             if (error) throw error;
             setUsers(data || []);
@@ -85,11 +88,35 @@ export default function AdminDashboard() {
         else showMsg('❌ Error updating role');
     }
 
-    async function deleteUserProfile(userId, userName) {
-        if (!window.confirm(`Permanently delete "${userName}"? This removes them completely from the system and cannot be undone.`)) return;
-        // Use the admin_delete_user RPC which deletes from auth.users and cascades to profiles
-        const { error } = await supabase.rpc('admin_delete_user', { target_user_id: userId });
-        if (!error) { showMsg(`🗑️ ${userName} permanently deleted`); fetchUsers(); }
+    // Approve pending or re-approve rejected: sets role + assigns to project
+    async function approveUser(userId, userName) {
+        const pa = pendingApprove[userId] || {};
+        const role = pa.role;
+        const projectId = pa.projectId || activeProject?.id;
+        if (!role) { showMsg('⚠️ Select a role first'); return; }
+        if (!projectId) { showMsg('⚠️ Select a project first'); return; }
+        // assignUserToProject handles both role update and project assignment atomically
+        const result = await assignUserToProject(projectId, userId, role);
+        if (result?.success) {
+            showMsg(`✅ ${userName} approved as ${role}`);
+            setPendingApprove(prev => { const n = { ...prev }; delete n[userId]; return n; });
+            fetchUsers();
+        } else {
+            showMsg('❌ ' + (result?.error || 'Assignment failed'));
+        }
+    }
+
+    // Decline a pending user — moves them to Rejected section
+    async function declineUser(userId) {
+        const { error } = await supabase.from('profiles').update({ role: 'rejected' }).eq('id', userId);
+        if (!error) { showMsg('Request declined'); fetchUsers(); }
+        else showMsg('❌ ' + error.message);
+    }
+
+    // Archive = soft-delete: hides card from dashboard, user record stays in DB
+    async function archiveUser(userId, userName) {
+        const { error } = await supabase.from('profiles').update({ is_archived: true }).eq('id', userId);
+        if (!error) { showMsg(`🗑️ ${userName} removed from dashboard`); fetchUsers(); }
         else showMsg('❌ ' + error.message);
     }
 
@@ -180,21 +207,24 @@ export default function AdminDashboard() {
     }
 
     // ─── Computed ───
-    const filteredUsers = users.filter(u => {
+    const pendingUsers = users.filter(u => u.role === 'pending');
+    const rejectedUsers = users.filter(u => u.role === 'rejected');
+    const activeUsers = users.filter(u => !['pending', 'rejected'].includes(u.role));
+
+    const filteredUsers = activeUsers.filter(u => {
         const matchesSearch = u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             u.company?.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesRole = roleFilter === 'all' || u.role === roleFilter;
         return matchesSearch && matchesRole;
     });
 
-    const pendingUsers = users.filter(u => u.role === 'pending');
     const stats = {
-        total: users.length,
-        contractors: users.filter(u => u.role === 'contractor').length,
-        consultants: users.filter(u => u.role === 'consultant').length,
-        admins: users.filter(u => u.role === 'admin').length,
+        total: activeUsers.length,
+        contractors: activeUsers.filter(u => u.role === 'contractor').length,
+        consultants: activeUsers.filter(u => u.role === 'consultant').length,
+        admins: activeUsers.filter(u => u.role === 'admin').length,
         pending: pendingUsers.length,
-        inactive: users.filter(u => u.is_active === false).length,
+        inactive: activeUsers.filter(u => u.is_active === false).length,
     };
 
     return (
@@ -375,90 +405,117 @@ export default function AdminDashboard() {
                 {activeTab === 'users' && (
                     <div className="admin-section">
 
-                        {/* ── Stats pills + search bar ── */}
-                        <div className="users-toolbar">
-                            <div className="users-stat-pills">
-                                <span className="ustat-pill">👥 {stats.total} Total</span>
-                                <span className="ustat-pill">🏗️ {stats.contractors} Contractors</span>
-                                <span className="ustat-pill">🔍 {stats.consultants} Consultants</span>
-                                {stats.pending > 0 && <span className="ustat-pill ustat-warn">⏳ {stats.pending} Pending</span>}
-                                {stats.inactive > 0 && <span className="ustat-pill ustat-danger">⛔ {stats.inactive} Deactivated</span>}
-                            </div>
-                            <div className="users-search-row">
-                                <div className="admin-search" style={{ minWidth: 0, flex: 1 }}>
-                                    <Search size={15} />
-                                    <input type="text" placeholder="Search name or company…" value={searchTerm}
-                                        onChange={e => setSearchTerm(e.target.value)} />
-                                </div>
-                                <select className="users-role-select" value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
-                                    <option value="all">All</option>
-                                    <option value="contractor">Contractors</option>
-                                    <option value="consultant">Consultants</option>
-                                    <option value="admin">Admins</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="rejected">Rejected</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* ── Pending approvals ── */}
+                        {/* ══ 1. PENDING APPROVALS ══ */}
                         {pendingUsers.length > 0 && (
                             <div className="users-pending-block">
-                                <div className="users-pending-title">⏳ {pendingUsers.length} Pending Approval{pendingUsers.length > 1 ? 's' : ''}</div>
+                                <div className="users-pending-title">⏳ {pendingUsers.length} Pending Approval{pendingUsers.length !== 1 ? 's' : ''}</div>
                                 <div className="users-pending-list">
-                                    {pendingUsers.map(pu => (
-                                        <div key={pu.id} className="users-pending-item">
-                                            <div className="users-pending-who">
-                                                <UserAvatar name={pu.name} size={38} />
-                                                <div>
-                                                    <div className="users-pending-name">{pu.name}</div>
-                                                    <div className="users-pending-sub">{pu.company || 'No company'}</div>
+                                    {pendingUsers.map(pu => {
+                                        const pa = pendingApprove[pu.id] || {};
+                                        return (
+                                            <div key={pu.id} className="users-pending-item">
+                                                <div className="users-pending-who">
+                                                    <UserAvatar name={pu.name} size={40} />
+                                                    <div>
+                                                        <div className="users-pending-name">{pu.name}</div>
+                                                        <div className="users-pending-sub">{pu.company || 'No company'}</div>
+                                                    </div>
+                                                </div>
+                                                <div className="users-pending-actions">
+                                                    <select className="users-role-select"
+                                                        value={pa.projectId || activeProject?.id || ''}
+                                                        onChange={e => setPendingApprove(prev => ({ ...prev, [pu.id]: { ...pa, projectId: e.target.value } }))}>
+                                                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                                    </select>
+                                                    <select className="users-role-select"
+                                                        value={pa.role || ''}
+                                                        onChange={e => setPendingApprove(prev => ({ ...prev, [pu.id]: { ...pa, role: e.target.value } }))}>
+                                                        <option value="" disabled>Assign role…</option>
+                                                        <option value="contractor">Contractor</option>
+                                                        <option value="consultant">Consultant</option>
+                                                        <option value="admin">Admin</option>
+                                                    </select>
+                                                    <button className="btn btn-sm"
+                                                        style={{ background: 'var(--clr-brand-secondary)', color: '#fff', border: 'none', whiteSpace: 'nowrap' }}
+                                                        onClick={() => approveUser(pu.id, pu.name)}>
+                                                        <UserCheck size={13} /> Approve
+                                                    </button>
+                                                    <button className="btn btn-sm btn-ghost users-decline-btn"
+                                                        onClick={() => declineUser(pu.id)}>
+                                                        <UserX size={13} /> Decline
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <div className="users-pending-actions">
-                                                <select
-                                                    className="users-role-select"
-                                                    value={selectedProjectForAssign || activeProject?.id || ''}
-                                                    onChange={e => setSelectedProjectForAssign(e.target.value)}
-                                                >
-                                                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                                </select>
-                                                <select className="users-role-select" defaultValue="" onChange={e => {
-                                                    const pid = selectedProjectForAssign || activeProject?.id;
-                                                    if (pid && e.target.value) {
-                                                        assignUserToProject(pid, pu.id, e.target.value).then(r => {
-                                                            if (r?.success) { showMsg(`✅ ${pu.name} approved as ${e.target.value}`); fetchUsers(); }
-                                                        });
-                                                    }
-                                                }}>
-                                                    <option value="" disabled>Approve as…</option>
-                                                    <option value="contractor">✅ Contractor</option>
-                                                    <option value="consultant">✅ Consultant</option>
-                                                    <option value="admin">✅ Admin</option>
-                                                </select>
-                                                <button className="btn btn-sm btn-ghost users-decline-btn"
-                                                    onClick={() => changeUserRole(pu.id, 'rejected')}
-                                                    title="Decline this request">
-                                                    <UserX size={13} /> Decline
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
 
-                        {/* ── Project team ── */}
+                        {/* ══ 2. REJECTED ACCOUNTS ══ */}
+                        {rejectedUsers.length > 0 && (
+                            <div className="users-rejected-block">
+                                <button className="users-rejected-title" onClick={() => setRejectedCollapsed(c => !c)}>
+                                    <UserX size={15} />
+                                    {rejectedUsers.length} Rejected Account{rejectedUsers.length !== 1 ? 's' : ''}
+                                    <span className="users-rejected-toggle">{rejectedCollapsed ? '▼ Show' : '▲ Hide'}</span>
+                                </button>
+                                {!rejectedCollapsed && (
+                                    <div className="users-rejected-list">
+                                        {rejectedUsers.map(ru => {
+                                            const pa = pendingApprove[ru.id] || {};
+                                            return (
+                                                <div key={ru.id} className="users-rejected-item">
+                                                    <div className="users-pending-who">
+                                                        <UserAvatar name={ru.name} size={36} />
+                                                        <div>
+                                                            <div className="users-pending-name">{ru.name}</div>
+                                                            <div className="users-pending-sub">{ru.company || 'No company'}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="users-pending-actions">
+                                                        <select className="users-role-select"
+                                                            value={pa.projectId || activeProject?.id || ''}
+                                                            onChange={e => setPendingApprove(prev => ({ ...prev, [ru.id]: { ...pa, projectId: e.target.value } }))}>
+                                                            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                                        </select>
+                                                        <select className="users-role-select"
+                                                            value={pa.role || ''}
+                                                            onChange={e => setPendingApprove(prev => ({ ...prev, [ru.id]: { ...pa, role: e.target.value } }))}>
+                                                            <option value="" disabled>Re-approve as…</option>
+                                                            <option value="contractor">Contractor</option>
+                                                            <option value="consultant">Consultant</option>
+                                                            <option value="admin">Admin</option>
+                                                        </select>
+                                                        <button className="btn btn-sm"
+                                                            style={{ background: 'var(--clr-brand-secondary)', color: '#fff', border: 'none' }}
+                                                            onClick={() => approveUser(ru.id, ru.name)}>
+                                                            <UserCheck size={13} /> Approve
+                                                        </button>
+                                                        <button className="btn btn-sm btn-ghost"
+                                                            style={{ color: 'var(--clr-danger)' }}
+                                                            onClick={() => archiveUser(ru.id, ru.name)}
+                                                            title="Remove from dashboard">
+                                                            <Trash2 size={13} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* ══ 3. PROJECT TEAM ══ */}
                         <div className="users-team-block">
                             <div className="users-team-header">
                                 <span className="users-team-title">Team — <strong>{activeProject?.name || 'Select a project'}</strong></span>
-                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                    <select className="users-role-select"
-                                        value={selectedProjectForAssign || activeProject?.id || ''}
-                                        onChange={e => setSelectedProjectForAssign(e.target.value)}>
-                                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                    </select>
-                                </div>
+                                <select className="users-role-select"
+                                    value={selectedProjectForAssign || activeProject?.id || ''}
+                                    onChange={e => setSelectedProjectForAssign(e.target.value)}>
+                                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                </select>
                             </div>
                             {projectMembers.length === 0 ? (
                                 <p className="text-muted" style={{ fontSize: '0.85rem', padding: '0.5rem 0' }}>No members assigned to this project yet.</p>
@@ -476,11 +533,10 @@ export default function AdminDashboard() {
                                     ))}
                                 </div>
                             )}
-                            {/* Add member inline */}
                             <form className="users-add-member-row" onSubmit={handleAssignUser}>
                                 <select value={assignUserId} onChange={e => setAssignUserId(e.target.value)} required className="users-role-select" style={{ flex: 2, minWidth: 0 }}>
                                     <option value="">+ Add member…</option>
-                                    {users.filter(u => u.role !== 'pending' && u.role !== 'rejected' && u.id !== user.id).map(u => (
+                                    {activeUsers.filter(u => u.id !== user.id).map(u => (
                                         <option key={u.id} value={u.id}>{u.name} — {u.company || 'No company'}</option>
                                     ))}
                                 </select>
@@ -495,18 +551,39 @@ export default function AdminDashboard() {
                             </form>
                         </div>
 
-                        {/* ── All users grid ── */}
+                        {/* ══ 4. ALL MEMBERS GRID ══ */}
+                        <div className="users-section-label">👥 All Members</div>
+                        <div className="users-toolbar">
+                            <div className="users-stat-pills">
+                                <span className="ustat-pill">👥 {stats.total} Total</span>
+                                <span className="ustat-pill">🏗️ {stats.contractors} Contractors</span>
+                                <span className="ustat-pill">🔍 {stats.consultants} Consultants</span>
+                                {stats.inactive > 0 && <span className="ustat-pill ustat-danger">⛔ {stats.inactive} Deactivated</span>}
+                            </div>
+                            <div className="users-search-row">
+                                <div className="admin-search" style={{ minWidth: 0, flex: 1 }}>
+                                    <Search size={15} />
+                                    <input type="text" placeholder="Search name or company…" value={searchTerm}
+                                        onChange={e => setSearchTerm(e.target.value)} />
+                                </div>
+                                <select className="users-role-select" value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
+                                    <option value="all">All roles</option>
+                                    <option value="contractor">Contractors</option>
+                                    <option value="consultant">Consultants</option>
+                                    <option value="admin">Admins</option>
+                                </select>
+                            </div>
+                        </div>
+
                         {loading ? (
                             <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--clr-text-muted)' }}>Loading users…</div>
                         ) : filteredUsers.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--clr-text-muted)' }}>No users match your search.</div>
+                            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--clr-text-muted)' }}>No active members yet.</div>
                         ) : (
                             <div className="users-grid">
                                 {filteredUsers.map(u => {
                                     const isSelf = u.id === user.id;
                                     const isInactive = u.is_active === false;
-                                    const statusClass = isInactive ? 'inactive' : u.role === 'pending' ? 'warning' : u.role === 'rejected' ? 'inactive' : 'active';
-                                    const statusLabel = isInactive ? 'Deactivated' : u.role === 'pending' ? 'Pending' : u.role === 'rejected' ? 'Rejected' : 'Active';
                                     return (
                                         <div key={u.id} className={`user-card ${isInactive ? 'user-card-dim' : ''}`}>
                                             <div className="user-card-top">
@@ -518,7 +595,9 @@ export default function AdminDashboard() {
                                                     </div>
                                                     <div className="user-card-company">{u.company || <em>No company</em>}</div>
                                                 </div>
-                                                <span className={`status-badge-admin ${statusClass}`}>{statusLabel}</span>
+                                                <span className={`status-badge-admin ${isInactive ? 'inactive' : 'active'}`}>
+                                                    {isInactive ? 'Deactivated' : 'Active'}
+                                                </span>
                                             </div>
                                             <div className="user-card-bottom">
                                                 <select
@@ -528,8 +607,6 @@ export default function AdminDashboard() {
                                                     disabled={isSelf}
                                                     title={isSelf ? 'Cannot change your own role' : 'Change role'}
                                                 >
-                                                    <option value="pending">Pending</option>
-                                                    <option value="rejected">Rejected</option>
                                                     <option value="contractor">Contractor</option>
                                                     <option value="consultant">Consultant</option>
                                                     <option value="admin">Admin</option>
@@ -547,8 +624,8 @@ export default function AdminDashboard() {
                                                         <button
                                                             className="btn btn-sm btn-ghost"
                                                             style={{ color: 'var(--clr-danger)' }}
-                                                            onClick={() => deleteUserProfile(u.id, u.name)}
-                                                            title="Permanently delete user"
+                                                            onClick={() => archiveUser(u.id, u.name)}
+                                                            title="Remove card from dashboard"
                                                         >
                                                             <Trash2 size={14} />
                                                         </button>

@@ -116,6 +116,14 @@ export function AuthProvider({ children }) {
                     setLoading(false);
                     return;
                 }
+                // Block archived accounts (card hidden by admin — treated same as deactivated)
+                if (data.is_archived === true) {
+                    await supabase.auth.signOut();
+                    localStorage.removeItem(PROFILE_CACHE_KEY);
+                    setUser(null);
+                    setLoading(false);
+                    return;
+                }
                 // Rejected users — keep them signed in so LoginPage shows rejection screen
                 const fullUser = { ...data, email: authUser?.email || '' };
                 // Cache the profile for offline resilience

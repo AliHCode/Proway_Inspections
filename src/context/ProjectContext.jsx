@@ -28,9 +28,24 @@ export function ProjectProvider({ children }) {
         });
 
         try {
-            const { data, error } = await supabase.from('projects').select('*').order('name');
-            if (error) throw error;
-            const fetchedProjects = data || [];
+            let fetchedProjects = [];
+            if (user.role === 'admin') {
+                // Admins see every project
+                const { data, error } = await supabase.from('projects').select('*').order('name');
+                if (error) throw error;
+                fetchedProjects = data || [];
+            } else {
+                // Non-admins only see projects they are assigned to
+                const { data, error } = await supabase
+                    .from('project_members')
+                    .select('project:project_id(*)')
+                    .eq('user_id', user.id);
+                if (error) throw error;
+                fetchedProjects = (data || [])
+                    .map(m => m.project)
+                    .filter(Boolean)
+                    .sort((a, b) => a.name.localeCompare(b.name));
+            }
             setProjects(fetchedProjects);
 
             if (user.current_project_id) {
@@ -199,13 +214,31 @@ export function ProjectProvider({ children }) {
     // ─── Project member management (admin) ───
     async function assignUserToProject(projectId, userId, role) {
         try {
-            const { data, error } = await supabase
+            // Check if the user is already a member — avoids unique constraint errors
+            const { data: existing } = await supabase
                 .from('project_members')
-                .upsert({ project_id: projectId, user_id: userId, role }, { onConflict: 'project_id,user_id' })
-                .select('*, profiles:user_id(id, name, company, role, is_active)');
-            if (error) throw error;
+                .select('id')
+                .eq('project_id', projectId)
+                .eq('user_id', userId)
+                .maybeSingle();
 
-            // Also update the user's profile role from pending to their assigned role
+            if (existing) {
+                // Already a member: update their role only
+                const { error } = await supabase
+                    .from('project_members')
+                    .update({ role })
+                    .eq('project_id', projectId)
+                    .eq('user_id', userId);
+                if (error) throw error;
+            } else {
+                // New member: insert
+                const { error } = await supabase
+                    .from('project_members')
+                    .insert({ project_id: projectId, user_id: userId, role });
+                if (error) throw error;
+            }
+
+            // Sync the user's global profile role and their active project
             await supabase.from('profiles').update({ role, current_project_id: projectId }).eq('id', userId);
 
             await fetchProjectMembers(projectId);

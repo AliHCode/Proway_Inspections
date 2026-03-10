@@ -160,32 +160,32 @@ export function RFIProvider({ children }) {
         }
     }, [user]);
 
-    // Fetch consultants for Direct Assign dropdown
-    const fetchConsultants = useCallback(async () => {
+    // Fetch consultants/contractors scoped to the active project's members only
+    const fetchConsultants = useCallback(async (projectId) => {
+        if (!projectId) { setConsultants([]); return; }
         try {
             const { data, error } = await supabase
-                .from('profiles')
-                .select('id, name, company, role')
-                .eq('role', 'consultant')
-                .order('name');
-
+                .from('project_members')
+                .select('profiles:user_id(id, name, company, role)')
+                .eq('project_id', projectId)
+                .eq('role', 'consultant');
             if (error) throw error;
-            setConsultants(data || []);
+            setConsultants((data || []).map(m => m.profiles).filter(Boolean));
         } catch (error) {
             console.error('Error fetching consultants:', error);
         }
     }, []);
 
-    const fetchContractors = useCallback(async () => {
+    const fetchContractors = useCallback(async (projectId) => {
+        if (!projectId) { setContractors([]); return; }
         try {
             const { data, error } = await supabase
-                .from('profiles')
-                .select('id, name, company, role')
-                .eq('role', 'contractor')
-                .order('name');
-
+                .from('project_members')
+                .select('profiles:user_id(id, name, company, role)')
+                .eq('project_id', projectId)
+                .eq('role', 'contractor');
             if (error) throw error;
-            setContractors(data || []);
+            setContractors((data || []).map(m => m.profiles).filter(Boolean));
         } catch (error) {
             console.error('Error fetching contractors:', error);
         }
@@ -252,8 +252,8 @@ export function RFIProvider({ children }) {
 
     useEffect(() => {
         fetchAllRFIs();
-        fetchConsultants();
-        fetchContractors();
+        fetchConsultants(activeProject?.id);
+        fetchContractors(activeProject?.id);
         refreshPendingSyncCount();
         if (user) {
             fetchNotifications();
@@ -263,10 +263,12 @@ export function RFIProvider({ children }) {
             syncPendingRFIs();
         }
 
-        // Subscribe to real-time changes for RFIs
+        // Subscribe to real-time changes for RFIs — scoped to active project
         const rfiSubscription = supabase
-            .channel('public:rfis')
+            .channel(`rfis:proj:${activeProject?.id || 'none'}`)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'rfis' }, payload => {
+                // Ignore events that belong to a different project
+                if (activeProject?.id && payload.new?.project_id && payload.new.project_id !== activeProject.id) return;
                 console.log('Real-time RFI update:', payload);
                 if (payload.eventType === 'INSERT') {
                     toast.success('New RFI submitted on this project!');

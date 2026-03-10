@@ -91,7 +91,10 @@ ALTER TABLE public.profiles
 ADD CONSTRAINT profiles_role_check
 CHECK (role IN ('contractor', 'consultant', 'admin', 'pending', 'rejected'));
 
--- 9. Admin delete-user function: truly removes from auth.users (cascades to profiles)
+-- 9. Add is_archived column to profiles (soft-delete: hides card from dashboard)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_archived boolean DEFAULT false;
+
+-- 10. Admin delete-user function: truly removes from auth.users + all dependent rows
 -- SECURITY DEFINER runs as the DB owner (postgres), which has access to auth schema.
 CREATE OR REPLACE FUNCTION public.admin_delete_user(target_user_id uuid)
 RETURNS void
@@ -107,7 +110,29 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized: admin role required';
   END IF;
 
-  -- Deleting from auth.users cascades to public.profiles automatically
+  -- 1. Nullify soft references in rfis (assigned_to / reviewed_by are nullable)
+  UPDATE public.rfis SET assigned_to = NULL WHERE assigned_to = target_user_id;
+  UPDATE public.rfis SET reviewed_by = NULL WHERE reviewed_by = target_user_id;
+
+  -- 2. Delete RFIs filed by this user (filed_by is NOT NULL, so must delete)
+  DELETE FROM public.rfis WHERE filed_by = target_user_id;
+
+  -- 3. Delete rfi_comments by this user
+  DELETE FROM public.rfi_comments WHERE user_id = target_user_id;
+
+  -- 4. Delete rfi_status_history rows for this user
+  DELETE FROM public.rfi_status_history WHERE user_id = target_user_id;
+
+  -- 5. Delete notifications for this user
+  DELETE FROM public.notifications WHERE user_id = target_user_id;
+
+  -- 6. Remove from project_members
+  DELETE FROM public.project_members WHERE user_id = target_user_id;
+
+  -- 7. Delete profile row
+  DELETE FROM public.profiles WHERE id = target_user_id;
+
+  -- 8. Delete from auth.users (now safe — all FKs cleared)
   DELETE FROM auth.users WHERE id = target_user_id;
 END;
 $$;
