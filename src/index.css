@@ -3228,20 +3228,32 @@ h6 {
 
 /* ── Shared select ── */
 .ua-select {
-  padding: 0.4rem 0.65rem;
+  height: 34px;
+  padding: 0 0.75rem;
   border: 1px solid var(--clr-border);
   border-radius: var(--radius-md);
   background: var(--clr-bg-card);
   font-family: var(--font-main);
   font-size: 0.82rem;
+  font-weight: 500;
   color: var(--clr-text-main);
   cursor: pointer;
-  transition: border-color 0.2s;
+  transition: all 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  padding-right: 2.2rem;
+}
+
+.ua-select:hover {
+  border-color: var(--clr-brand-accent);
 }
 
 .ua-select:focus {
   outline: none;
-  border-color: var(--clr-text-muted);
+  border-color: var(--clr-brand-primary);
+  box-shadow: 0 0 0 3px rgba(30, 41, 59, 0.05);
 }
 
 .ua-select-wide {
@@ -3252,36 +3264,47 @@ h6 {
 .ua-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.38rem 0.7rem;
+  justify-content: center;
+  gap: 0.4rem;
+  height: 34px;
+  padding: 0 1rem;
   border-radius: var(--radius-md);
   font-family: var(--font-main);
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: all 0.15s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
 }
 
 .ua-btn-primary {
-  background: var(--clr-text-main);
-  color: var(--clr-bg-card);
-  border-color: var(--clr-text-main);
+  background: #10b981; /* Professional Emerald Green */
+  color: #ffffff;
+  border-color: #059669;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .ua-btn-primary:hover {
-  opacity: 0.85;
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.ua-btn-primary:active {
+  transform: translateY(0);
 }
 
 .ua-btn-danger-ghost {
   background: transparent;
-  color: var(--clr-danger);
+  color: #f87171; /* Softer red for ghost state */
   border-color: transparent;
 }
 
 .ua-btn-danger-ghost:hover {
-  background: var(--clr-danger-bg);
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
 }
 
 .ua-btn-outline {
