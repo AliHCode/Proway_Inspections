@@ -91,5 +91,29 @@ ALTER TABLE public.profiles
 ADD CONSTRAINT profiles_role_check
 CHECK (role IN ('contractor', 'consultant', 'admin', 'pending', 'rejected'));
 
--- 9. Refresh schema cache
+-- 9. Admin delete-user function: truly removes from auth.users (cascades to profiles)
+-- SECURITY DEFINER runs as the DB owner (postgres), which has access to auth schema.
+CREATE OR REPLACE FUNCTION public.admin_delete_user(target_user_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Guard: only admins may call this
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized: admin role required';
+  END IF;
+
+  -- Deleting from auth.users cascades to public.profiles automatically
+  DELETE FROM auth.users WHERE id = target_user_id;
+END;
+$$;
+
+-- Grant execute to authenticated users (RLS inside the function handles authorization)
+GRANT EXECUTE ON FUNCTION public.admin_delete_user(uuid) TO authenticated;
+
+-- 10. Refresh schema cache
 NOTIFY pgrst, 'reload schema';

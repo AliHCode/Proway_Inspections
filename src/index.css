@@ -3096,6 +3096,297 @@ h6 {
 }
 
 /* ============================================
+   USERS & ASSIGNMENTS — redesigned
+   ============================================ */
+
+/* Toolbar: stat pills + search row */
+.users-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.users-stat-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ustat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-full);
+  background: var(--clr-bg-card);
+  border: 1px solid var(--clr-border);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+}
+
+.ustat-pill.ustat-warn {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.ustat-pill.ustat-danger {
+  background: var(--clr-danger-bg);
+  border-color: #fecaca;
+  color: var(--clr-danger);
+}
+
+.users-search-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.users-role-select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  background: var(--clr-bg-card);
+  font-family: var(--font-main);
+  font-size: 0.85rem;
+  color: var(--clr-text-main);
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.users-role-select:focus {
+  outline: none;
+  border-color: var(--clr-brand-secondary);
+}
+
+/* Pending approvals block */
+.users-pending-block {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.users-pending-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #92400e;
+  margin-bottom: 0.85rem;
+}
+
+.users-pending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.users-pending-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #fff;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-md);
+  padding: 0.65rem 1rem;
+  flex-wrap: wrap;
+}
+
+.users-pending-who {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.users-pending-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.users-pending-sub {
+  font-size: 0.75rem;
+  color: var(--clr-text-muted);
+}
+
+.users-pending-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.users-decline-btn {
+  color: var(--clr-danger) !important;
+  font-size: 0.8rem;
+}
+
+/* Project team block */
+.users-team-block {
+  background: var(--clr-bg-card);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.users-team-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.users-team-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--clr-text-main);
+}
+
+.users-team-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.users-team-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.5rem 0.3rem 0.4rem;
+  background: var(--clr-bg-main);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+}
+
+.users-team-chip-name {
+  font-weight: 600;
+}
+
+.users-team-chip-role {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-full);
+  background: var(--clr-info-bg);
+  color: var(--clr-brand-secondary);
+}
+
+.users-team-chip-role.role-contractor { background: #ecfdf5; color: #065f46; }
+.users-team-chip-role.role-consultant { background: var(--clr-info-bg); color: var(--clr-brand-secondary); }
+.users-team-chip-role.role-admin { background: #f5f3ff; color: #5b21b6; }
+
+.users-team-chip-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--clr-text-muted);
+  border-radius: 50%;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.users-team-chip-remove:hover {
+  background: var(--clr-danger-bg);
+  color: var(--clr-danger);
+}
+
+.users-add-member-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--clr-border);
+}
+
+/* User cards grid */
+.users-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.user-card {
+  background: var(--clr-bg-card);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  transition: box-shadow 0.2s;
+}
+
+.user-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+}
+
+.user-card-dim {
+  opacity: 0.55;
+  background: var(--clr-danger-bg);
+  border-color: #fecaca;
+}
+
+.user-card-top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-card-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-card-company {
+  font-size: 0.75rem;
+  color: var(--clr-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.user-card-role-select {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+}
+
+.user-card-actions {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ============================================
    AUDIT TRAIL (RFI History Log)
    ============================================ */
 .audit-log {
