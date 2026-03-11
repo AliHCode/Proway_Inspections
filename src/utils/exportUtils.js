@@ -6,6 +6,7 @@ import { sanitizeColumnWidth, widthPxToExcelChars } from './tableLayout';
 
 const PDF_PX_TO_PT = 0.6;
 const PDF_SAFE_MARGIN = 10;
+const PDF_COMPACT_FACTOR = 0.84;
 const DEFAULT_EXPORT_TEMPLATE = {
     header: {
         title: 'RFI Summary',
@@ -414,16 +415,16 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
         addImageSafe(doc, logo.url, logo.x, logo.y, logo.w, logo.h);
     });
 
-    doc.setFontSize(layout.title.fontSize);
+    doc.setFontSize(Math.max(9, layout.title.fontSize * PDF_COMPACT_FACTOR));
     doc.text(template.header.title || title, layout.title.x + layout.title.w / 2, layout.title.y + layout.title.h * 0.7, { align: 'center' });
-    doc.setFontSize(layout.subtitle.fontSize);
+    doc.setFontSize(Math.max(8, layout.subtitle.fontSize * PDF_COMPACT_FACTOR));
     if (template.header.subtitle) doc.text(template.header.subtitle, layout.subtitle.x + layout.subtitle.w / 2, layout.subtitle.y + layout.subtitle.h * 0.75, { align: 'center' });
     if (template.header.projectLine) doc.text(template.header.projectLine, layout.projectLine.x + layout.projectLine.w / 2, layout.projectLine.y + layout.projectLine.h * 0.75, { align: 'center' });
     if (template.header.showSubmissionDate) {
-        doc.setFontSize(layout.submissionDate.fontSize);
+        doc.setFontSize(Math.max(7.5, layout.submissionDate.fontSize * PDF_COMPACT_FACTOR));
         doc.text(`Submission Date: ${new Date().toLocaleDateString()}`, layout.submissionDate.x + layout.submissionDate.w, layout.submissionDate.y + layout.submissionDate.h * 0.75, { align: 'right' });
     }
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, Math.max(26, layout.table.y - 4));
 
     const exportData = prepareDataForExport(rfis, projectFields, template);
@@ -446,14 +447,14 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
         tableWidth: layout.table.w,
         columnStyles,
         styles: {
-            fontSize: template.table.compactMode ? Math.max(7, template.table.bodyFontSize - 1) : template.table.bodyFontSize,
-            cellPadding: template.table.compactMode ? 1.8 : 2.5,
+            fontSize: template.table.compactMode ? Math.max(6.8, (template.table.bodyFontSize - 1) * PDF_COMPACT_FACTOR) : Math.max(6.8, template.table.bodyFontSize * PDF_COMPACT_FACTOR),
+            cellPadding: template.table.compactMode ? 1.25 : 1.6,
             overflow: 'linebreak',
         },
         headStyles: {
             fillColor: hexToRgb(template.table.headFillColor, [30, 41, 59]),
             textColor: hexToRgb(template.table.headTextColor, [255, 255, 255]),
-            fontSize: template.table.headFontSize,
+            fontSize: Math.max(6.8, template.table.headFontSize * PDF_COMPACT_FACTOR),
         },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         didParseCell: function (data) {
@@ -503,12 +504,14 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
         addImageSafe(doc, logo.url, logo.x, logo.y, logo.w, logo.h);
     });
 
-    doc.setFontSize(layout.title.fontSize);
+    doc.setFontSize(Math.max(9, layout.title.fontSize * PDF_COMPACT_FACTOR));
     doc.setFont('helvetica', 'bold');
     doc.text(template.header.title || 'RFI Summary', layout.title.x + layout.title.w / 2, layout.title.y + layout.title.h * 0.7, { align: 'center' });
-    doc.setFontSize(layout.subtitle.fontSize);
+    doc.setFontSize(Math.max(8, layout.subtitle.fontSize * PDF_COMPACT_FACTOR));
     doc.setFont('helvetica', 'normal');
-    doc.text(template.header.subtitle || 'Daily Inspection Report', layout.subtitle.x + layout.subtitle.w / 2, layout.subtitle.y + layout.subtitle.h * 0.75, { align: 'center' });
+    if (template.header.subtitle) {
+        doc.text(template.header.subtitle, layout.subtitle.x + layout.subtitle.w / 2, layout.subtitle.y + layout.subtitle.h * 0.75, { align: 'center' });
+    }
     if (template.header.projectLine) {
         doc.text(template.header.projectLine, layout.projectLine.x + layout.projectLine.w / 2, layout.projectLine.y + layout.projectLine.h * 0.75, { align: 'center' });
     }
@@ -517,7 +520,7 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
     doc.setFont('helvetica', 'bold');
     doc.text(projectName, pageWidth - 14, Math.max(14, layout.title.y + 2), { align: 'right' });
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(layout.submissionDate.fontSize);
+    doc.setFontSize(Math.max(7.5, layout.submissionDate.fontSize * PDF_COMPACT_FACTOR));
     doc.text(`Date: ${formatDateDisplay(date)}`, pageWidth - 14, Math.max(22, layout.subtitle.y + 4), { align: 'right' });
     if (template.header.showSubmissionDate) {
         doc.text(`Submission Date: ${new Date().toLocaleDateString()}`, pageWidth - 14, Math.max(28, layout.projectLine.y + 2), { align: 'right' });
@@ -598,8 +601,8 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
         tableWidth: layout.table.w,
         columnStyles,
         styles: {
-            fontSize: template.table.compactMode ? Math.max(7, template.table.bodyFontSize - 1) : template.table.bodyFontSize,
-            cellPadding: template.table.compactMode ? 1.8 : 2.5,
+            fontSize: template.table.compactMode ? Math.max(6.8, (template.table.bodyFontSize - 1) * PDF_COMPACT_FACTOR) : Math.max(6.8, template.table.bodyFontSize * PDF_COMPACT_FACTOR),
+            cellPadding: template.table.compactMode ? 1.25 : 1.6,
             font: 'helvetica',
             overflow: 'linebreak',
         },
@@ -607,7 +610,7 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
             fillColor: hexToRgb(template.table.headFillColor, [30, 41, 59]),
             textColor: hexToRgb(template.table.headTextColor, [255, 255, 255]),
             fontStyle: 'bold',
-            fontSize: template.table.headFontSize,
+            fontSize: Math.max(6.8, template.table.headFontSize * PDF_COMPACT_FACTOR),
         },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         didParseCell: function (data) {

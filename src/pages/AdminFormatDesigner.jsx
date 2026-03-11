@@ -189,7 +189,10 @@ function normalizeStudioTemplate(rawTemplate) {
 function ensureRequiredElements(template) {
     const withCopy = deepClone(template);
     const existingIds = new Set((withCopy.elements || []).map((e) => e.id));
-    const required = deepClone(DEFAULT_TEMPLATE.elements).filter((e) => !existingIds.has(e.id));
+    // Keep only truly required building blocks. Optional text/logo blocks must stay deletable.
+    const required = deepClone(DEFAULT_TEMPLATE.elements)
+        .filter((e) => e.id === 'master_table')
+        .filter((e) => !existingIds.has(e.id));
     withCopy.elements = [...(withCopy.elements || []), ...required];
     return withCopy;
 }
@@ -253,8 +256,8 @@ function buildExportTemplateFromStudio(studioTemplate, activeProjectName = '') {
 
     const mappedTitle = mapElement(titleEl, defaultLayoutElements.title, 'RFI Summary');
     const mappedSubtitle = mapElement(subtitleEl, defaultLayoutElements.subtitle, '');
-    const mappedProject = mapElement(projectLineEl, defaultLayoutElements.projectLine, activeProjectName || '');
-    const mappedSubmission = mapElement(submissionDateEl, defaultLayoutElements.submissionDate, 'Submission Date');
+    const mappedProject = mapElement(projectLineEl, defaultLayoutElements.projectLine, '');
+    const mappedSubmission = mapElement(submissionDateEl, defaultLayoutElements.submissionDate, '');
     const mappedLeftLogo = mapElement(leftLogoEl, defaultLayoutElements.leftLogo, '');
     const mappedRightLogo = mapElement(rightLogoEl, defaultLayoutElements.rightLogo, '');
     const mappedTable = mapElement(tableEl, defaultLayoutElements.table, '');
@@ -263,8 +266,8 @@ function buildExportTemplateFromStudio(studioTemplate, activeProjectName = '') {
         header: {
             title: mappedTitle.text || 'RFI Summary',
             subtitle: mappedSubtitle.text || '',
-            projectLine: mappedProject.text || activeProjectName || '',
-            showSubmissionDate: submissionDateEl?.visible !== false,
+            projectLine: mappedProject.text || '',
+            showSubmissionDate: Boolean(submissionDateEl && submissionDateEl.visible !== false && (mappedSubmission.text || '').trim()),
             leftLogoUrl: leftLogoEl?.url || '',
             rightLogoUrl: rightLogoEl?.url || '',
             additionalLogos,
@@ -390,13 +393,15 @@ export default function AdminFormatDesigner() {
 
     const addElement = (type, defaults = {}) => {
         const id = 'el_' + Date.now();
+        const imageCount = template.elements.filter((e) => e.type === 'image').length;
+        const imageOffset = imageCount * 34;
         const newEl = {
             id,
             type,
-            x: 100,
-            y: 100,
-            w: 200,
-            h: 50,
+            x: type === 'image' ? 80 + imageOffset : 100,
+            y: type === 'image' ? 36 + imageOffset * 0.2 : 100,
+            w: type === 'image' ? 140 : 200,
+            h: type === 'image' ? 56 : 50,
             zIndex: template.elements.length + 1,
             rotation: 0,
             content: type === 'text' ? 'New Text' : '',
