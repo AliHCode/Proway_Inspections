@@ -3040,6 +3040,80 @@ h6 {
 .window-dot.yellow { background: var(--studio-window-dot-y); }
 .window-dot.green { background: var(--studio-window-dot-g); }
 
+/* STUDIO V2 ENHANCEMENTS */
+.studio-v2-container {
+    display: flex;
+    height: 100vh;
+    background: #0d1117;
+    overflow: hidden;
+}
+
+.studio-v2-element {
+    position: absolute;
+    box-sizing: border-box;
+    transition: outline 0.1s ease;
+}
+
+.studio-v2-element:hover {
+    outline: 1px dashed var(--studio-accent);
+}
+
+.handle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #fff;
+    border: 2px solid var(--studio-accent);
+    border-radius: 50%;
+    z-index: 100;
+}
+
+.handle-nw { top: -5px; left: -5px; cursor: nw-resize; }
+.handle-ne { top: -5px; right: -5px; cursor: ne-resize; }
+.handle-sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+.handle-se { bottom: -5px; right: -5px; cursor: se-resize; }
+
+.handle-rotate {
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 24px;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    z-index: 101;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.handle-rotate:active { cursor: grabbing; }
+
+/* SHAPE SPECIFICS */
+.studio-shape-circle { border-radius: 50%; }
+.studio-shape-line { height: 2px !important; }
+
+.no-margin { margin: 0 !important; }
+
+/* STUDIO V2 LAYOUT OVERRIDE */
+.format-studio-layout.h-full {
+    height: calc(100vh - 120px);
+}
+
+.studio-main-stage {
+    position: relative;
+    flex: 1;
+    background: #161b22;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    padding: 60px;
+}
+
 .terminal-app-title {
   position: absolute;
   left: 50%;

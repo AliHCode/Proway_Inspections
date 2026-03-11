@@ -1,57 +1,30 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FileText, Move, Save, RotateCcw, Image, Columns, Settings, Layers, X } from 'lucide-react';
+import { FileText, Move, Save, RotateCcw, Image, Columns, Settings, Layers, X, Square, Circle, Minus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Header from '../components/Header';
 import { useProject } from '../context/ProjectContext';
 
 const CANVAS_WIDTH = 1200;
-const CANVAS_HEIGHT = 760;
 
 const DEFAULT_TEMPLATE = {
-    header: {
-        title: 'RFI Summary',
-        subtitle: 'Construction of 05 Bridges at Sohar Buraimi Road.',
-        projectLine: 'PROJECT:',
-        showSubmissionDate: true,
-        leftLogoUrl: '',
-        middleLogoUrl: '',
-        rightLogoUrl: '',
-    },
-    customImages: [],
-    table: {
+    elements: [
+        { id: 'master_table', type: 'table', x: 40, y: 300, w: 1120, h: 1000, zIndex: 10 },
+        { id: 'default_title', type: 'text', content: 'RFI SUMMARY', x: 300, y: 40, w: 600, h: 50, styles: { fontSize: 32, fontWeight: 800, textAlign: 'center' }, zIndex: 20 },
+    ],
+    tableConfig: {
         headFillColor: '#5bb3d9',
         headTextColor: '#000000',
-        bodyFontSize: 8,
-        headFontSize: 8,
-        compactMode: false,
-        headerLayerHeight: 130,
         columnLabels: {},
         groupedHeaders: [
             { title: 'Chainage', fromKey: 'chainage_from', toKey: 'chainage_to' }
         ],
     },
-    footer: {
-        leftLabel: 'Submitted By',
-        rightLabel: 'Received By',
-        showFooter: true,
-    },
-    layout: {
-        canvasWidth: CANVAS_WIDTH,
-        canvasHeight: 1600,
-        gridSize: 8,
+    canvas: {
+        width: CANVAS_WIDTH,
+        height: 1600,
+        showGrid: true,
         snapToGrid: true,
-        showConnector: true,
-        elements: {
-            leftLogo: { x: 40, y: 40, w: 100, h: 60, visible: true },
-            middleLogo: { x: 550, y: 40, w: 100, h: 60, visible: true },
-            rightLogo: { x: 1060, y: 40, w: 100, h: 60, visible: true },
-            title: { x: 300, y: 35, w: 600, h: 45, visible: true },
-            subtitle: { x: 300, y: 85, w: 600, h: 25, visible: true },
-            projectLine: { x: 40, y: 130, w: 1120, h: 30, visible: true },
-            submissionDate: { x: 960, y: 130, w: 200, h: 20, visible: true },
-            table: { x: 40, y: 190, w: 1120, h: 1000, visible: true },
-        },
-    },
+    }
 };
 
 function clamp(value, min, max) {
@@ -63,71 +36,20 @@ function snap(value, grid, enabled) {
     return Math.round(value / grid) * grid;
 }
 
-function mergeTemplate(base, incoming) {
-    return {
-        header: { ...base.header, ...(incoming?.header || {}) },
-        table: {
-            ...base.table,
-            ...(incoming?.table || {}),
-            columnLabels: {
-                ...(base.table.columnLabels || {}),
-                ...(incoming?.table?.columnLabels || {}),
-            },
-            groupedHeaders: incoming?.table?.groupedHeaders || base.table.groupedHeaders || [],
-        },
-        footer: { ...base.footer, ...(incoming?.footer || {}) },
-        layout: {
-            ...base.layout,
-            ...(incoming?.layout || {}),
-            elements: {
-                ...base.layout.elements,
-                ...(incoming?.layout?.elements || {}),
-            },
-        },
-    };
-}
-
-function normalizeGroupedHeaders(groups, columns) {
-    const keys = columns.map((c) => c.field_key);
-    const withIndexes = (groups || [])
-        .map((g) => {
-            const start = keys.indexOf(g.fromKey);
-            const end = keys.indexOf(g.toKey);
-            if (start < 0 || end < 0 || end <= start) return null;
-            return {
-                title: g.title || 'Group',
-                fromKey: g.fromKey,
-                toKey: g.toKey,
-                start,
-                end,
-            };
-        })
-        .filter(Boolean)
-        .sort((a, b) => a.start - b.start);
-
-    const nonOverlapping = [];
-    let lastEnd = -1;
-    withIndexes.forEach((g) => {
-        if (g.start > lastEnd) {
-            nonOverlapping.push(g);
-            lastEnd = g.end;
-        }
-    });
-
-    return nonOverlapping.map((g) => ({ title: g.title, fromKey: g.fromKey, toKey: g.toKey }));
-}
-
 export default function AdminFormatDesigner() {
     const { activeProject, orderedTableColumns, saveProjectExportTemplate } = useProject();
     const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
     const [saving, setSaving] = useState(false);
-    const [selectedElement, setSelectedElement] = useState('title');
-    const [activeRailTab, setActiveRailTab] = useState('canvas');
+    const [selectedId, setSelectedId] = useState(null);
+    const [activeRailTab, setActiveRailTab] = useState('branding');
     const [drawerOpen, setDrawerOpen] = useState(true);
     const [interaction, setInteraction] = useState(null);
+    const [zoom, setZoom] = useState(0.8);
 
     useEffect(() => {
-        setTemplate(mergeTemplate(DEFAULT_TEMPLATE, activeProject?.export_template || {}));
+        if (activeProject?.export_template) {
+            setTemplate(activeProject.export_template);
+        }
     }, [activeProject?.id, activeProject?.export_template]);
 
     const previewColumns = useMemo(() => {
@@ -135,17 +57,69 @@ export default function AdminFormatDesigner() {
     }, [orderedTableColumns]);
 
     const previewHeaderKeys = useMemo(() => previewColumns.map((c) => c.field_key), [previewColumns]);
-    const previewHeaderNameMap = useMemo(() => {
-        const map = {};
-        previewColumns.forEach((c) => {
-            map[c.field_key] = template.table.columnLabels?.[c.field_key] || c.field_name;
-        });
-        return map;
-    }, [previewColumns, template.table.columnLabels]);
+
+    const addElement = (type, defaults = {}) => {
+        const id = 'el_' + Date.now();
+        const newEl = {
+            id,
+            type,
+            x: 100,
+            y: 100,
+            w: 200,
+            h: 50,
+            zIndex: template.elements.length + 1,
+            rotation: 0,
+            content: type === 'text' ? 'New Text' : '',
+            styles: {},
+            ...defaults
+        };
+        setTemplate(prev => ({ ...prev, elements: [...prev.elements, newEl] }));
+        setSelectedId(id);
+    };
+
+    const updateElement = (id, patch) => {
+        setTemplate(prev => ({
+            ...prev,
+            elements: prev.elements.map(el => el.id === id ? { ...el, ...patch } : el)
+        }));
+    };
+
+    const updateElementStyle = (id, stylePatch) => {
+        setTemplate(prev => ({
+            ...prev,
+            elements: prev.elements.map(el => el.id === id ? { ...el, styles: { ...el.styles, ...stylePatch } } : el)
+        }));
+    };
+
+    const deleteElement = (id) => {
+        if (id === 'master_table') return; // Protect table
+        setTemplate(prev => ({ ...prev, elements: prev.elements.filter(el => el.id !== id) }));
+        if (selectedId === id) setSelectedId(null);
+    };
+
+    const duplicateElement = (id) => {
+        const el = template.elements.find(e => e.id === id);
+        if (!el || id === 'master_table') return;
+        const newId = 'el_' + Date.now();
+        setTemplate(prev => ({
+            ...prev,
+            elements: [...prev.elements, { ...el, id: newId, x: el.x + 20, y: el.y + 20, zIndex: prev.elements.length + 1 }]
+        }));
+        setSelectedId(newId);
+    };
+
+    const bringToFront = (id) => {
+        const maxZ = Math.max(...template.elements.map(e => e.zIndex || 0));
+        updateElement(id, { zIndex: maxZ + 1 });
+    };
+
+    const sendToBack = (id) => {
+        const minZ = Math.min(...template.elements.map(e => e.zIndex || 0));
+        updateElement(id, { zIndex: minZ - 1 });
+    };
 
     const previewGroupedHeaders = useMemo(() => {
-        const groups = normalizeGroupedHeaders(template.table.groupedHeaders || [], previewColumns);
-        return groups
+        return (template.tableConfig.groupedHeaders || [])
             .map((g) => {
                 const start = previewHeaderKeys.indexOf(g.fromKey);
                 const end = previewHeaderKeys.indexOf(g.toKey);
@@ -154,364 +128,115 @@ export default function AdminFormatDesigner() {
             })
             .filter(Boolean)
             .sort((a, b) => a.start - b.start);
-    }, [template.table.groupedHeaders, previewHeaderKeys, previewColumns]);
+    }, [template.tableConfig.groupedHeaders, previewHeaderKeys]);
 
-    function addCustomImage() {
-        if (!activeProject?.id) {
-            toast.error('Select a project first.');
-            return;
-        }
-        const id = `img_${Date.now()}`;
-        setTemplate((prev) => ({
-            ...prev,
-            customImages: [...(prev.customImages || []), { id, url: '', x: 400, y: 400, w: 200, h: 200, visible: true }],
-        }));
-        setSelectedElement(id);
-    }
-
-    function removeCustomImage(id) {
-        setTemplate((prev) => ({
-            ...prev,
-            customImages: (prev.customImages || []).filter((img) => img.id !== id),
-        }));
-        if (selectedElement === id) setSelectedElement(null);
-    }
-
-    function updateCustomImage(id, patch) {
-        setTemplate((prev) => ({
-            ...prev,
-            customImages: (prev.customImages || []).map((img) => (img.id === id ? { ...img, ...patch } : img)),
-        }));
-    }
-
-    async function handleCustomImageFile(id, file) {
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = () => updateCustomImage(id, { url: String(reader.result || '') });
-        reader.readAsDataURL(file);
-    }
-
-    function getRect(key) {
-        if (key?.startsWith('img_')) {
-            return template.customImages?.find((img) => img.id === key);
-        }
-        return template.layout.elements[key];
-    }
-
-    function updateLayoutElement(key, patch) {
-        if (key?.startsWith('img_')) {
-            updateCustomImage(key, patch);
-            return;
-        }
-        setTemplate((prev) => ({
-            ...prev,
-            layout: {
-                ...prev.layout,
-                elements: {
-                    ...prev.layout.elements,
-                    [key]: {
-                        ...prev.layout.elements[key],
-                        ...patch,
-                    },
-                },
-            },
-        }));
-    }
-
-    function setGroupedHeaders(next) {
-        const normalized = normalizeGroupedHeaders(next, previewColumns);
-        setTemplate((prev) => ({
-            ...prev,
-            table: {
-                ...prev.table,
-                groupedHeaders: normalized,
-            },
-        }));
-    }
-
-    function addGroupedHeader() {
-        if (previewColumns.length < 2) {
-            toast.error('Need at least 2 columns for grouped headings.');
-            return;
-        }
-        const next = [
-            ...(template.table.groupedHeaders || []),
-            {
-                title: 'New Group',
-                fromKey: previewColumns[0].field_key,
-                toKey: previewColumns[1].field_key,
-            },
-        ];
-        setGroupedHeaders(next);
-    }
-
-    function updateGroupedHeader(index, key, value) {
-        const next = [...(template.table.groupedHeaders || [])];
-        next[index] = { ...next[index], [key]: value };
-        setGroupedHeaders(next);
-    }
-
-    function removeGroupedHeader(index) {
-        setGroupedHeaders((template.table.groupedHeaders || []).filter((_, i) => i !== index));
-    }
-
-    function startInteraction(e, elementKey, mode) {
-        e.preventDefault();
-        e.stopPropagation();
-        setSelectedElement(elementKey);
-        const startRect = getRect(elementKey);
-        if (!startRect) return;
-        setInteraction({
-            mode,
-            elementKey,
-            startX: e.clientX,
-            startY: e.clientY,
-            startRect,
-        });
+    function startInteraction(e, id, mode, handle = null) {
+        e.preventDefault(); e.stopPropagation();
+        setSelectedId(id);
+        const el = template.elements.find(e => e.id === id);
+        if (!el) return;
+        setInteraction({ id, mode, handle, startX: e.clientX, startY: e.clientY, startRect: { ...el } });
     }
 
     useEffect(() => {
         if (!interaction) return;
-
         function onMouseMove(e) {
-            const dx = e.clientX - interaction.startX;
-            const dy = e.clientY - interaction.startY;
-            const grid = template.layout.gridSize || 8;
-            const snapOn = !!template.layout.snapToGrid;
-            const canvasW = template.layout.canvasWidth || CANVAS_WIDTH;
-            const canvasH = template.layout.canvasHeight || CANVAS_HEIGHT;
-
-            const start = interaction.startRect;
+            const dx = (e.clientX - interaction.startX) / zoom;
+            const dy = (e.clientY - interaction.startY) / zoom;
+            const grid = template.canvas.snapToGrid ? 8 : 1;
+            const el = interaction.startRect;
             if (interaction.mode === 'move') {
-                const nx = clamp(
-                    snap(start.x + dx, grid, snapOn),
-                    0,
-                    Math.max(0, canvasW - start.w)
-                );
-                const ny = clamp(
-                    snap(start.y + dy, grid, snapOn),
-                    0,
-                    Math.max(0, canvasH - start.h)
-                );
-                updateLayoutElement(interaction.elementKey, { x: nx, y: ny });
-                return;
-            }
-
-            if (interaction.mode === 'resize') {
-                const nw = clamp(
-                    snap(start.w + dx, grid, snapOn),
-                    60,
-                    Math.max(60, canvasW - start.x)
-                );
-                const nh = clamp(
-                    snap(start.h + dy, grid, snapOn),
-                    24,
-                    Math.max(24, canvasH - start.y)
-                );
-                updateLayoutElement(interaction.elementKey, { w: nw, h: nh });
+                updateElement(interaction.id, { x: snap(el.x + dx, grid, true), y: snap(el.y + dy, grid, true) });
+            } else if (interaction.mode === 'resize') {
+                const h = interaction.handle;
+                let { x, y, w, h: height } = el;
+                if (h.includes('e')) w = snap(el.w + dx, grid, true);
+                if (h.includes('s')) height = snap(el.h + dy, grid, true);
+                if (h.includes('w')) { const nextW = snap(el.w - dx, grid, true); if (nextW > 10) { x = snap(el.x + (el.w - nextW), grid, true); w = nextW; } }
+                if (h.includes('n')) { const nextH = snap(el.h - dy, grid, true); if (nextH > 10) { y = snap(el.y + (el.h - nextH), grid, true); height = nextH; } }
+                updateElement(interaction.id, { x, y, w, h: height });
+            } else if (interaction.mode === 'rotate') {
+                const rect = document.getElementById('el_' + interaction.id).getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI) + 90;
+                updateElement(interaction.id, { rotation: Math.round(angle / 5) * 5 });
             }
         }
-
-        function onMouseUp() {
-            setInteraction(null);
-        }
-
+        function onMouseUp() { setInteraction(null); }
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('mouseup', onMouseUp);
-        return () => {
-            window.removeEventListener('mousemove', onMouseMove);
-            window.removeEventListener('mouseup', onMouseUp);
-        };
-    }, [interaction, template.layout.gridSize, template.layout.snapToGrid, template.layout.canvasWidth, template.layout.canvasHeight]);
+        return () => { window.removeEventListener('mousemove', onMouseMove); window.removeEventListener('mouseup', onMouseUp); };
+    }, [interaction, zoom, template.canvas.snapToGrid]);
 
-    async function handleFileToDataUrl(file, sectionKey) {
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = () => {
-            setTemplate(prev => ({
-                ...prev,
-                header: { ...prev.header, [sectionKey]: String(reader.result || '') }
-            }));
-        };
-        reader.readAsDataURL(file);
-    }
-
-    function updateSection(section, key, value) {
-        setTemplate((prev) => ({
-            ...prev,
-            [section]: {
-                ...prev[section],
-                [key]: value,
-            },
-        }));
-    }
-
-    function updateColumnLabel(fieldKey, label) {
-        setTemplate((prev) => ({
-            ...prev,
-            table: {
-                ...prev.table,
-                columnLabels: {
-                    ...(prev.table.columnLabels || {}),
-                    [fieldKey]: label,
-                },
-            },
-        }));
-    }
-
-    async function handleSave() {
-        if (!activeProject?.id) {
-            toast.error('Select a project first.');
-            return;
-        }
-
-        const cleanedTemplate = {
-            ...template,
-            table: {
-                ...template.table,
-                groupedHeaders: normalizeGroupedHeaders(template.table.groupedHeaders || [], previewColumns),
-            },
-        };
-
+    const handleSave = async () => {
         setSaving(true);
-        const result = await saveProjectExportTemplate(cleanedTemplate);
+        const result = await saveProjectExportTemplate(template);
         setSaving(false);
-
-        if (!result?.success) {
-            toast.error(result?.error || 'Failed to save template');
-            return;
-        }
-
-        toast.success('Project export format saved');
-    }
-
-    function handleReset() {
-        setTemplate(mergeTemplate(DEFAULT_TEMPLATE, {}));
-    }
-
-    const toggleRailTab = (tab) => {
-        if (activeRailTab === tab) {
-            setDrawerOpen(!drawerOpen);
-        } else {
-            setActiveRailTab(tab);
-            setDrawerOpen(true);
-        }
+        if (result?.success) toast.success('Studio design deployed');
+        else toast.error(result?.error || 'Save failed');
     };
 
-    const selectedRect = getRect(selectedElement);
+    const selectedElement = template.elements.find(el => el.id === selectedId);
 
     return (
         <div className="format-studio-page">
             <Header />
-            <div className="studio-terminal-frame">
+            <div className="studio-terminal-frame no-margin">
                 <header className="terminal-titlebar">
-                    <div className="terminal-window-dots">
-                        <div className="window-dot red"></div>
-                        <div className="window-dot yellow"></div>
-                        <div className="window-dot green"></div>
-                    </div>
-                    <div className="terminal-app-title">Studio IDE // Project Export Terminal</div>
+                    <div className="terminal-window-dots"><div className="window-dot red"></div><div className="window-dot yellow"></div><div className="window-dot green"></div></div>
+                    <div className="terminal-app-title">Visual Studio V2 // Genesis Mode</div>
                     <div className="terminal-actions">
-                        <button className="terminal-btn" onClick={handleReset}>
-                            <RotateCcw size={14} /> Reset
-                        </button>
-                        <button className="terminal-btn primary" onClick={handleSave} disabled={saving}>
-                            <Save size={14} /> {saving ? 'Saving...' : 'Save Config'}
-                        </button>
+                        <button className="terminal-btn" onClick={() => setTemplate(DEFAULT_TEMPLATE)}><RotateCcw size={14} /> Reset</button>
+                        <button className="terminal-btn primary" onClick={handleSave} disabled={saving}><Save size={14} /> {saving ? 'Saving...' : 'Deploy'}</button>
                     </div>
                 </header>
 
-                <div className="format-studio-layout">
+                <div className="format-studio-layout h-full">
                     <aside className="studio-vertical-rail">
-                        <div className={`rail-item ${activeRailTab === 'canvas' && drawerOpen ? 'active' : ''}`} onClick={() => toggleRailTab('canvas')} title="Layout & Grid">
-                            <Layers size={22} />
-                        </div>
-                        <div className={`rail-item ${activeRailTab === 'branding' && drawerOpen ? 'active' : ''}`} onClick={() => toggleRailTab('branding')} title="Sheet Elements">
-                            <Settings size={22} />
-                        </div>
-                        <div className={`rail-item ${activeRailTab === 'images' && drawerOpen ? 'active' : ''}`} onClick={() => toggleRailTab('images')} title="Dynamic Images">
-                            <Image size={22} />
-                        </div>
-                        <div className={`rail-item ${activeRailTab === 'columns' && drawerOpen ? 'active' : ''}`} onClick={() => toggleRailTab('columns')} title="Table Designer">
-                            <Columns size={22} />
-                        </div>
+                        <div className={ail-item } onClick={() => {setActiveRailTab('branding'); setDrawerOpen(true);}} title="Text & Elements"><FileText size={22} /></div>
+                        <div className={ail-item } onClick={() => {setActiveRailTab('shapes'); setDrawerOpen(true);}} title="Shapes Library"><Square size={22} /></div>
+                        <div className={ail-item } onClick={() => {setActiveRailTab('images'); setDrawerOpen(true);}} title="Images"><Image size={22} /></div>
+                        <div className={ail-item } onClick={() => {setActiveRailTab('columns'); setDrawerOpen(true);}} title="Table Columns"><Columns size={22} /></div>
                     </aside>
 
                     <main className="studio-main-stage">
-                        <section className={`studio-internal-drawer ${drawerOpen ? 'open' : ''}`}>
+                        <section className={studio-internal-drawer }>
                             <header className="drawer-header">
-                                <h3>{activeRailTab} settings</h3>
+                                <h3>{activeRailTab} engine</h3>
                                 <button className="terminal-btn" style={{ padding: '0.2rem 0.5rem' }} onClick={() => setDrawerOpen(false)}><X size={14} /></button>
                             </header>
+                            
                             <div className="drawer-content">
-                                {activeRailTab === 'canvas' && (
+                                {activeRailTab === 'branding' && (
                                     <div className="studio-sidebar-section">
-                                        <div className="studio-controls-grid">
-                                            <div className="studio-input-group">
-                                                <label>Sheet Height</label>
-                                                <input type="number" value={template.layout.canvasHeight} onChange={(e) => updateSection('layout', 'canvasHeight', Number(e.target.value || 1600))} />
+                                        <button className="terminal-btn primary w-full mb-4" onClick={() => addElement('text')}>+ New Text Block</button>
+                                        <p className="text-[10px] text-studio-text-muted mt-2">Add custom titles, labels, or project summaries manually.</p>
+                                    </div>
+                                )}
+
+                                {activeRailTab === 'shapes' && (
+                                    <div className="library-section">
+                                        <div className="library-grid">
+                                            <div className="library-item" onClick={() => addElement('shape', { shapeType: 'rectangle', w: 100, h: 100, styles: { border: '1px solid #000' } })}>
+                                                <Square size={20} />
+                                                <span>Rectangle</span>
                                             </div>
-                                            <div className="studio-input-group">
-                                                <label>Grid size</label>
-                                                <input type="number" value={template.layout.gridSize} onChange={(e) => updateSection('layout', 'gridSize', Number(e.target.value || 8))} />
+                                            <div className="library-item" onClick={() => addElement('shape', { shapeType: 'circle', w: 100, h: 100, styles: { border: '1px solid #000', borderRadius: '50%' } })}>
+                                                <Circle size={20} />
+                                                <span>Circle</span>
                                             </div>
-                                            <label className="studio-label-row">
-                                                <input type="checkbox" checked={template.layout.snapToGrid} onChange={(e) => updateSection('layout', 'snapToGrid', e.target.checked)} />
-                                                <span>Snap Grid</span>
-                                            </label>
-                                            <label className="studio-label-row">
-                                                <input type="checkbox" checked={template.layout.showConnector} onChange={(e) => updateSection('layout', 'showConnector', e.target.checked)} />
-                                                <span>Header Connect</span>
-                                            </label>
+                                            <div className="library-item" onClick={() => addElement('shape', { shapeType: 'line', w: 200, h: 2, styles: { background: '#000' } })}>
+                                                <Minus size={20} />
+                                                <span>Line</span>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
 
-                                {activeRailTab === 'branding' && (
-                                    <>
-                                        <div className="studio-sidebar-section">
-                                            <div className="studio-input-group mb-4">
-                                                <label>Headline</label>
-                                                <input type="text" value={template.header.title} onChange={(e) => updateSection('header', 'title', e.target.value)} />
-                                            </div>
-                                            <div className="studio-input-group mb-4">
-                                                <label>Sub-text</label>
-                                                <input type="text" value={template.header.subtitle} onChange={(e) => updateSection('header', 'subtitle', e.target.value)} />
-                                            </div>
-                                            <div className="studio-input-group">
-                                                <label>Project Label</label>
-                                                <input type="text" value={template.header.projectLine} onChange={(e) => updateSection('header', 'projectLine', e.target.value)} />
-                                            </div>
-                                        </div>
-                                        <div className="studio-sidebar-section">
-                                            <h4 className="text-xs mb-3 var(--studio-text-muted)">Logos (Left/Middle/Right)</h4>
-                                            <div className="studio-input-group mb-2">
-                                                <input type="file" onChange={(e) => handleFileToDataUrl(e.target.files?.[0], 'leftLogoUrl')} />
-                                            </div>
-                                            <div className="studio-input-group mb-2">
-                                                <input type="file" onChange={(e) => handleFileToDataUrl(e.target.files?.[0], 'middleLogoUrl')} />
-                                            </div>
-                                            <div className="studio-input-group">
-                                                <input type="file" onChange={(e) => handleFileToDataUrl(e.target.files?.[0], 'rightLogoUrl')} />
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-
                                 {activeRailTab === 'images' && (
                                     <div className="studio-sidebar-section">
-                                        <button className="terminal-btn primary w-full mb-4" onClick={addCustomImage}>+ Add Drag Image</button>
-                                        <div className="studio-scroll-area">
-                                            {(template.customImages || []).map(img => (
-                                                <div key={img.id} className="studio-group-item mb-2" style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem' }}>
-                                                    <div className="studio-input-group mb-2">
-                                                        <label>Source</label>
-                                                        <input type="file" onChange={(e) => handleCustomImageFile(img.id, e.target.files?.[0])} />
-                                                    </div>
-                                                    <button className="terminal-btn" style={{ width: '100%', justifyContent: 'center', borderColor: '#ef4444', color: '#ef4444' }} onClick={() => removeCustomImage(img.id)}>Remove</button>
-                                                </div>
-                                            ))}
-                                        </div>
+                                        <button className="terminal-btn primary w-full mb-4" onClick={() => addElement('image')}>+ New Image Slot</button>
                                     </div>
                                 )}
 
@@ -519,229 +244,145 @@ export default function AdminFormatDesigner() {
                                     <div className="studio-sidebar-section">
                                         <div className="studio-input-group mb-4">
                                             <label>Head Fill Color</label>
-                                            <input type="color" value={template.table.headFillColor} onChange={(e) => updateSection('table', 'headFillColor', e.target.value)} />
+                                            <input type="color" value={template.tableConfig.headFillColor} onChange={(e) => setTemplate(prev => ({ ...prev, tableConfig: { ...prev.tableConfig, headFillColor: e.target.value } }))} />
                                         </div>
                                         <div className="studio-scroll-area">
                                             {previewColumns.map((col) => (
-                                                <div key={`col_${col.field_key}`} className="studio-input-group" style={{ marginBottom: '1rem' }}>
+                                                <div key={col.field_key} className="studio-input-group mb-2">
                                                     <label>{col.field_key}</label>
-                                                    <input type="text" value={template.table.columnLabels?.[col.field_key] ?? col.field_name} onChange={(e) => updateColumnLabel(col.field_key, e.target.value)} />
+                                                    <input type="text" value={template.tableConfig.columnLabels?.[col.field_key] ?? col.field_name} onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setTemplate(prev => ({
+                                                            ...prev,
+                                                            tableConfig: {
+                                                                ...prev.tableConfig,
+                                                                columnLabels: { ...prev.tableConfig.columnLabels, [col.field_key]: val }
+                                                            }
+                                                        }));
+                                                    }} />
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
                                 )}
 
-                                {selectedElement && selectedRect && (
+                                {selectedElement && (
                                     <div className="mt-8 pt-6 border-t border-studio-border">
-                                        <h3 style={{ fontSize: '0.75rem', color: 'var(--studio-accent)', textTransform: 'uppercase', marginBottom: '1rem' }}>Properties: {selectedElement.startsWith('img_') ? 'Image' : selectedElement}</h3>
-                                        <div className="studio-prop-grid">
-                                            <div className="studio-input-group">
-                                                <label>X</label>
-                                                <input type="number" value={Math.round(selectedRect.x)} onChange={(e) => updateLayoutElement(selectedElement, { x: Number(e.target.value) })} />
-                                            </div>
-                                            <div className="studio-input-group">
-                                                <label>Y</label>
-                                                <input type="number" value={Math.round(selectedRect.y)} onChange={(e) => updateLayoutElement(selectedElement, { y: Number(e.target.value) })} />
-                                            </div>
-                                            <div className="studio-input-group">
-                                                <label>W</label>
-                                                <input type="number" value={Math.round(selectedRect.w)} onChange={(e) => updateLayoutElement(selectedElement, { w: Number(e.target.value) })} />
-                                            </div>
-                                            <div className="studio-input-group">
-                                                <label>H</label>
-                                                <input type="number" value={Math.round(selectedRect.h)} onChange={(e) => updateLayoutElement(selectedElement, { h: Number(e.target.value) })} />
-                                            </div>
+                                        <h3 style={{ fontSize: '0.75rem', color: 'var(--studio-accent)', textTransform: 'uppercase', marginBottom: '1rem' }}>Inspector</h3>
+                                        <div className="studio-prop-grid mb-4">
+                                            <div className="studio-input-group"><label>X</label><input type="number" value={Math.round(selectedElement.x)} onChange={(e) => updateElement(selectedId, { x: Number(e.target.value) })} /></div>
+                                            <div className="studio-input-group"><label>Y</label><input type="number" value={Math.round(selectedElement.y)} onChange={(e) => updateElement(selectedId, { y: Number(e.target.value) })} /></div>
+                                            <div className="studio-input-group"><label>W</label><input type="number" value={Math.round(selectedElement.w)} onChange={(e) => updateElement(selectedId, { w: Number(e.target.value) })} /></div>
+                                            <div className="studio-input-group"><label>H</label><input type="number" value={Math.round(selectedElement.h)} onChange={(e) => updateElement(selectedId, { h: Number(e.target.value) })} /></div>
+                                        </div>
+                                        
+                                        {selectedElement.type === 'text' && (
+                                            <>
+                                                <div className="studio-input-group mb-3">
+                                                    <label>Content</label>
+                                                    <textarea value={selectedElement.content} onChange={(e) => updateElement(selectedId, { content: e.target.value })} rows={3} style={{ width: '100%', background: '#0d1117', border: '1px solid #30363d', color: '#fff', padding: '8px', fontSize: '0.8rem' }} />
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2 mb-3">
+                                                    <div className="studio-input-group">
+                                                        <label>Size</label>
+                                                        <input type="number" value={selectedElement.styles?.fontSize || 14} onChange={(e) => updateElementStyle(selectedId, { fontSize: Number(e.target.value) })} />
+                                                    </div>
+                                                    <div className="studio-input-group">
+                                                        <label>Color</label>
+                                                        <input type="color" value={selectedElement.styles?.color || '#000000'} onChange={(e) => updateElementStyle(selectedId, { color: e.target.value })} />
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2 mb-4">
+                                                    <button className="terminal-btn flex-1" onClick={() => updateElementStyle(selectedId, { textAlign: 'left' })}>Left</button>
+                                                    <button className="terminal-btn flex-1" onClick={() => updateElementStyle(selectedId, { textAlign: 'center' })}>Center</button>
+                                                    <button className="terminal-btn flex-1" onClick={() => updateElementStyle(selectedId, { textAlign: 'right' })}>Right</button>
+                                                </div>
+                                            </>
+                                        )}
+
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button className="terminal-btn" onClick={() => duplicateElement(selectedId)}>Clone</button>
+                                            <button className="terminal-btn text-red-500" onClick={() => deleteElement(selectedId)}>Delete</button>
+                                            <button className="terminal-btn" onClick={() => bringToFront(selectedId)}>Layer ?</button>
+                                            <button className="terminal-btn" onClick={() => sendToBack(selectedId)}>Layer ?</button>
                                         </div>
                                     </div>
                                 )}
                             </div>
                         </section>
 
-                        <div className="studio-stage-viewport">
+                        <div className="studio-stage-viewport" onClick={() => setSelectedId(null)}>
                             <div
                                 className="studio-terminal-canvas"
+                                onClick={(e) => e.stopPropagation()}
                                 style={{
-                                    width: `${template.layout.canvasWidth}px`,
-                                    height: `${template.layout.canvasHeight}px`,
-                                    transform: 'scale(0.8)',
+                                    width: template.canvas.width + 'px',
+                                    height: template.canvas.height + 'px',
+                                    transform: 'scale(' + zoom + ')',
                                     transformOrigin: 'top center',
-                                    backgroundImage: template.layout.snapToGrid ? 'radial-gradient(rgba(0,0,0,0.05) 1px, transparent 1px)' : 'none',
-                                    backgroundSize: `${template.layout.gridSize}px ${template.layout.gridSize}px`
+                                    border: '1px solid #000',
+                                    background: '#fff',
+                                    position: 'relative',
+                                    boxShadow: '0 30px 60px rgba(0,0,0,0.5)'
                                 }}
                             >
-                                {/* Header Connector Logic */}
-                                {template.layout.showConnector && (
-                                    <>
-                                        <div className="header-connector-box" style={{
-                                            left: template.layout.elements.table.x,
-                                            top: Math.min(template.layout.elements.leftLogo.y, template.layout.elements.middleLogo.y, template.layout.elements.rightLogo.y, template.layout.elements.title.y) - 20,
-                                            width: template.layout.elements.table.w,
-                                            height: template.layout.elements.table.y - (Math.min(template.layout.elements.leftLogo.y, template.layout.elements.middleLogo.y, template.layout.elements.rightLogo.y, template.layout.elements.title.y) - 20)
-                                        }} />
-                                    </>
-                                )}
-
-                                {/* Standard Elements */}
-                                {['leftLogo', 'middleLogo', 'rightLogo', 'title', 'subtitle', 'projectLine', 'submissionDate', 'table'].map(key => {
-                                    const rect = template.layout.elements[key];
-                                    if (!rect?.visible) return null;
-                                    const isSelected = selectedElement === key;
-
-                                    return (
-                                        <div
-                                            key={key}
-                                            onMouseDown={(e) => startInteraction(e, key, 'move')}
-                                            style={{
-                                                position: 'absolute',
-                                                left: `${rect.x}px`,
-                                                top: `${rect.y}px`,
-                                                width: `${rect.w}px`,
-                                                height: `${rect.h}px`,
-                                                cursor: 'move',
-                                                zIndex: isSelected ? 30 : 10,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center'
-                                            }}
-                                        >
-                                            <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                {key === 'leftLogo' && (
-                                                    <img src={template.header.leftLogoUrl || '/dashboardlogo.png'} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                                                )}
-                                                {key === 'middleLogo' && (
-                                                    <img src={template.header.middleLogoUrl || '/dashboardlogo.png'} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                                                )}
-                                                {key === 'rightLogo' && (
-                                                    <img src={template.header.rightLogoUrl || '/dashboardlogo.png'} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                                                )}
-                                                {key === 'title' && (
-                                                    <h1 style={{ margin: 0, fontSize: `${rect.fontSize || 32}px`, textAlign: 'center', width: '100%', fontWeight: 800 }}>{template.header.title}</h1>
-                                                )}
-                                                {key === 'subtitle' && (
-                                                    <p style={{ margin: 0, fontSize: `${rect.fontSize || 16}px`, textAlign: 'center', color: '#000', fontWeight: 600 }}>{template.header.subtitle}</p>
-                                                )}
-                                                {key === 'projectLine' && (
-                                                    <div style={{ width: '100%', fontSize: `${rect.fontSize || 14}px`, fontWeight: 700 }}>
-                                                        {template.header.projectLine} _________________________________________________________________
-                                                    </div>
-                                                )}
-                                                {key === 'submissionDate' && template.header.showSubmissionDate && (
-                                                    <div style={{ width: '100%', textAlign: 'right', fontSize: `${rect.fontSize || 12}px` }}>Submission Date: 07.03.2026</div>
-                                                )}
-                                                {key === 'table' && (
-                                                    <div style={{ width: '100%', height: '100%', border: '2px solid #000', padding: '0px' }}>
-                                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
-                                                            <thead>
-                                                                {template.table.groupedHeaders?.length > 0 && (
-                                                                    <tr style={{ background: template.table.headFillColor, color: template.table.headTextColor }}>
-                                                                        {(() => {
-                                                                            const cells = [];
-                                                                            let i = 0;
-                                                                            while (i < previewColumns.length) {
-                                                                                const group = template.table.groupedHeaders.find(g => {
-                                                                                    const idx = previewColumns.findIndex(c => c.field_key === g.fromKey);
-                                                                                    return idx === i;
-                                                                                });
-                                                                                if (group) {
-                                                                                    const startIdx = previewColumns.findIndex(c => c.field_key === group.fromKey);
-                                                                                    const endIdx = previewColumns.findIndex(c => c.field_key === group.toKey);
-                                                                                    const span = endIdx - startIdx + 1;
-                                                                                    cells.push(<th key={`g_${i}`} colSpan={span} style={{ border: '1px solid #000', padding: '6px' }}>{group.title}</th>);
-                                                                                    i += span;
-                                                                                } else {
-                                                                                    cells.push(<th key={`s_${i}`} rowSpan={2} style={{ border: '1px solid #000', padding: '6px' }}>{template.table.columnLabels?.[previewColumns[i].field_key] || previewColumns[i].field_name}</th>);
-                                                                                    i++;
-                                                                                }
-                                                                            }
-                                                                            return cells;
-                                                                        })()}
-                                                                    </tr>
-                                                                )}
-                                                                <tr style={{ background: template.table.headFillColor, color: template.table.headTextColor }}>
-                                                                    {previewColumns
-                                                                        .filter(c => {
-                                                                            if (!template.table.groupedHeaders?.length) return true;
-                                                                            return template.table.groupedHeaders.some(g => {
-                                                                                const startIdx = previewColumns.findIndex(col => col.field_key === g.fromKey);
-                                                                                const endIdx = previewColumns.findIndex(col => col.field_key === g.toKey);
-                                                                                const curIdx = previewColumns.findIndex(col => col.field_key === c.field_key);
-                                                                                return curIdx >= startIdx && curIdx <= endIdx;
-                                                                            }) || !template.table.groupedHeaders.some(g => {
-                                                                                const idx = previewColumns.findIndex(col => col.field_key === c.field_key);
-                                                                                const gStart = previewColumns.findIndex(col => col.field_key === g.fromKey);
-                                                                                const gEnd = previewColumns.findIndex(col => col.field_key === g.toKey);
-                                                                                // If it's NOT in any group, it was already rendered with rowSpan=2
-                                                                                return false; 
-                                                                            });
-                                                                        })
-                                                                        .map(c => {
-                                                                            const isInGroup = template.table.groupedHeaders?.some(g => {
-                                                                                const startIdx = previewColumns.findIndex(col => col.field_key === g.fromKey);
-                                                                                const endIdx = previewColumns.findIndex(col => col.field_key === g.toKey);
-                                                                                const curIdx = previewColumns.findIndex(col => col.field_key === c.field_key);
-                                                                                return curIdx >= startIdx && curIdx <= endIdx;
-                                                                            });
-                                                                            if (!isInGroup && template.table.groupedHeaders?.length > 0) return null;
-                                                                            return (
-                                                                                <th key={c.field_key} style={{ border: '1px solid #000', padding: '6px' }}>{template.table.columnLabels?.[c.field_key] || c.field_name}</th>
-                                                                            );
-                                                                        })}
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(r => (
-                                                                    <tr key={r}>
-                                                                        {previewColumns.map(c => <td key={c.field_key} style={{ border: '1px solid #000', padding: '6px' }}>&nbsp;</td>)}
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {isSelected && (
-                                                <>
-                                                    <div className="tech-block-outline" />
-                                                    <div className="tech-drag-handle" style={{ right: -5, bottom: -5 }} onMouseDown={(e) => startInteraction(e, key, 'resize')} />
-                                                    <div className="tech-delete-btn" onClick={() => updateLayoutElement(key, { visible: false })}>×</div>
-                                                </>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-
-                                {/* Footer Area Label */}
-                                <div style={{ position: 'absolute', bottom: 40, left: 40, fontSize: '14px', fontWeight: 900 }}>{template.footer.leftLabel}</div>
-                                <div style={{ position: 'absolute', bottom: 40, right: 40, fontSize: '14px', fontWeight: 900, textAlign: 'right' }}>{template.footer.rightLabel}</div>
-
-                                {/* Custom Images Layer */}
-                                {(template.customImages || []).map(img => (
+                                {template.elements.slice().sort((a,b) => (a.zIndex||0) - (b.zIndex||0)).map(el => (
                                     <div
-                                        key={img.id}
-                                        onMouseDown={(e) => startInteraction(e, img.id, 'move')}
+                                        key={el.id}
+                                        id={'el_' + el.id}
+                                        className="studio-v2-element"
+                                        onMouseDown={(e) => startInteraction(e, el.id, 'move')}
                                         style={{
                                             position: 'absolute',
-                                            left: `${img.x}px`,
-                                            top: `${img.y}px`,
-                                            width: `${img.w}px`,
-                                            height: `${img.h}px`,
-                                            cursor: 'move',
-                                            zIndex: 25,
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            background: img.url ? 'transparent' : 'rgba(16, 185, 129, 0.05)',
-                                            border: selectedElement === img.id ? 'none' : '1px dashed var(--studio-accent)'
+                                            left: el.x + 'px',
+                                            top: el.y + 'px',
+                                            width: el.w + 'px',
+                                            height: el.h + 'px',
+                                            transform: 'rotate(' + (el.rotation || 0) + 'deg)',
+                                            zIndex: el.zIndex || 1,
+                                            outline: selectedId === el.id ? '2px solid var(--studio-accent)' : 'none',
+                                            cursor: 'move'
                                         }}
                                     >
-                                        {img.url ? <img src={img.url} alt="Custom" style={{ maxWidth: '100%', maxHeight: '100%', pointerEvents: 'none' }} /> : <Image size={24} color="var(--studio-accent)" />}
-                                        {selectedElement === img.id && (
+                                        <div style={{ width: '100%', height: '100%', ...el.styles, overflow: 'hidden' }}>
+                                            {el.type === 'text' && (
+                                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: el.styles?.textAlign || 'center', whiteSpace: 'pre-wrap' }}>
+                                                    {el.content}
+                                                </div>
+                                            )}
+                                            {el.type === 'image' && (
+                                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed #ccc' }}>
+                                                    <input type="file" style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }} onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) {
+                                                            const reader = new FileReader();
+                                                            reader.onload = () => updateElement(el.id, { url: reader.result });
+                                                            reader.readAsDataURL(file);
+                                                        }
+                                                    }} />
+                                                    {el.url ? <img src={el.url} style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }} /> : <Image size={24} className="opacity-20" />}
+                                                </div>
+                                            )}
+                                            {el.type === 'shape' && <div style={{ width: '100%', height: '100%', background: el.styles?.background || 'transparent', border: el.styles?.border }} />}
+                                            {el.type === 'table' && (
+                                                <div style={{ width: '100%', height: '100%', border: '2px solid #000' }}>
+                                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+                                                        <thead style={{ background: template.tableConfig.headFillColor }}>
+                                                            <tr>{previewColumns.slice(0, 10).map(c => <th key={c.field_key} style={{ border: '1px solid #000', padding: '4px' }}>{template.tableConfig.columnLabels?.[c.field_key] || c.field_name}</th>)}</tr>
+                                                        </thead>
+                                                        <tbody>{[1,2,3,4,5].map(r => <tr key={r}>{previewColumns.slice(0, 10).map(c => <td key={c.field_key} style={{ border: '1px solid #000', padding: '4px' }}>&nbsp;</td>)}</tr>)}</tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {selectedId === el.id && (
                                             <>
-                                                <div className="tech-block-outline" />
-                                                <div className="tech-drag-handle" style={{ right: -5, bottom: -5 }} onMouseDown={(e) => startInteraction(e, img.id, 'resize')} />
-                                                <div className="tech-delete-btn" onClick={() => removeCustomImage(img.id)}>×</div>
+                                                <div className="handle handle-nw" onMouseDown={(e) => startInteraction(e, el.id, 'resize', 'nw')} />
+                                                <div className="handle handle-ne" onMouseDown={(e) => startInteraction(e, el.id, 'resize', 'ne')} />
+                                                <div className="handle handle-sw" onMouseDown={(e) => startInteraction(e, el.id, 'resize', 'sw')} />
+                                                <div className="handle handle-se" onMouseDown={(e) => startInteraction(e, el.id, 'resize', 'se')} />
+                                                <div className="handle-rotate" onMouseDown={(e) => startInteraction(e, el.id, 'rotate')}><RotateCcw size={10} /></div>
                                             </>
                                         )}
                                     </div>
@@ -749,6 +390,12 @@ export default function AdminFormatDesigner() {
                             </div>
                         </div>
                     </main>
+
+                    <aside className="studio-canvas-zoom fixed bottom-6 right-6 flex items-center gap-2 bg-studio-bg-alt border border-studio-border p-2 rounded shadow-xl z-50">
+                        <button className="terminal-btn px-2" onClick={() => setZoom(z => Math.max(0.1, z - 0.1))}>-</button>
+                        <span className="text-[10px] font-mono min-w-[50px] text-center">{Math.round(zoom * 100)}%</span>
+                        <button className="terminal-btn px-2" onClick={() => setZoom(z => Math.min(2, z + 0.1))}>+</button>
+                    </aside>
                 </div>
             </div>
         </div>
