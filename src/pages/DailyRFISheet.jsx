@@ -255,6 +255,195 @@ export default function DailyRFISheet() {
         });
     }
 
+    // ─── Ordered column rendering helpers ───
+    const NEW_ENTRY_SKIP_COLS = ['status', 'remarks'];
+    const newEntryColumns = orderedTableColumns.filter(col => !NEW_ENTRY_SKIP_COLS.includes(col.field_key));
+
+    function renderDisplayCell(rfi, col, idx, isCarryover) {
+        const style = getTableColumnStyle(col.field_key);
+        switch (col.field_key) {
+            case 'serial':
+                return <td key={col.field_key} style={style} data-label="#">{isCarryover ? idx + 1 : rfi.serialNo}</td>;
+            case 'description':
+                return <td key={col.field_key} style={style} data-label="Description">{rfi.description}</td>;
+            case 'location':
+                return <td key={col.field_key} style={style} data-label="Location">{rfi.location}</td>;
+            case 'inspection_type':
+                return <td key={col.field_key} style={style} data-label="Type">{rfi.inspectionType}</td>;
+            case 'status':
+                return (
+                    <td key={col.field_key} style={style} data-label="Status">
+                        <StatusBadge status={rfi.status} />
+                        {isCarryover && rfi.carryoverCount > 0 && <span className="carryover-count">×{rfi.carryoverCount}</span>}
+                    </td>
+                );
+            case 'remarks':
+                return <td key={col.field_key} className="remarks-text" style={style} data-label="Remarks">{rfi.remarks || '—'}</td>;
+            case 'attachments':
+                return (
+                    <td key={col.field_key} style={style} data-label="Attachments">
+                        {rfi.images && rfi.images.length > 0 ? (
+                            <div className="image-preview-grid consultant-grid" onClick={() => setSelectedImages(rfi.images)} title="Click to view full size">
+                                {rfi.images.slice(0, 3).map((url, i) => (
+                                    <img key={i} src={url} alt={`Attachment ${i + 1}`} className="thumbnail" />
+                                ))}
+                                {rfi.images.length > 3 && <div className="thumbnail-more">+{rfi.images.length - 3}</div>}
+                            </div>
+                        ) : <span className="text-muted">—</span>}
+                    </td>
+                );
+            case 'actions':
+                if (isCarryover) {
+                    return (
+                        <td key={col.field_key} style={style}>
+                            <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                <button className="btn btn-sm btn-action btn-resubmit" onClick={() => handleResubmit(rfi.id)} title={rfi.status === RFI_STATUS.INFO_REQUESTED ? "Submit Info & Re-queue" : "Re-submit for inspection"} style={{ flex: 1 }}>
+                                    <RefreshCw size={14} /> {rfi.status === RFI_STATUS.INFO_REQUESTED ? 'Submit Info' : 'Re-submit'}
+                                </button>
+                                {rfi.status === RFI_STATUS.REJECTED && (
+                                    <button className="btn btn-sm btn-action" onClick={() => handleCreateRevision(rfi)} title="Create new revision from this rejected RFI" style={{ flex: 1, backgroundColor: 'var(--clr-brand-primary)', color: 'white', borderColor: 'var(--clr-brand-primary)' }}>
+                                        <Plus size={14} /> Revision
+                                    </button>
+                                )}
+                                <button className="btn btn-sm btn-ghost" onClick={() => { setDetailTarget(rfi); setEditTarget(null); setMarkupTarget(null); scrollToPageBottom(); }} title="Open Discussion">
+                                    <MessageSquare size={14} />
+                                </button>
+                            </div>
+                        </td>
+                    );
+                }
+                // Filed RFIs actions
+                return (
+                    <td key={col.field_key} style={style}>
+                        <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                            <button className="btn btn-sm btn-ghost" onClick={() => { setDetailTarget(rfi); setEditTarget(null); setMarkupTarget(null); scrollToPageBottom(); }} title="Open Discussion">
+                                <MessageSquare size={14} />
+                            </button>
+                            {rfi.status === RFI_STATUS.REJECTED && (
+                                <button className="btn btn-sm btn-action" onClick={() => handleCreateRevision(rfi)} title="Create new revision from this rejected RFI" style={{ flex: 1, backgroundColor: 'var(--clr-brand-primary)', color: 'white', borderColor: 'var(--clr-brand-primary)' }}>
+                                    <Plus size={14} /> Revision
+                                </button>
+                            )}
+                            {rfi.status === RFI_STATUS.PENDING && (
+                                <>
+                                    <button className="btn btn-sm btn-ghost" onClick={() => { setEditTarget(rfi); setDetailTarget(null); }} title="Edit RFI">
+                                        <Pencil size={14} />
+                                    </button>
+                                    <button className="btn btn-sm btn-action btn-delete" onClick={() => { if (window.confirm('Are you sure you want to delete this RFI?')) { deleteRFI(rfi.id); } }} title="Delete RFI">
+                                        <Trash2 size={14} />
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </td>
+                );
+            default:
+                return <td key={col.field_key} style={style} data-label={col.field_name}>{rfi.customFields?.[col.field_key] || '—'}</td>;
+        }
+    }
+
+    function renderNewEntryCell(row, col, idx) {
+        const style = getTableColumnStyle(col.field_key);
+        switch (col.field_key) {
+            case 'serial':
+                return <td key={col.field_key} style={style}>{myNewRfis.length + idx + 1}</td>;
+            case 'description':
+                return (
+                    <td key={col.field_key} style={style}>
+                        <input type="text" className="cell-input" value={row.description} onChange={(e) => updateRow(row.tempId, 'description', e.target.value)} placeholder="e.g. Concrete pouring Zone B" />
+                    </td>
+                );
+            case 'location':
+                return (
+                    <td key={col.field_key} style={style}>
+                        <input type="text" className="cell-input" value={row.location} onChange={(e) => updateRow(row.tempId, 'location', e.target.value)} placeholder="e.g. Floor 3, Zone A" />
+                    </td>
+                );
+            case 'inspection_type':
+                return (
+                    <td key={col.field_key} style={style}>
+                        <select className="cell-select" value={row.inspectionType} onChange={(e) => updateRow(row.tempId, 'inspectionType', e.target.value)}>
+                            {INSPECTION_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+                        </select>
+                    </td>
+                );
+            case 'attachments':
+                return (
+                    <td key={col.field_key} style={style}>
+                        <div className="file-upload-cell">
+                            <label className="file-upload-label">
+                                <input type="file" multiple accept="image/*" onChange={(e) => { const files = Array.from(e.target.files); updateRow(row.tempId, 'images', [...row.images, ...files]); }} className="file-input-hidden" style={{ display: 'none' }} />
+                                <span className="file-upload-btn btn btn-sm btn-ghost">Attach Photos</span>
+                            </label>
+                            {row.images.length > 0 && (
+                                <div className="image-preview-grid">
+                                    {row.images.map((img, i) => (
+                                        <div key={i} className="thumbnail-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            <div style={{ position: 'relative', width: '60px', height: '60px' }}>
+                                                <img src={getImagePreviewSrc(img)} alt="preview" className="thumbnail" style={{ cursor: 'pointer', width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} onClick={() => setSelectedImages(row.images)} />
+                                                <button type="button" className="btn-thumb-markup desktop-hover-only" title="Markup photo" onClick={(e) => { e.stopPropagation(); setMarkupTarget({ tempId: row.tempId, imageIndex: i }); }}>
+                                                    <Brush size={10} />
+                                                </button>
+                                                <button className="btn-remove-thumb desktop-hover-only" onClick={(e) => { e.stopPropagation(); removeImage(row.tempId, i); }}>
+                                                    <X size={10} />
+                                                </button>
+                                            </div>
+                                            <div className="mobile-only-flex" style={{ display: 'none', justifyContent: 'center', gap: '8px' }}>
+                                                <button type="button" onClick={(e) => { e.stopPropagation(); setMarkupTarget({ tempId: row.tempId, imageIndex: i }); }} style={{ background: 'transparent', border: 'none', padding: '2px', color: 'var(--clr-info)' }}>
+                                                    <Brush size={14} />
+                                                </button>
+                                                <button type="button" onClick={(e) => { e.stopPropagation(); removeImage(row.tempId, i); }} style={{ background: 'transparent', border: 'none', padding: '2px', color: 'var(--clr-danger)' }}>
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </td>
+                );
+            case 'actions':
+                return (
+                    <td key={col.field_key} style={style}>
+                        {newRows.length > 1 && (
+                            <button className="btn btn-sm btn-action btn-delete" onClick={() => removeRow(row.tempId)}>
+                                <Trash2 size={14} />
+                            </button>
+                        )}
+                    </td>
+                );
+            default:
+                // Custom field input
+                if (!col.is_builtin) {
+                    const f = col;
+                    if (f.field_type === 'select') {
+                        return (
+                            <td key={col.field_key} style={style}>
+                                <select className="cell-select" value={row.customFields?.[f.field_key] || ''} onChange={e => { const updated = { ...row.customFields, [f.field_key]: e.target.value }; updateRow(row.tempId, 'customFields', updated); }}>
+                                    <option value="">— Select —</option>
+                                    {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                            </td>
+                        );
+                    }
+                    if (f.field_type === 'textarea') {
+                        return (
+                            <td key={col.field_key} style={style}>
+                                <textarea className="cell-input" rows={2} value={row.customFields?.[f.field_key] || ''} onChange={e => { const updated = { ...row.customFields, [f.field_key]: e.target.value }; updateRow(row.tempId, 'customFields', updated); }} placeholder={f.field_name} />
+                            </td>
+                        );
+                    }
+                    return (
+                        <td key={col.field_key} style={style}>
+                            <input type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : 'text'} className="cell-input" value={row.customFields?.[f.field_key] || ''} onChange={e => { const updated = { ...row.customFields, [f.field_key]: e.target.value }; updateRow(row.tempId, 'customFields', updated); }} placeholder={f.field_name} />
+                        </td>
+                    );
+                }
+                return <td key={col.field_key} style={style}>—</td>;
+        }
+    }
+
     return (
         <div className="page-wrapper">
             <Header />
@@ -315,90 +504,15 @@ export default function DailyRFISheet() {
                             <table className="rfi-table editable">
                                 <thead>
                                     <tr>
-                                        <th className="col-serial" style={getTableColumnStyle('serial')}>#</th>
-                                        <th className="col-desc" style={getTableColumnStyle('description')}>Description</th>
-                                        <th className="col-loc" style={getTableColumnStyle('location')}>Location</th>
-                                        <th className="col-type" style={getTableColumnStyle('inspection_type')}>Type</th>
-                                        {projectFields.map(f => (
-                                            <th key={f.id} style={getTableColumnStyle(f.field_key)}>{f.field_name}</th>
+                                        {orderedTableColumns.map(col => (
+                                            <th key={col.field_key} style={getTableColumnStyle(col.field_key)}>{col.field_name}</th>
                                         ))}
-                                        <th className="col-status" style={getTableColumnStyle('status')}>Status</th>
-                                        <th className="col-remarks" style={getTableColumnStyle('remarks')}>Remarks</th>
-                                        <th className="col-files" style={getTableColumnStyle('attachments')}>Attachments</th>
-                                        <th className="col-actions" style={getTableColumnStyle('actions')}>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {myCarriedOver.map((rfi, idx) => (
                                         <tr key={rfi.id} className="carryover-row">
-                                            <td className="col-serial" data-label="#" style={getTableColumnStyle('serial')}>{idx + 1}</td>
-                                            <td className="col-desc" data-label="Description" style={getTableColumnStyle('description')}>{rfi.description}</td>
-                                            <td className="col-loc" data-label="Location" style={getTableColumnStyle('location')}>{rfi.location}</td>
-                                            <td className="col-type" data-label="Type" style={getTableColumnStyle('inspection_type')}>{rfi.inspectionType}</td>
-                                            {projectFields.map(f => (
-                                                <td key={f.id} data-label={f.field_name} style={getTableColumnStyle(f.field_key)}>{rfi.customFields?.[f.field_key] || '—'}</td>
-                                            ))}
-                                            <td className="col-status" data-label="Status" style={getTableColumnStyle('status')}>
-                                                <StatusBadge status={rfi.status} />
-                                                {rfi.carryoverCount > 0 && (
-                                                    <span className="carryover-count">×{rfi.carryoverCount}</span>
-                                                )}
-                                            </td>
-                                            <td className="col-remarks remarks-text" data-label="Remarks" style={getTableColumnStyle('remarks')}>{rfi.remarks || '—'}</td>
-                                            <td className="col-files" data-label="Attachments" style={getTableColumnStyle('attachments')}>
-                                                {rfi.images && rfi.images.length > 0 ? (
-                                                    <div
-                                                        className="image-preview-grid consultant-grid"
-                                                        onClick={() => setSelectedImages(rfi.images)}
-                                                        title="Click to view full size"
-                                                    >
-                                                        {rfi.images.slice(0, 3).map((url, idx) => (
-                                                            <img key={idx} src={url} alt={`Attachment ${idx + 1}`} className="thumbnail" />
-                                                        ))}
-                                                        {rfi.images.length > 3 && (
-                                                            <div className="thumbnail-more">
-                                                                +{rfi.images.length - 3}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-muted">—</span>
-                                                )}
-                                            </td>
-                                            <td className="col-actions" style={getTableColumnStyle('actions')}>
-                                                <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                                    <button
-                                                        className="btn btn-sm btn-action btn-resubmit"
-                                                        onClick={() => handleResubmit(rfi.id)}
-                                                        title={rfi.status === RFI_STATUS.INFO_REQUESTED ? "Submit Info & Re-queue" : "Re-submit for inspection"}
-                                                        style={{ flex: 1 }}
-                                                    >
-                                                        <RefreshCw size={14} /> {rfi.status === RFI_STATUS.INFO_REQUESTED ? 'Submit Info' : 'Re-submit'}
-                                                    </button>
-                                                    {rfi.status === RFI_STATUS.REJECTED && (
-                                                        <button
-                                                            className="btn btn-sm btn-action"
-                                                            onClick={() => handleCreateRevision(rfi)}
-                                                            title="Create new revision from this rejected RFI"
-                                                            style={{ flex: 1, backgroundColor: 'var(--clr-brand-primary)', color: 'white', borderColor: 'var(--clr-brand-primary)' }}
-                                                        >
-                                                            <Plus size={14} /> Revision
-                                                        </button>
-                                                    )}
-                                                    <button
-                                                        className="btn btn-sm btn-ghost"
-                                                        onClick={() => {
-                                                            setDetailTarget(rfi);
-                                                            setEditTarget(null); // Close edit if open
-                                                            setMarkupTarget(null); // Close markup if open
-                                                            scrollToPageBottom();
-                                                        }}
-                                                        title="Open Discussion"
-                                                    >
-                                                        <MessageSquare size={14} />
-                                                    </button>
-                                                </div>
-                                            </td>
+                                            {orderedTableColumns.map(col => renderDisplayCell(rfi, col, idx, true))}
                                         </tr>
                                     ))}
                                 </tbody>
@@ -415,102 +529,15 @@ export default function DailyRFISheet() {
                             <table className="rfi-table editable">
                                 <thead>
                                     <tr>
-                                        <th className="col-serial" style={getTableColumnStyle('serial')}>#</th>
-                                        <th className="col-desc" style={getTableColumnStyle('description')}>Description</th>
-                                        <th className="col-loc" style={getTableColumnStyle('location')}>Location</th>
-                                        <th className="col-type" style={getTableColumnStyle('inspection_type')}>Type</th>
-                                        {projectFields.map(f => (
-                                            <th key={f.id} style={getTableColumnStyle(f.field_key)}>{f.field_name}</th>
+                                        {orderedTableColumns.map(col => (
+                                            <th key={col.field_key} style={getTableColumnStyle(col.field_key)}>{col.field_name}</th>
                                         ))}
-                                        <th className="col-status" style={getTableColumnStyle('status')}>Status</th>
-                                        <th className="col-remarks" style={getTableColumnStyle('remarks')}>Remarks</th>
-                                        <th className="col-files" style={getTableColumnStyle('attachments')}>Attachments</th>
-                                        <th className="col-actions" style={getTableColumnStyle('actions')}>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {myNewRfis.map((rfi) => (
+                                    {myNewRfis.map((rfi, idx) => (
                                         <tr key={rfi.id}>
-                                            <td className="col-serial" data-label="#" style={getTableColumnStyle('serial')}>{rfi.serialNo}</td>
-                                            <td className="col-desc" data-label="Description" style={getTableColumnStyle('description')}>{rfi.description}</td>
-                                            <td className="col-loc" data-label="Location" style={getTableColumnStyle('location')}>{rfi.location}</td>
-                                            <td className="col-type" data-label="Type" style={getTableColumnStyle('inspection_type')}>{rfi.inspectionType}</td>
-                                            {projectFields.map(f => (
-                                                <td key={f.id} data-label={f.field_name} style={getTableColumnStyle(f.field_key)}>{rfi.customFields?.[f.field_key] || '—'}</td>
-                                            ))}
-                                            <td className="col-status" data-label="Status" style={getTableColumnStyle('status')}><StatusBadge status={rfi.status} /></td>
-                                            <td className="col-remarks remarks-text" data-label="Remarks" style={getTableColumnStyle('remarks')}>{rfi.remarks || '—'}</td>
-                                            <td className="col-files" data-label="Attachments" style={getTableColumnStyle('attachments')}>
-                                                {rfi.images && rfi.images.length > 0 ? (
-                                                    <div
-                                                        className="image-preview-grid consultant-grid"
-                                                        onClick={() => setSelectedImages(rfi.images)}
-                                                        title="Click to view full size"
-                                                    >
-                                                        {rfi.images.slice(0, 3).map((url, idx) => (
-                                                            <img key={idx} src={url} alt={`Attachment ${idx + 1}`} className="thumbnail" />
-                                                        ))}
-                                                        {rfi.images.length > 3 && (
-                                                            <div className="thumbnail-more">
-                                                                +{rfi.images.length - 3}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-muted">—</span>
-                                                )}
-                                            </td>
-                                            <td className="col-actions" style={getTableColumnStyle('actions')}>
-                                                <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
-                                                    <button
-                                                        className="btn btn-sm btn-ghost"
-                                                        onClick={() => {
-                                                            setDetailTarget(rfi);
-                                                            setEditTarget(null); // Close edit if open
-                                                            setMarkupTarget(null); // Close markup if open
-                                                            scrollToPageBottom();
-                                                        }}
-                                                        title="Open Discussion"
-                                                    >
-                                                        <MessageSquare size={14} />
-                                                    </button>
-                                                    {rfi.status === RFI_STATUS.REJECTED && (
-                                                        <button
-                                                            className="btn btn-sm btn-action"
-                                                            onClick={() => handleCreateRevision(rfi)}
-                                                            title="Create new revision from this rejected RFI"
-                                                            style={{ flex: 1, backgroundColor: 'var(--clr-brand-primary)', color: 'white', borderColor: 'var(--clr-brand-primary)' }}
-                                                        >
-                                                            <Plus size={14} /> Revision
-                                                        </button>
-                                                    )}
-                                                    {rfi.status === RFI_STATUS.PENDING && (
-                                                        <>
-                                                            <button
-                                                                className="btn btn-sm btn-ghost"
-                                                                onClick={() => {
-                                                                    setEditTarget(rfi);
-                                                                    setDetailTarget(null); // Close discussion if open
-                                                                }}
-                                                                title="Edit RFI"
-                                                            >
-                                                                <Pencil size={14} />
-                                                            </button>
-                                                            <button
-                                                                className="btn btn-sm btn-action btn-delete"
-                                                                onClick={() => {
-                                                                    if (window.confirm('Are you sure you want to delete this RFI?')) {
-                                                                        deleteRFI(rfi.id);
-                                                                    }
-                                                                }}
-                                                                title="Delete RFI"
-                                                            >
-                                                                <Trash2 size={14} />
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </td>
+                                            {orderedTableColumns.map(col => renderDisplayCell(rfi, col, idx, false))}
                                         </tr>
                                     ))}
                                 </tbody>
@@ -528,92 +555,20 @@ export default function DailyRFISheet() {
                         <table className="rfi-table editable">
                             <thead>
                                 <tr>
-                                    <th className="col-serial" style={getTableColumnStyle('serial')}>#</th>
-                                    <th className="col-desc" style={getTableColumnStyle('description')}>Description *</th>
-                                    <th className="col-loc" style={getTableColumnStyle('location')}>Location *</th>
-                                    <th className="col-type" style={getTableColumnStyle('inspection_type')}>Inspection Type</th>
-                                    {projectFields.map(f => (
-                                        <th key={f.id} style={getTableColumnStyle(f.field_key)}>{f.field_name}{f.is_required ? ' *' : ''}</th>
-                                    ))}
+                                    {newEntryColumns.map(col => {
+                                        const style = getTableColumnStyle(col.field_key);
+                                        let label = col.field_name;
+                                        if (col.field_key === 'description' || col.field_key === 'location') label += ' *';
+                                        if (!col.is_builtin && col.is_required) label += ' *';
+                                        return <th key={col.field_key} style={style}>{label}</th>;
+                                    })}
                                     <th className="col-assign">Assign To</th>
-                                    <th className="col-files" style={getTableColumnStyle('attachments')}>Attachments</th>
-                                    <th className="col-actions" style={getTableColumnStyle('actions')}></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {newRows.map((row, idx) => (
                                     <tr key={row.tempId}>
-                                        <td className="col-serial" style={getTableColumnStyle('serial')}>{myNewRfis.length + idx + 1}</td>
-                                        <td className="col-desc" style={getTableColumnStyle('description')}>
-                                            <input
-                                                type="text"
-                                                className="cell-input"
-                                                value={row.description}
-                                                onChange={(e) => updateRow(row.tempId, 'description', e.target.value)}
-                                                placeholder="e.g. Concrete pouring Zone B"
-                                            />
-                                        </td>
-                                        <td className="col-loc" style={getTableColumnStyle('location')}>
-                                            <input
-                                                type="text"
-                                                className="cell-input"
-                                                value={row.location}
-                                                onChange={(e) => updateRow(row.tempId, 'location', e.target.value)}
-                                                placeholder="e.g. Floor 3, Zone A"
-                                            />
-                                        </td>
-                                        <td className="col-type" style={getTableColumnStyle('inspection_type')}>
-                                            <select
-                                                className="cell-select"
-                                                value={row.inspectionType}
-                                                onChange={(e) => updateRow(row.tempId, 'inspectionType', e.target.value)}
-                                            >
-                                                {INSPECTION_TYPES.map((type) => (
-                                                    <option key={type} value={type}>{type}</option>
-                                                ))}
-                                            </select>
-                                        </td>
-                                        {projectFields.map(f => (
-                                            <td key={f.id} style={getTableColumnStyle(f.field_key)}>
-                                                {f.field_type === 'select' ? (
-                                                    <select
-                                                        className="cell-select"
-                                                        value={row.customFields?.[f.field_key] || ''}
-                                                        onChange={e => {
-                                                            const updated = { ...row.customFields, [f.field_key]: e.target.value };
-                                                            updateRow(row.tempId, 'customFields', updated);
-                                                        }}
-                                                    >
-                                                        <option value="">— Select —</option>
-                                                        {(f.options || []).map(o => (
-                                                            <option key={o} value={o}>{o}</option>
-                                                        ))}
-                                                    </select>
-                                                ) : f.field_type === 'textarea' ? (
-                                                    <textarea
-                                                        className="cell-input"
-                                                        rows={2}
-                                                        value={row.customFields?.[f.field_key] || ''}
-                                                        onChange={e => {
-                                                            const updated = { ...row.customFields, [f.field_key]: e.target.value };
-                                                            updateRow(row.tempId, 'customFields', updated);
-                                                        }}
-                                                        placeholder={f.field_name}
-                                                    />
-                                                ) : (
-                                                    <input
-                                                        type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : 'text'}
-                                                        className="cell-input"
-                                                        value={row.customFields?.[f.field_key] || ''}
-                                                        onChange={e => {
-                                                            const updated = { ...row.customFields, [f.field_key]: e.target.value };
-                                                            updateRow(row.tempId, 'customFields', updated);
-                                                        }}
-                                                        placeholder={f.field_name}
-                                                    />
-                                                )}
-                                            </td>
-                                        ))}
+                                        {newEntryColumns.map(col => renderNewEntryCell(row, col, idx))}
                                         <td className="col-assign">
                                             <select
                                                 className="cell-select"
@@ -625,99 +580,6 @@ export default function DailyRFISheet() {
                                                     <option key={c.id} value={c.id}>{c.name}</option>
                                                 ))}
                                             </select>
-                                        </td>
-                                        <td className="col-files" style={getTableColumnStyle('attachments')}>
-                                            <div className="file-upload-cell">
-                                                <label className="file-upload-label">
-                                                    <input
-                                                        type="file"
-                                                        multiple
-                                                        accept="image/*"
-                                                        onChange={(e) => {
-                                                            const files = Array.from(e.target.files);
-                                                            // Append to existing images rather than replace
-                                                            updateRow(row.tempId, 'images', [...row.images, ...files]);
-                                                        }}
-                                                        className="file-input-hidden"
-                                                        style={{ display: 'none' }}
-                                                    />
-                                                    <span className="file-upload-btn btn btn-sm btn-ghost">
-                                                        Attach Photos
-                                                    </span>
-                                                </label>
-
-                                                {row.images.length > 0 && (
-                                                    <div className="image-preview-grid">
-                                                        {row.images.map((img, i) => (
-                                                            <div key={i} className="thumbnail-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                                <div style={{ position: 'relative', width: '60px', height: '60px' }}>
-                                                                    <img
-                                                                        src={getImagePreviewSrc(img)}
-                                                                        alt="preview"
-                                                                        className="thumbnail"
-                                                                        style={{ cursor: 'pointer', width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }}
-                                                                        onClick={() => setSelectedImages(row.images)}
-                                                                    />
-                                                                    {/* Hidden on mobile, shown on hover for desktop */}
-                                                                    <button
-                                                                        type="button"
-                                                                        className="btn-thumb-markup desktop-hover-only"
-                                                                        title="Markup photo"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setMarkupTarget({ tempId: row.tempId, imageIndex: i });
-                                                                        }}
-                                                                    >
-                                                                        <Brush size={10} />
-                                                                    </button>
-                                                                    <button
-                                                                        className="btn-remove-thumb desktop-hover-only"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            removeImage(row.tempId, i);
-                                                                        }}
-                                                                    >
-                                                                        <X size={10} />
-                                                                    </button>
-                                                                </div>
-                                                                {/* Persistent icons for mobile */}
-                                                                <div className="mobile-only-flex" style={{ display: 'none', justifyContent: 'center', gap: '8px' }}>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setMarkupTarget({ tempId: row.tempId, imageIndex: i });
-                                                                        }}
-                                                                        style={{ background: 'transparent', border: 'none', padding: '2px', color: 'var(--clr-info)' }}
-                                                                    >
-                                                                        <Brush size={14} />
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            removeImage(row.tempId, i);
-                                                                        }}
-                                                                        style={{ background: 'transparent', border: 'none', padding: '2px', color: 'var(--clr-danger)' }}
-                                                                    >
-                                                                        <X size={14} />
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="col-actions" style={getTableColumnStyle('actions')}>
-                                            {newRows.length > 1 && (
-                                                <button
-                                                    className="btn btn-sm btn-action btn-delete"
-                                                    onClick={() => removeRow(row.tempId)}
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            )}
                                         </td>
                                     </tr>
                                 ))}

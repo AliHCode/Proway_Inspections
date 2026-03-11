@@ -314,20 +314,29 @@ export default function AdminDashboard() {
         try {
             setLoading(true);
             const columnOrderKeys = orderedFields.map(f => f.field_key);
-            await supabase
+            const { error: updateProjectError } = await supabase
                 .from('projects')
                 .update({
                     column_order: columnOrderKeys,
                     column_widths: columnWidthsDraft,
                 })
                 .eq('id', activeProject.id);
+            if (updateProjectError) {
+                throw new Error(updateProjectError.message || 'Failed to save project column layout');
+            }
 
             // Also update traditional sort_order for custom fields for backward compatibility
             let customIndex = 0;
             for (let i = 0; i < orderedFields.length; i++) {
                 const field = orderedFields[i];
                 if (!field.is_builtin) {
-                    await supabase.from('project_fields').update({ sort_order: customIndex }).eq('id', field.id);
+                    const { error: fieldOrderError } = await supabase
+                        .from('project_fields')
+                        .update({ sort_order: customIndex })
+                        .eq('id', field.id);
+                    if (fieldOrderError) {
+                        throw new Error(fieldOrderError.message || `Failed to update field order for ${field.field_name}`);
+                    }
                     customIndex++;
                 }
             }
