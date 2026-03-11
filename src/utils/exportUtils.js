@@ -237,32 +237,27 @@ function buildPdfColumnStyles(doc, fieldKeys = [], columnWidthMap = {}, leftMarg
     const pageWidth = doc.internal.pageSize.getWidth();
     const availableWidth = Math.max(120, pageWidth - leftMargin - rightMargin);
 
+    // Gather proportional raw widths — no minimum floor so everything scales freely
     const rawWidths = fieldKeys.map((fieldKey) => {
-
-        if (fieldKey === 'filed_date' || fieldKey === 'review_date') {
-            return 72;
-        }
-
-        if (!fieldKey) {
-            return 64;
-        }
-
+        if (fieldKey === 'filed_date' || fieldKey === 'review_date') return 72;
+        if (!fieldKey) return 50;
         const px = sanitizeColumnWidth(columnWidthMap[fieldKey]);
-        return Math.max(36, px * PDF_PX_TO_PT);
+        return px * PDF_PX_TO_PT || 50;
     });
 
-    const totalRawWidth = rawWidths.reduce((sum, w) => sum + w, 0);
-    const scale = totalRawWidth > availableWidth ? availableWidth / totalRawWidth : 1;
+    // ALWAYS scale columns to exactly fill the available width
+    const totalRawWidth = rawWidths.reduce((sum, w) => sum + w, 0) || 1;
+    const scale = availableWidth / totalRawWidth;
 
     const columnStyles = {};
     rawWidths.forEach((w, idx) => {
         columnStyles[idx] = {
-            cellWidth: Math.max(5, Number((w * scale).toFixed(2))),
+            cellWidth: Number((w * scale).toFixed(2)),
             overflow: 'linebreak',
         };
     });
 
-    return columnStyles;
+    return { columnStyles, fitScale: scale };
 }
 
 /**
@@ -438,7 +433,14 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
     const tableLeft = Math.max(layout.margin, layout.table.x);
     const tableRight = Math.max(layout.margin, pageWidth - (layout.table.x + layout.table.w));
     const tableW = pageWidth - tableLeft - tableRight;
-    const columnStyles = buildPdfColumnStyles(doc, fieldKeys, columnWidthMap, tableLeft, tableRight);
+    const { columnStyles, fitScale } = buildPdfColumnStyles(doc, fieldKeys, columnWidthMap, tableLeft, tableRight);
+    // When many columns squeeze the table, reduce font sizes & padding proportionally
+    const fontShrink = Math.min(1, Math.max(0.55, fitScale));
+    const baseFontBody = template.table.compactMode ? (template.table.bodyFontSize - 1) : template.table.bodyFontSize;
+    const baseFontHead = template.table.headFontSize;
+    const bodyFontSize = Math.max(5, baseFontBody * PDF_COMPACT_FACTOR * fontShrink);
+    const headFontSize = Math.max(5, baseFontHead * PDF_COMPACT_FACTOR * fontShrink);
+    const cellPad = Math.max(0.6, (template.table.compactMode ? 1.25 : 1.6) * fontShrink);
 
     autoTable(doc, {
         head: pdfHeadRows,
@@ -449,14 +451,14 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
         tableWidth: tableW,
         columnStyles,
         styles: {
-            fontSize: template.table.compactMode ? Math.max(6.8, (template.table.bodyFontSize - 1) * PDF_COMPACT_FACTOR) : Math.max(6.8, template.table.bodyFontSize * PDF_COMPACT_FACTOR),
-            cellPadding: template.table.compactMode ? 1.25 : 1.6,
+            fontSize: bodyFontSize,
+            cellPadding: cellPad,
             overflow: 'linebreak',
         },
         headStyles: {
             fillColor: hexToRgb(template.table.headFillColor, [30, 41, 59]),
             textColor: hexToRgb(template.table.headTextColor, [255, 255, 255]),
-            fontSize: Math.max(6.8, template.table.headFontSize * PDF_COMPACT_FACTOR),
+            fontSize: headFontSize,
         },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         didParseCell: function (data) {
@@ -594,7 +596,12 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
     const tableLeft = Math.max(layout.margin, layout.table.x);
     const tableRight = Math.max(layout.margin, pageWidth - (layout.table.x + layout.table.w));
     const tableW = pageWidth - tableLeft - tableRight;
-    const columnStyles = buildPdfColumnStyles(doc, fieldKeys, columnWidthMap, tableLeft, tableRight);
+    const { columnStyles, fitScale: dailyFitScale } = buildPdfColumnStyles(doc, fieldKeys, columnWidthMap, tableLeft, tableRight);
+    const dFontShrink = Math.min(1, Math.max(0.55, dailyFitScale));
+    const dBaseFontBody = template.table.compactMode ? (template.table.bodyFontSize - 1) : template.table.bodyFontSize;
+    const dBodyFontSize = Math.max(5, dBaseFontBody * PDF_COMPACT_FACTOR * dFontShrink);
+    const dHeadFontSize = Math.max(5, template.table.headFontSize * PDF_COMPACT_FACTOR * dFontShrink);
+    const dCellPad = Math.max(0.6, (template.table.compactMode ? 1.25 : 1.6) * dFontShrink);
 
     autoTable(doc, {
         head: pdfHeadRows,
@@ -605,8 +612,8 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
         tableWidth: tableW,
         columnStyles,
         styles: {
-            fontSize: template.table.compactMode ? Math.max(6.8, (template.table.bodyFontSize - 1) * PDF_COMPACT_FACTOR) : Math.max(6.8, template.table.bodyFontSize * PDF_COMPACT_FACTOR),
-            cellPadding: template.table.compactMode ? 1.25 : 1.6,
+            fontSize: dBodyFontSize,
+            cellPadding: dCellPad,
             font: 'helvetica',
             overflow: 'linebreak',
         },
@@ -614,7 +621,7 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
             fillColor: hexToRgb(template.table.headFillColor, [30, 41, 59]),
             textColor: hexToRgb(template.table.headTextColor, [255, 255, 255]),
             fontStyle: 'bold',
-            fontSize: Math.max(6.8, template.table.headFontSize * PDF_COMPACT_FACTOR),
+            fontSize: dHeadFontSize,
         },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         didParseCell: function (data) {
