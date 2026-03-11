@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import { FileText, Move, Save, RotateCcw, Image, Columns, Settings, Layers, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Header from '../components/Header';
