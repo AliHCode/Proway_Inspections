@@ -146,7 +146,7 @@ export default function ContractorDashboard() {
                 </div>
 
                 {/* --- ANALYTICS CHARTS SECTION --- */}
-                <div className="dashboard-section charts-section" style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '2rem', background: 'transparent', border: 'none', boxShadow: 'none' }}>
+                <div className="dashboard-section charts-section" style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '1.25rem', background: 'transparent', border: 'none', boxShadow: 'none' }}>
                     <div className="chart-card" style={{ flex: '1 1 300px', minWidth: 0, background: 'var(--clr-bg-secondary)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--clr-border)' }}>
                         <RfiTrendChart data={trendData} />
                     </div>
