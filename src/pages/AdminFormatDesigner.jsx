@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
-import { FileText, Move, Save, RotateCcw } from 'lucide-react';
+import { FileText, Move, Save, RotateCcw, Image, Columns, Settings, Layers, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Header from '../components/Header';
 import { useProject } from '../context/ProjectContext';
@@ -16,6 +15,7 @@ const DEFAULT_TEMPLATE = {
         leftLogoUrl: '',
         rightLogoUrl: '',
     },
+    customImages: [], // New: Multiple images
     table: {
         headFillColor: '#5bb3d9',
         headTextColor: '#0b1f33',
@@ -33,17 +33,18 @@ const DEFAULT_TEMPLATE = {
     },
     layout: {
         canvasWidth: CANVAS_WIDTH,
-        canvasHeight: CANVAS_HEIGHT,
+        canvasHeight: 1600, // Increased height for professional sheet
         gridSize: 8,
         snapToGrid: true,
+        showConnector: true, // New: Header-to-Columns outline
         elements: {
-            leftLogo: { x: 20, y: 20, w: 140, h: 46, visible: true },
-            rightLogo: { x: 1040, y: 20, w: 140, h: 46, visible: true },
-            title: { x: 420, y: 18, w: 360, h: 36, fontSize: 30, visible: true },
-            subtitle: { x: 420, y: 56, w: 360, h: 24, fontSize: 14, visible: true },
-            projectLine: { x: 380, y: 82, w: 440, h: 22, fontSize: 12, visible: true },
-            submissionDate: { x: 960, y: 86, w: 220, h: 20, fontSize: 11, visible: true },
-            table: { x: 20, y: 142, w: 1160, h: 150, visible: true },
+            leftLogo: { x: 40, y: 40, w: 100, h: 60, visible: true },
+            rightLogo: { x: 1060, y: 40, w: 100, h: 60, visible: true },
+            title: { x: 300, y: 35, w: 600, h: 45, visible: true },
+            subtitle: { x: 300, y: 85, w: 600, h: 25, visible: true },
+            projectLine: { x: 40, y: 130, w: 1120, h: 30, visible: true },
+            submissionDate: { x: 960, y: 130, w: 200, h: 20, visible: true },
+            table: { x: 40, y: 190, w: 1120, h: 500, visible: true },
         },
     },
 };
@@ -116,6 +117,8 @@ export default function AdminFormatDesigner() {
     const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
     const [saving, setSaving] = useState(false);
     const [selectedElement, setSelectedElement] = useState('title');
+    const [activeRailTab, setActiveRailTab] = useState('canvas');
+    const [drawerOpen, setDrawerOpen] = useState(true);
     const [interaction, setInteraction] = useState(null);
 
     useEffect(() => {
@@ -148,30 +151,53 @@ export default function AdminFormatDesigner() {
             .sort((a, b) => a.start - b.start);
     }, [template.table.groupedHeaders, previewHeaderKeys, previewColumns]);
 
-    function updateSection(section, key, value) {
+    function addCustomImage() {
+        if (!activeProject?.id) {
+            toast.error('Select a project first.');
+            return;
+        }
+        const id = `img_${Date.now()}`;
         setTemplate((prev) => ({
             ...prev,
-            [section]: {
-                ...prev[section],
-                [key]: value,
-            },
+            customImages: [...(prev.customImages || []), { id, url: '', x: 400, y: 400, w: 200, h: 200, visible: true }],
+        }));
+        setSelectedElement(id);
+    }
+
+    function removeCustomImage(id) {
+        setTemplate((prev) => ({
+            ...prev,
+            customImages: (prev.customImages || []).filter((img) => img.id !== id),
+        }));
+        if (selectedElement === id) setSelectedElement(null);
+    }
+
+    function updateCustomImage(id, patch) {
+        setTemplate((prev) => ({
+            ...prev,
+            customImages: (prev.customImages || []).map((img) => (img.id === id ? { ...img, ...patch } : img)),
         }));
     }
 
-    function updateColumnLabel(fieldKey, label) {
-        setTemplate((prev) => ({
-            ...prev,
-            table: {
-                ...prev.table,
-                columnLabels: {
-                    ...(prev.table.columnLabels || {}),
-                    [fieldKey]: label,
-                },
-            },
-        }));
+    async function handleCustomImageFile(id, file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => updateCustomImage(id, { url: String(reader.result || '') });
+        reader.readAsDataURL(file);
+    }
+
+    function getRect(key) {
+        if (key?.startsWith('img_')) {
+            return template.customImages?.find((img) => img.id === key);
+        }
+        return template.layout.elements[key];
     }
 
     function updateLayoutElement(key, patch) {
+        if (key?.startsWith('img_')) {
+            updateCustomImage(key, patch);
+            return;
+        }
         setTemplate((prev) => ({
             ...prev,
             layout: {
@@ -228,7 +254,7 @@ export default function AdminFormatDesigner() {
         e.preventDefault();
         e.stopPropagation();
         setSelectedElement(elementKey);
-        const startRect = template.layout.elements[elementKey];
+        const startRect = getRect(elementKey);
         if (!startRect) return;
         setInteraction({
             mode,
@@ -296,8 +322,36 @@ export default function AdminFormatDesigner() {
     async function handleFileToDataUrl(file, sectionKey) {
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = () => updateSection('header', sectionKey, String(reader.result || ''));
+        reader.onload = () => {
+            setTemplate(prev => ({
+                ...prev,
+                header: { ...prev.header, [sectionKey]: String(reader.result || '') }
+            }));
+        };
         reader.readAsDataURL(file);
+    }
+
+    function updateSection(section, key, value) {
+        setTemplate((prev) => ({
+            ...prev,
+            [section]: {
+                ...prev[section],
+                [key]: value,
+            },
+        }));
+    }
+
+    function updateColumnLabel(fieldKey, label) {
+        setTemplate((prev) => ({
+            ...prev,
+            table: {
+                ...prev.table,
+                columnLabels: {
+                    ...(prev.table.columnLabels || {}),
+                    [fieldKey]: label,
+                },
+            },
+        }));
     }
 
     async function handleSave() {
@@ -330,314 +384,296 @@ export default function AdminFormatDesigner() {
         setTemplate(mergeTemplate(DEFAULT_TEMPLATE, {}));
     }
 
-    const selectedRect = template.layout.elements[selectedElement] || null;
-    const tableElement = template.layout.elements.table;
+    const toggleRailTab = (tab) => {
+        if (activeRailTab === tab) {
+            setDrawerOpen(!drawerOpen);
+        } else {
+            setActiveRailTab(tab);
+            setDrawerOpen(true);
+        }
+    };
+
+    const selectedRect = getRect(selectedElement);
 
     return (
-        <div className="page-wrapper">
+        <div className="format-studio-page">
             <Header />
-            <main className="admin-page format-studio-page">
-                <div className="sheet-header format-studio-header">
-                    <div>
-                        <h1><FileText size={24} /> Project Export Format</h1>
-                        <p className="subtitle" style={{ marginTop: '0.25rem' }}>
-                            Canva-style editor: drag and resize each block, then export the same project format for contractor and consultant.
-                        </p>
+            <div className="studio-terminal-frame">
+                <header className="terminal-titlebar">
+                    <div className="terminal-window-dots">
+                        <div className="window-dot red"></div>
+                        <div className="window-dot yellow"></div>
+                        <div className="window-dot green"></div>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.6rem' }}>
-                        <button className="btn btn-ghost btn-sm" onClick={handleReset}>
-                            <RotateCcw size={15} /> Reset
+                    <div className="terminal-app-title">Studio IDE // Project Export Terminal</div>
+                    <div className="terminal-actions">
+                        <button className="terminal-btn" onClick={handleReset}>
+                            <RotateCcw size={14} /> Reset
                         </button>
-                        <button className="btn btn-sm" onClick={handleSave} disabled={saving} style={{ background: 'var(--clr-brand-secondary)', color: '#fff', border: 'none' }}>
-                            <Save size={15} /> {saving ? 'Saving...' : 'Save Format'}
+                        <button className="terminal-btn primary" onClick={handleSave} disabled={saving}>
+                            <Save size={14} /> {saving ? 'Saving...' : 'Save Config'}
                         </button>
                     </div>
-                </div>
+                </header>
 
-                <div className="admin-section format-studio-layout">
-                    <section className="format-studio-sidebar">
-                        <div className="studio-sidebar-section">
-                            <h3><Move size={18} /> Artboard settings</h3>
-                            <div className="studio-controls-grid">
-                                <label className="studio-label-row">
-                                    <input
-                                        type="checkbox"
-                                        checked={template.layout.snapToGrid}
-                                        onChange={(e) => updateSection('layout', 'snapToGrid', e.target.checked)}
-                                    />
-                                    <span>Snap to grid</span>
-                                </label>
-                                <div className="studio-input-group">
-                                    <label>Grid size</label>
-                                    <input
-                                        type="number"
-                                        min={2}
-                                        max={40}
-                                        value={template.layout.gridSize}
-                                        onChange={(e) => updateSection('layout', 'gridSize', Number(e.target.value || 8))}
-                                    />
-                                </div>
-                            </div>
+                <div className="format-studio-layout">
+                    <aside className="studio-vertical-rail">
+                        <div className={`rail-item ${activeRailTab === 'canvas' && drawerOpen ? 'active' : ''}`} onClick={() => toggleRailTab('canvas')} title="Canvas Settings">
+                            <Layers size={22} />
                         </div>
-
-                        <div className="studio-sidebar-section">
-                            <h3>Branding & Logos</h3>
-                            <div className="studio-controls-stack">
-                                <div className="studio-input-group">
-                                    <label>Left logo (URL or File)</label>
-                                    <input type="text" value={template.header.leftLogoUrl} placeholder="URL" onChange={(e) => updateSection('header', 'leftLogoUrl', e.target.value)} />
-                                    <input type="file" accept="image/*" onChange={(e) => handleFileToDataUrl(e.target.files?.[0], 'leftLogoUrl')} />
-                                </div>
-                                <div className="studio-input-group">
-                                    <label>Right logo (URL or File)</label>
-                                    <input type="text" value={template.header.rightLogoUrl} placeholder="URL" onChange={(e) => updateSection('header', 'rightLogoUrl', e.target.value)} />
-                                    <input type="file" accept="image/*" onChange={(e) => handleFileToDataUrl(e.target.files?.[0], 'rightLogoUrl')} />
-                                </div>
-                            </div>
+                        <div className={`rail-item ${activeRailTab === 'branding' && drawerOpen ? 'active' : ''}`} onClick={() => toggleRailTab('branding')} title="Branding & Logos">
+                            <Settings size={22} />
                         </div>
-
-                        <div className="studio-sidebar-section">
-                            <h3>Header Content</h3>
-                            <div className="studio-controls-stack">
-                                <div className="studio-input-group">
-                                    <label>Main Title</label>
-                                    <input type="text" value={template.header.title} placeholder="Title" onChange={(e) => updateSection('header', 'title', e.target.value)} />
-                                </div>
-                                <div className="studio-input-group">
-                                    <label>Subtitle</label>
-                                    <input type="text" value={template.header.subtitle} placeholder="Subtitle" onChange={(e) => updateSection('header', 'subtitle', e.target.value)} />
-                                </div>
-                                <div className="studio-input-group">
-                                    <label>Project Area Hint</label>
-                                    <input type="text" value={template.header.projectLine} placeholder="Project line" onChange={(e) => updateSection('header', 'projectLine', e.target.value)} />
-                                </div>
-                                <label className="studio-label-row">
-                                    <input
-                                        type="checkbox"
-                                        checked={template.header.showSubmissionDate}
-                                        onChange={(e) => updateSection('header', 'showSubmissionDate', e.target.checked)}
-                                    />
-                                    <span>Show submission date</span>
-                                </label>
-                            </div>
+                        <div className={`rail-item ${activeRailTab === 'images' && drawerOpen ? 'active' : ''}`} onClick={() => toggleRailTab('images')} title="Dynamic Images">
+                            <Image size={22} />
                         </div>
-
-                        <div className="studio-sidebar-section">
-                            <h3>Table Headings</h3>
-                            <div className="studio-scroll-area">
-                                {previewColumns.map((col) => (
-                                    <div key={`col_${col.field_key}`} className="studio-input-group-row">
-                                        <label>{col.field_key}</label>
-                                        <input
-                                            type="text"
-                                            value={template.table.columnLabels?.[col.field_key] ?? col.field_name}
-                                            onChange={(e) => updateColumnLabel(col.field_key, e.target.value)}
-                                        />
-                                    </div>
-                                ))}
-                            </div>
+                        <div className={`rail-item ${activeRailTab === 'columns' && drawerOpen ? 'active' : ''}`} onClick={() => toggleRailTab('columns')} title="Table Headings">
+                            <Columns size={22} />
                         </div>
+                    </aside>
 
-                        <div className="studio-sidebar-section">
-                            <h3>Grouped Headings</h3>
-                            <div className="studio-controls-stack">
-                                {(template.table.groupedHeaders || []).map((group, i) => (
-                                    <div key={`grp_${i}`} className="studio-group-item">
-                                        <input
-                                            value={group.title || ''}
-                                            onChange={(e) => updateGroupedHeader(i, 'title', e.target.value)}
-                                            placeholder="Group title"
-                                        />
-                                        <div className="studio-group-controls">
-                                            <select value={group.fromKey} onChange={(e) => updateGroupedHeader(i, 'fromKey', e.target.value)}>
-                                                {previewColumns.map((c) => <option key={`gf_${i}_${c.field_key}`} value={c.field_key}>{c.field_name}</option>)}
-                                            </select>
-                                            <span className="divider">to</span>
-                                            <select value={group.toKey} onChange={(e) => updateGroupedHeader(i, 'toKey', e.target.value)}>
-                                                {previewColumns.map((c) => <option key={`gt_${i}_${c.field_key}`} value={c.field_key}>{c.field_name}</option>)}
-                                            </select>
+                    <main className="studio-main-stage">
+                        <section className={`studio-internal-drawer ${drawerOpen ? 'open' : ''}`}>
+                            <header className="drawer-header">
+                                <h3>{activeRailTab} settings</h3>
+                                <button className="terminal-btn" style={{ padding: '0.2rem 0.5rem' }} onClick={() => setDrawerOpen(false)}><X size={14} /></button>
+                            </header>
+                            <div className="drawer-content">
+                                {activeRailTab === 'canvas' && (
+                                    <div className="studio-sidebar-section">
+                                        <div className="studio-controls-grid">
+                                            <label className="studio-label-row">
+                                                <input type="checkbox" checked={template.layout.snapToGrid} onChange={(e) => updateSection('layout', 'snapToGrid', e.target.checked)} />
+                                                <span>Snap Grid</span>
+                                            </label>
+                                            <div className="studio-input-group">
+                                                <label>Size</label>
+                                                <input type="number" value={template.layout.gridSize} onChange={(e) => updateSection('layout', 'gridSize', Number(e.target.value || 8))} />
+                                            </div>
+                                            <label className="studio-label-row" style={{ gridColumn: 'span 2', marginTop: '1rem' }}>
+                                                <input type="checkbox" checked={template.layout.showConnector} onChange={(e) => updateSection('layout', 'showConnector', e.target.checked)} />
+                                                <span>Header Connector</span>
+                                            </label>
                                         </div>
-                                        <button className="ua-btn ua-btn-danger-ghost btn-sm" onClick={() => removeGroupedHeader(i)}>Remove</button>
                                     </div>
-                                ))}
-                                <button className="ua-btn ua-btn-outline btn-sm" onClick={addGroupedHeader} style={{ justifyContent: 'center' }}>+ Add Grouped Header</button>
-                            </div>
-                        </div>
+                                )}
 
-                        {selectedRect && (
-                            <div className="studio-sidebar-section studio-selection-panel">
-                                <h3>Properties: {selectedElement}</h3>
-                                <div className="studio-prop-grid">
-                                    <div className="studio-input-group">
-                                        <label>X Position</label>
-                                        <input type="number" value={selectedRect.x} onChange={(e) => updateLayoutElement(selectedElement, { x: Number(e.target.value || 0) })} />
-                                    </div>
-                                    <div className="studio-input-group">
-                                        <label>Y Position</label>
-                                        <input type="number" value={selectedRect.y} onChange={(e) => updateLayoutElement(selectedElement, { y: Number(e.target.value || 0) })} />
-                                    </div>
-                                    <div className="studio-input-group">
-                                        <label>Width (px)</label>
-                                        <input type="number" value={selectedRect.w} onChange={(e) => updateLayoutElement(selectedElement, { w: Number(e.target.value || 0) })} />
-                                    </div>
-                                    <div className="studio-input-group">
-                                        <label>Height (px)</label>
-                                        <input type="number" value={selectedRect.h} onChange={(e) => updateLayoutElement(selectedElement, { h: Number(e.target.value || 0) })} />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </section>
+                                {activeRailTab === 'branding' && (
+                                    <>
+                                        <div className="studio-sidebar-section">
+                                            <div className="studio-input-group">
+                                                <label>Headline</label>
+                                                <input type="text" value={template.header.title} onChange={(e) => updateSection('header', 'title', e.target.value)} />
+                                            </div>
+                                            <div className="studio-input-group" style={{ marginTop: '1rem' }}>
+                                                <label>Sub-text</label>
+                                                <input type="text" value={template.header.subtitle} onChange={(e) => updateSection('header', 'subtitle', e.target.value)} />
+                                            </div>
+                                        </div>
+                                        <div className="studio-sidebar-section">
+                                            <div className="studio-input-group">
+                                                <label>Left Logo</label>
+                                                <input type="file" onChange={(e) => handleFileToDataUrl(e.target.files?.[0], 'leftLogoUrl')} />
+                                            </div>
+                                            <div className="studio-input-group" style={{ marginTop: '1rem' }}>
+                                                <label>Right Logo</label>
+                                                <input type="file" onChange={(e) => handleFileToDataUrl(e.target.files?.[0], 'rightLogoUrl')} />
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
 
-                    <section className="format-studio-canvas-panel">
-                        <div className="format-studio-toolbar">
-                            <Move size={16} /> Drag blocks, resize from bottom-right handle.
-                        </div>
-                        <div className="format-studio-canvas-scroll">
+                                {activeRailTab === 'images' && (
+                                    <div className="studio-sidebar-section">
+                                        <button className="terminal-btn primary w-full mb-4" onClick={addCustomImage}>+ Add Drag Image</button>
+                                        <div className="studio-scroll-area">
+                                            {(template.customImages || []).map(img => (
+                                                <div key={img.id} className="studio-group-item mb-2" style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem' }}>
+                                                    <div className="studio-input-group mb-2">
+                                                        <label>Source</label>
+                                                        <input type="file" onChange={(e) => handleCustomImageFile(img.id, e.target.files?.[0])} />
+                                                    </div>
+                                                    <button className="terminal-btn" style={{ width: '100%', justifyContent: 'center', borderColor: '#ef4444', color: '#ef4444' }} onClick={() => removeCustomImage(img.id)}>Remove</button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeRailTab === 'columns' && (
+                                    <div className="studio-sidebar-section">
+                                        <div className="studio-scroll-area">
+                                            {previewColumns.map((col) => (
+                                                <div key={`col_${col.field_key}`} className="studio-input-group" style={{ marginBottom: '1rem' }}>
+                                                    <label>{col.field_key}</label>
+                                                    <input type="text" value={template.table.columnLabels?.[col.field_key] ?? col.field_name} onChange={(e) => updateColumnLabel(col.field_key, e.target.value)} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {selectedElement && selectedRect && (
+                                    <div className="mt-8 pt-6 border-t border-studio-border">
+                                        <h3 style={{ fontSize: '0.75rem', color: 'var(--studio-accent)', textTransform: 'uppercase', marginBottom: '1rem' }}>Properties: {selectedElement.startsWith('img_') ? 'Image' : selectedElement}</h3>
+                                        <div className="studio-prop-grid">
+                                            <div className="studio-input-group">
+                                                <label>X</label>
+                                                <input type="number" value={Math.round(selectedRect.x)} onChange={(e) => updateLayoutElement(selectedElement, { x: Number(e.target.value) })} />
+                                            </div>
+                                            <div className="studio-input-group">
+                                                <label>Y</label>
+                                                <input type="number" value={Math.round(selectedRect.y)} onChange={(e) => updateLayoutElement(selectedElement, { y: Number(e.target.value) })} />
+                                            </div>
+                                            <div className="studio-input-group">
+                                                <label>W</label>
+                                                <input type="number" value={Math.round(selectedRect.w)} onChange={(e) => updateLayoutElement(selectedElement, { w: Number(e.target.value) })} />
+                                            </div>
+                                            <div className="studio-input-group">
+                                                <label>H</label>
+                                                <input type="number" value={Math.round(selectedRect.h)} onChange={(e) => updateLayoutElement(selectedElement, { h: Number(e.target.value) })} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </section>
+
+                        <div className="studio-stage-viewport">
                             <div
-                                className="format-studio-canvas"
+                                className="studio-terminal-canvas"
                                 style={{
                                     width: `${template.layout.canvasWidth}px`,
                                     height: `${template.layout.canvasHeight}px`,
-                                    position: 'relative',
-                                    margin: '1rem',
-                                    background: '#ffffff',
-                                    backgroundImage: template.layout.snapToGrid ? 'linear-gradient(to right, rgba(100,116,139,0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(100,116,139,0.12) 1px, transparent 1px)' : 'none',
-                                    backgroundSize: `${template.layout.gridSize}px ${template.layout.gridSize}px`,
+                                    transform: 'scale(0.8)',
+                                    transformOrigin: 'top center',
+                                    backgroundImage: template.layout.snapToGrid ? 'radial-gradient(rgba(0,0,0,0.05) 1px, transparent 1px)' : 'none',
+                                    backgroundSize: `${template.layout.gridSize}px ${template.layout.gridSize}px`
                                 }}
                             >
-                                {['leftLogo', 'rightLogo', 'title', 'subtitle', 'projectLine', 'submissionDate', 'table'].map((key) => {
-                                    const box = template.layout.elements[key];
-                                    if (!box?.visible) return null;
+                                {/* Header Connector Logic */}
+                                {template.layout.showConnector && (
+                                    <>
+                                        <div className="header-connector-box" style={{
+                                            left: template.layout.elements.table.x,
+                                            top: Math.min(template.layout.elements.leftLogo.y, template.layout.elements.rightLogo.y, template.layout.elements.title.y) - 20,
+                                            width: template.layout.elements.table.w,
+                                            height: template.layout.elements.table.y - (Math.min(template.layout.elements.leftLogo.y, template.layout.elements.rightLogo.y, template.layout.elements.title.y) - 20)
+                                        }} />
+                                    </>
+                                )}
+
+                                {/* Standard Elements */}
+                                {['leftLogo', 'rightLogo', 'title', 'subtitle', 'projectLine', 'submissionDate', 'table'].map(key => {
+                                    const rect = template.layout.elements[key];
+                                    if (!rect?.visible) return null;
                                     const isSelected = selectedElement === key;
+
                                     return (
                                         <div
                                             key={key}
                                             onMouseDown={(e) => startInteraction(e, key, 'move')}
-                                            onClick={() => setSelectedElement(key)}
                                             style={{
                                                 position: 'absolute',
-                                                left: `${box.x}px`,
-                                                top: `${box.y}px`,
-                                                width: `${box.w}px`,
-                                                height: `${box.h}px`,
-                                                border: isSelected ? '2px solid #2563eb' : '1px dashed #94a3b8',
-                                                background: key === 'table' ? '#ffffff' : 'rgba(255,255,255,0.85)',
+                                                left: `${rect.x}px`,
+                                                top: `${rect.y}px`,
+                                                width: `${rect.w}px`,
+                                                height: `${rect.h}px`,
                                                 cursor: 'move',
-                                                overflow: 'hidden',
-                                                userSelect: 'none',
+                                                zIndex: isSelected ? 30 : 10,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
                                             }}
                                         >
-                                            {key === 'leftLogo' && (
-                                                <img src={template.header.leftLogoUrl || '/dashboardlogo.png'} alt="Left" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                                            )}
-                                            {key === 'rightLogo' && (
-                                                <img src={template.header.rightLogoUrl || '/dashboardlogo.png'} alt="Right" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                                            )}
-                                            {key === 'title' && (
-                                                <div style={{ fontSize: `${box.fontSize || 30}px`, fontWeight: 700, textAlign: 'center' }}>{template.header.title || 'RFI Summary'}</div>
-                                            )}
-                                            {key === 'subtitle' && (
-                                                <div style={{ fontSize: `${box.fontSize || 14}px`, textAlign: 'center' }}>{template.header.subtitle || 'Subtitle'}</div>
-                                            )}
-                                            {key === 'projectLine' && (
-                                                <div style={{ fontSize: `${box.fontSize || 12}px`, textAlign: 'center' }}>{template.header.projectLine || activeProject?.name || 'Project Line'}</div>
-                                            )}
-                                            {key === 'submissionDate' && template.header.showSubmissionDate && (
-                                                <div style={{ fontSize: `${box.fontSize || 11}px`, textAlign: 'right' }}>Submission Date: DD.MM.YYYY</div>
-                                            )}
-                                            {key === 'table' && (
-                                                <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                                                    <thead>
-                                                        {previewGroupedHeaders.length > 0 && (
-                                                            <tr style={{ background: template.table.headFillColor, color: template.table.headTextColor }}>
-                                                                {(() => {
-                                                                    const cells = [];
-                                                                    let idx = 0;
-                                                                    while (idx < previewColumns.length) {
-                                                                        const group = previewGroupedHeaders.find((g) => g.start === idx);
-                                                                        if (group) {
-                                                                            cells.push(
-                                                                                <th key={`pg_${idx}`} colSpan={group.span} style={{ border: '1px solid #0f172a', padding: '0.2rem', fontSize: `${template.table.headFontSize}px` }}>{group.title}</th>
-                                                                            );
-                                                                            idx += group.span;
-                                                                        } else {
-                                                                            cells.push(
-                                                                                <th key={`ps_${idx}`} rowSpan={2} style={{ border: '1px solid #0f172a', padding: '0.2rem', fontSize: `${template.table.headFontSize}px` }}>{previewHeaderNameMap[previewColumns[idx].field_key]}</th>
-                                                                            );
-                                                                            idx += 1;
-                                                                        }
-                                                                    }
-                                                                    return cells;
-                                                                })()}
-                                                            </tr>
-                                                        )}
-                                                        <tr style={{ background: template.table.headFillColor, color: template.table.headTextColor }}>
-                                                            {previewColumns
-                                                                .filter((col) => previewGroupedHeaders.length === 0 || previewGroupedHeaders.some((g) => {
-                                                                    const index = previewHeaderKeys.indexOf(col.field_key);
-                                                                    return index >= g.start && index <= g.end;
-                                                                }))
-                                                                .map((col) => (
-                                                                    <th
-                                                                        key={`ph_${col.field_key}`}
-                                                                        onDoubleClick={() => {
-                                                                            const next = window.prompt('Rename heading', previewHeaderNameMap[col.field_key]);
-                                                                            if (next !== null) updateColumnLabel(col.field_key, next);
-                                                                        }}
-                                                                        style={{ border: '1px solid #0f172a', padding: '0.2rem', fontSize: `${template.table.headFontSize}px` }}
-                                                                        title="Double-click to rename"
-                                                                    >
-                                                                        {previewHeaderNameMap[col.field_key]}
-                                                                    </th>
+                                            <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                {key === 'leftLogo' && (
+                                                    <img src={template.header.leftLogoUrl || '/dashboardlogo.png'} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                                                )}
+                                                {key === 'rightLogo' && (
+                                                    <img src={template.header.rightLogoUrl || '/dashboardlogo.png'} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                                                )}
+                                                {key === 'title' && (
+                                                    <h1 style={{ margin: 0, fontSize: `${rect.fontSize || 24}px`, textAlign: 'center', width: '100%' }}>{template.header.title}</h1>
+                                                )}
+                                                {key === 'subtitle' && (
+                                                    <p style={{ margin: 0, fontSize: `${rect.fontSize || 14}px`, textAlign: 'center', color: '#64748b' }}>{template.header.subtitle}</p>
+                                                )}
+                                                {key === 'projectLine' && (
+                                                    <div style={{ width: '100%', borderBottom: '2px solid #000', paddingBottom: '4px', fontSize: `${rect.fontSize || 12}px` }}>
+                                                        {template.header.projectLine}
+                                                    </div>
+                                                )}
+                                                {key === 'submissionDate' && template.header.showSubmissionDate && (
+                                                    <div style={{ width: '100%', textAlign: 'right', fontSize: `${rect.fontSize || 11}px` }}>Date: DD.MM.YYYY</div>
+                                                )}
+                                                {key === 'table' && (
+                                                    <div style={{ width: '100%', height: '100%', border: '1px solid #000', padding: '1px' }}>
+                                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8px' }}>
+                                                            <thead>
+                                                                <tr style={{ background: template.table.headFillColor, color: template.table.headTextColor }}>
+                                                                    {previewColumns.map(c => (
+                                                                        <th key={c.field_key} style={{ border: '1px solid #000', padding: '4px' }}>{template.table.columnLabels?.[c.field_key] || c.field_name}</th>
+                                                                    ))}
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {[1, 2, 3].map(r => (
+                                                                    <tr key={r}>
+                                                                        {previewColumns.map(c => <td key={c.field_key} style={{ border: '1px solid #000', padding: '4px' }}>-</td>)}
+                                                                    </tr>
                                                                 ))}
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            {previewColumns.map((col) => (
-                                                                <td key={`pv_${col.field_key}`} style={{ border: '1px solid #0f172a', padding: '0.2rem', fontSize: `${template.table.bodyFontSize}px` }}>
-                                                                    {col.field_key === 'serial' ? '1' : `Sample ${previewHeaderNameMap[col.field_key]}`}
-                                                                </td>
-                                                            ))}
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            )}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                )}
+                                            </div>
 
                                             {isSelected && (
-                                                <span
-                                                    onMouseDown={(e) => startInteraction(e, key, 'resize')}
-                                                    style={{
-                                                        position: 'absolute',
-                                                        right: 0,
-                                                        bottom: 0,
-                                                        width: '12px',
-                                                        height: '12px',
-                                                        background: '#2563eb',
-                                                        cursor: 'nwse-resize',
-                                                    }}
-                                                />
+                                                <>
+                                                    <div className="tech-block-outline" />
+                                                    <div className="tech-drag-handle" style={{ right: -5, bottom: -5 }} onMouseDown={(e) => startInteraction(e, key, 'resize')} />
+                                                </>
                                             )}
                                         </div>
                                     );
                                 })}
 
-                                <div
-                                    style={{
-                                        position: 'absolute',
-                                        left: 0,
-                                        top: `${tableElement?.y ? tableElement.y - 6 : 136}px`,
-                                        right: 0,
-                                        borderTop: '2px dashed rgba(2,132,199,0.7)',
-                                        pointerEvents: 'none',
-                                    }}
-                                />
+                                {/* Custom Images Layer */}
+                                {(template.customImages || []).map(img => (
+                                    <div
+                                        key={img.id}
+                                        onMouseDown={(e) => startInteraction(e, img.id, 'move')}
+                                        style={{
+                                            position: 'absolute',
+                                            left: `${img.x}px`,
+                                            top: `${img.y}px`,
+                                            width: `${img.w}px`,
+                                            height: `${img.h}px`,
+                                            cursor: 'move',
+                                            zIndex: 25,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            background: img.url ? 'transparent' : 'rgba(16, 185, 129, 0.05)',
+                                            border: selectedElement === img.id ? 'none' : '1px dashed var(--studio-accent)'
+                                        }}
+                                    >
+                                        {img.url ? <img src={img.url} alt="Custom" style={{ maxWidth: '100%', maxHeight: '100%', pointerEvents: 'none' }} /> : <Image size={24} color="var(--studio-accent)" />}
+                                        {selectedElement === img.id && (
+                                            <>
+                                                <div className="tech-block-outline" />
+                                                <div className="tech-drag-handle" style={{ right: -5, bottom: -5 }} onMouseDown={(e) => startInteraction(e, img.id, 'resize')} />
+                                                <div className="tech-drag-handle" style={{ left: -5, top: -5 }} title="Move Origin" />
+                                            </>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                    </section>
+                    </main>
                 </div>
-            </main>
+            </div>
         </div>
     );
 }
