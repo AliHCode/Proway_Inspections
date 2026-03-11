@@ -20,6 +20,9 @@ const DEFAULT_EXPORT_TEMPLATE = {
         bodyFontSize: 8,
         headFontSize: 8,
         compactMode: false,
+        headerLayerHeight: 110,
+        columnLabels: {},
+        groupedHeaders: [],
     },
     footer: {
         leftLabel: 'Contractor Representative',
@@ -82,8 +85,7 @@ function addImageSafe(doc, dataUrl, x, y, w, h) {
     }
 }
 
-function buildGroupedHeaderMeta(headers, orderedVisibleColumns = [], groupedHeaders = []) {
-    const headerFieldKeys = headers.map((h) => getHeaderFieldKey(h, orderedVisibleColumns));
+function buildGroupedHeaderMeta(headerFieldKeys = [], groupedHeaders = []) {
     const normalizedGroups = (groupedHeaders || [])
         .map((group) => {
             const start = headerFieldKeys.indexOf(group.fromKey);
@@ -177,29 +179,11 @@ function buildExcelGroupedHeaderRows(headers, groups, startRowIndex) {
     };
 }
 
-function getHeaderFieldKey(header, orderedVisibleColumns = []) {
-    if (header === 'Serial No') return 'serial';
-    if (header === 'Description') return 'description';
-    if (header === 'Location') return 'location';
-    if (header === 'Type') return 'inspection_type';
-    if (header === 'Status') return 'status';
-    if (header === 'Remarks') return 'remarks';
-    if (header === 'Attachments') return 'attachments';
-
-    const custom = orderedVisibleColumns.find((c) => c.field_name === header);
-    if (custom) return custom.field_key;
-
-    if (header === 'Filed Date') return 'filed_date';
-    if (header === 'Review Date') return 'review_date';
-    return null;
-}
-
-function buildPdfColumnStyles(doc, headers, orderedVisibleColumns = [], columnWidthMap = {}, leftMargin = 14, rightMargin = 14) {
+function buildPdfColumnStyles(doc, fieldKeys = [], columnWidthMap = {}, leftMargin = 14, rightMargin = 14) {
     const pageWidth = doc.internal.pageSize.getWidth();
     const availableWidth = Math.max(120, pageWidth - leftMargin - rightMargin);
 
-    const rawWidths = headers.map((header) => {
-        const fieldKey = getHeaderFieldKey(header, orderedVisibleColumns);
+    const rawWidths = fieldKeys.map((fieldKey) => {
 
         if (fieldKey === 'filed_date' || fieldKey === 'review_date') {
             return 72;
@@ -230,39 +214,66 @@ function buildPdfColumnStyles(doc, headers, orderedVisibleColumns = [], columnWi
 /**
  * Format RFI data for export
  */
-function prepareDataForExport(rfis, orderedTableColumns = []) {
-    return rfis.map((rfi) => {
-        const row = {};
+function buildExportColumns(orderedTableColumns = [], template = null) {
+    const columnLabels = template?.table?.columnLabels || {};
+    const columns = [];
 
-        // If no orderedTableColumns provided, fallback to standard keys mapped sequentially
-        if (orderedTableColumns.length === 0) {
-            row['Serial No'] = rfi.serialNo;
-            row['Description'] = rfi.description;
-            row['Location'] = rfi.location;
-            row['Type'] = rfi.inspectionType;
-        } else {
-            orderedTableColumns.forEach(c => {
-                if (c.field_key === 'serial') row['Serial No'] = rfi.serialNo;
-                else if (c.field_key === 'description') row['Description'] = rfi.description;
-                else if (c.field_key === 'location') row['Location'] = rfi.location;
-                else if (c.field_key === 'inspection_type') row['Type'] = rfi.inspectionType;
-                else if (c.field_key === 'status') row['Status'] = (rfi.status || '').toUpperCase();
-                else if (c.field_key === 'remarks') row['Remarks'] = rfi.remarks || 'None';
-                else if (c.field_key === 'attachments') row['Attachments'] = (rfi.images?.length || 0) + ' files';
-                else if (c.field_key !== 'actions') row[c.field_name] = rfi.customFields?.[c.field_key] || '—';
-            });
-        }
+    const orderedVisible = orderedTableColumns.length > 0
+        ? orderedTableColumns.filter((c) => c.field_key !== 'actions')
+        : [
+            { field_key: 'serial', field_name: 'Serial No' },
+            { field_key: 'description', field_name: 'Description' },
+            { field_key: 'location', field_name: 'Location' },
+            { field_key: 'inspection_type', field_name: 'Type' },
+        ];
 
-        // Catch missing base metrics and append metadata tracking
-        if (!row['Status']) row['Status'] = rfi.status?.toUpperCase() || 'UNKNOWN';
-        if (!row['Remarks']) row['Remarks'] = rfi.remarks || 'None';
+    orderedVisible.forEach((c) => {
+        let defaultLabel = c.field_name;
+        if (c.field_key === 'serial') defaultLabel = 'Serial No';
+        if (c.field_key === 'inspection_type') defaultLabel = 'Type';
+        if (c.field_key === 'attachments') defaultLabel = 'Attachments';
+        if (c.field_key === 'status') defaultLabel = 'Status';
+        if (c.field_key === 'remarks') defaultLabel = 'Remarks';
 
-        return {
-            ...row,
-            'Filed Date': formatDateDisplay(rfi.originalFiledDate || rfi.filedDate),
-            'Review Date': rfi.reviewedAt ? formatDateDisplay(rfi.reviewedAt.split('T')[0]) : 'Pending'
-        };
+        columns.push({
+            key: c.field_key,
+            label: columnLabels[c.field_key] || defaultLabel,
+        });
     });
+
+    if (!columns.some((c) => c.key === 'status')) {
+        columns.push({ key: 'status', label: columnLabels.status || 'Status' });
+    }
+    if (!columns.some((c) => c.key === 'remarks')) {
+        columns.push({ key: 'remarks', label: columnLabels.remarks || 'Remarks' });
+    }
+
+    columns.push({ key: 'filed_date', label: columnLabels.filed_date || 'Filed Date' });
+    columns.push({ key: 'review_date', label: columnLabels.review_date || 'Review Date' });
+
+    return columns;
+}
+
+function getCellValue(rfi, fieldKey) {
+    if (fieldKey === 'serial') return rfi.serialNo;
+    if (fieldKey === 'description') return rfi.description;
+    if (fieldKey === 'location') return rfi.location;
+    if (fieldKey === 'inspection_type') return rfi.inspectionType;
+    if (fieldKey === 'status') return (rfi.status || 'UNKNOWN').toUpperCase();
+    if (fieldKey === 'remarks') return rfi.remarks || 'None';
+    if (fieldKey === 'attachments') return `${rfi.images?.length || 0} files`;
+    if (fieldKey === 'filed_date') return formatDateDisplay(rfi.originalFiledDate || rfi.filedDate);
+    if (fieldKey === 'review_date') return rfi.reviewedAt ? formatDateDisplay(rfi.reviewedAt.split('T')[0]) : 'Pending';
+    return rfi.customFields?.[fieldKey] || '—';
+}
+
+function prepareDataForExport(rfis, orderedTableColumns = [], template = null) {
+    const columns = buildExportColumns(orderedTableColumns, template);
+    return {
+        headers: columns.map((c) => c.label),
+        fieldKeys: columns.map((c) => c.key),
+        body: rfis.map((rfi) => columns.map((c) => getCellValue(rfi, c.key))),
+    };
 }
 
 /**
@@ -275,11 +286,11 @@ export function exportToExcel(rfis, filename = 'RFI_Report', projectFields = [],
     }
 
     const template = normalizeExportTemplate(projectTemplate, filename);
-    const data = prepareDataForExport(rfis, projectFields);
-    const headers = Object.keys(data[0]);
-    const body = data.map((obj) => headers.map((h) => obj[h]));
-    const orderedVisibleColumns = (projectFields || []).filter((c) => c.field_key !== 'actions');
-    const groupedMeta = buildGroupedHeaderMeta(headers, orderedVisibleColumns, template.table.groupedHeaders || []);
+    const exportData = prepareDataForExport(rfis, projectFields, template);
+    const headers = exportData.headers;
+    const fieldKeys = exportData.fieldKeys;
+    const body = exportData.body;
+    const groupedMeta = buildGroupedHeaderMeta(fieldKeys, template.table.groupedHeaders || []);
     const aoa = [];
 
     aoa.push([template.header.title || filename]);
@@ -312,9 +323,9 @@ export function exportToExcel(rfis, filename = 'RFI_Report', projectFields = [],
     const cols = headers.map((key, index) => {
         const defaultWch = Math.max(
             key.length,
-            ...data.map(row => (row[key] ? row[key].toString().length : 0))
+            ...body.map(row => (row[index] ? row[index].toString().length : 0))
         ) + 2;
-        const mappedFieldKey = getHeaderFieldKey(key, orderedVisibleColumns);
+        const mappedFieldKey = fieldKeys[index];
         if (!mappedFieldKey || mappedFieldKey === 'filed_date' || mappedFieldKey === 'review_date') {
             return { wch: defaultWch };
         }
@@ -356,14 +367,14 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
     }
     doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 33);
 
-    const data = prepareDataForExport(rfis, projectFields);
-    const headers = Object.keys(data[0]);
-    const body = data.map(obj => Object.values(obj));
-    const orderedVisibleColumns = (projectFields || []).filter((c) => c.field_key !== 'actions');
-    const groupedMeta = buildGroupedHeaderMeta(headers, orderedVisibleColumns, template.table.groupedHeaders || []);
+    const exportData = prepareDataForExport(rfis, projectFields, template);
+    const headers = exportData.headers;
+    const fieldKeys = exportData.fieldKeys;
+    const body = exportData.body;
+    const groupedMeta = buildGroupedHeaderMeta(fieldKeys, template.table.groupedHeaders || []);
     const pdfHeadRows = buildPdfHeadRows(headers, groupedMeta);
-    const statusIndex = headers.indexOf('Status');
-    const columnStyles = buildPdfColumnStyles(doc, headers, orderedVisibleColumns, columnWidthMap, 14, 14);
+    const statusIndex = fieldKeys.indexOf('status');
+    const columnStyles = buildPdfColumnStyles(doc, fieldKeys, columnWidthMap, 14, 14);
 
     autoTable(doc, {
         head: pdfHeadRows,
@@ -502,14 +513,14 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
 
     // ========== DATA TABLE ==========
     doc.setTextColor(0, 0, 0);
-    const data = prepareDataForExport(rfis, projectFields);
-    const headers = Object.keys(data[0]);
-    const body = data.map(obj => Object.values(obj));
-    const orderedVisibleColumns = (projectFields || []).filter((c) => c.field_key !== 'actions');
-    const groupedMeta = buildGroupedHeaderMeta(headers, orderedVisibleColumns, template.table.groupedHeaders || []);
+    const exportData = prepareDataForExport(rfis, projectFields, template);
+    const headers = exportData.headers;
+    const fieldKeys = exportData.fieldKeys;
+    const body = exportData.body;
+    const groupedMeta = buildGroupedHeaderMeta(fieldKeys, template.table.groupedHeaders || []);
     const pdfHeadRows = buildPdfHeadRows(headers, groupedMeta);
-    const statusIndex = headers.indexOf('Status');
-    const columnStyles = buildPdfColumnStyles(doc, headers, orderedVisibleColumns, columnWidthMap, 14, 14);
+    const statusIndex = fieldKeys.indexOf('status');
+    const columnStyles = buildPdfColumnStyles(doc, fieldKeys, columnWidthMap, 14, 14);
 
     autoTable(doc, {
         head: pdfHeadRows,
