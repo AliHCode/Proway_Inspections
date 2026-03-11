@@ -336,8 +336,8 @@ export default function AdminFormatDesigner() {
     return (
         <div className="page-wrapper">
             <Header />
-            <main className="admin-page">
-                <div className="sheet-header">
+            <main className="admin-page format-studio-page">
+                <div className="sheet-header format-studio-header">
                     <div>
                         <h1><FileText size={24} /> Project Export Format</h1>
                         <p className="subtitle" style={{ marginTop: '0.25rem' }}>
@@ -354,8 +354,8 @@ export default function AdminFormatDesigner() {
                     </div>
                 </div>
 
-                <div className="admin-section" style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: '1rem' }}>
-                    <section style={{ background: '#fff', border: '1px solid var(--clr-border)', borderRadius: '12px', padding: '1rem', maxHeight: '78vh', overflowY: 'auto' }}>
+                <div className="admin-section format-studio-layout">
+                    <section className="format-studio-sidebar">
                         <h3 style={{ marginBottom: '0.65rem' }}>Canvas Settings</h3>
                         <div style={{ display: 'grid', gap: '0.55rem', marginBottom: '0.85rem' }}>
                             <label style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', fontSize: '0.85rem' }}>
@@ -457,17 +457,18 @@ export default function AdminFormatDesigner() {
                         )}
                     </section>
 
-                    <section style={{ background: '#fff', border: '1px solid var(--clr-border)', borderRadius: '12px', padding: '0.8rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: '#334155', fontSize: '0.86rem' }}>
+                    <section className="format-studio-canvas-panel">
+                        <div className="format-studio-toolbar">
                             <Move size={16} /> Drag blocks, resize from bottom-right handle.
                         </div>
-                        <div style={{ overflow: 'auto', border: '1px solid #cbd5e1', borderRadius: '8px', background: '#f8fafc' }}>
+                        <div className="format-studio-canvas-scroll">
                             <div
+                                className="format-studio-canvas"
                                 style={{
                                     width: `${template.layout.canvasWidth}px`,
                                     height: `${template.layout.canvasHeight}px`,
                                     position: 'relative',
-                                    margin: '0 auto',
+                                    margin: '1rem',
                                     background: '#ffffff',
                                     backgroundImage: template.layout.snapToGrid ? 'linear-gradient(to right, rgba(100,116,139,0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(100,116,139,0.12) 1px, transparent 1px)' : 'none',
                                     backgroundSize: `${template.layout.gridSize}px ${template.layout.gridSize}px`,
