@@ -1,6 +1,6 @@
 import { useAuth } from '../context/AuthContext';
 import { useProject } from '../context/ProjectContext';
-import { LogOut, Menu, X, Building, Shield, User, Briefcase, UserCircle } from 'lucide-react';
+import { LogOut, Menu, X, Building, Shield, User, Briefcase, UserCircle, LayoutDashboard, FileText, ClipboardList } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import NotificationCenter from './NotificationCenter';
@@ -118,14 +118,14 @@ export default function Header() {
                         onClick={() => { navigate(dashPath); setMenuOpen(false); }}
                         className={`header-dropdown-item ${location.pathname === dashPath ? 'active' : ''}`}
                     >
-                        Dashboard
+                        <LayoutDashboard size={16} /> Dashboard
                     </button>
                     {isContractor && (
                         <button
                             onClick={() => { navigate('/contractor/rfi-sheet'); setMenuOpen(false); }}
                             className={`header-dropdown-item ${location.pathname.includes('rfi-sheet') ? 'active' : ''}`}
                         >
-                            Daily RFI Sheet
+                            <FileText size={16} /> Daily RFI Sheet
                         </button>
                     )}
                     {user.role === 'consultant' && (
@@ -134,7 +134,7 @@ export default function Header() {
                                 onClick={() => { navigate('/consultant/review'); setMenuOpen(false); }}
                                 className={`header-dropdown-item ${location.pathname.includes('review') ? 'active' : ''}`}
                             >
-                                Review Queue
+                                <ClipboardList size={16} /> Review Queue
                             </button>
                         </>
                     )}

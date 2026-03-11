@@ -122,7 +122,7 @@ export default function LoginPage() {
                     <div className="auth-logo-img">
                         <img src="/dashboardlogo.png" alt="ClearLine Logo" style={{ height: '90px', marginBottom: '0.5rem' }} />
                     </div>
-                    <h2 className="hero-title">Build with <span className="text-accent">Confidence.</span></h2>
+                    {/* Build with Confidence removed per user request */}
                     <p className="hero-subtitle">
                         The enterprise platform for streamlined RFIs, inspections, and QA/QC management.
                     </p>
