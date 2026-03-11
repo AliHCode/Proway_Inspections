@@ -100,10 +100,13 @@ function getPdfLayoutMap(doc, template) {
     const margin = PDF_SAFE_MARGIN;
     const availW = Math.max(60, pageW - margin * 2);
     const availH = Math.max(60, pageH - margin * 2);
+    // Position scale: maps canvas px → PDF mm proportionally
     const scale = Math.min(availW / canvasW, availH / canvasH);
     const originX = margin + (availW - canvasW * scale) / 2;
     const originY = margin;
     const elements = template?.layout?.elements || {};
+    // Font scale: canvas uses CSS px at 96 DPI; 1 CSS px = 0.75 pt
+    const fontScale = 0.75;
 
     function mapRect(key, fallback) {
         const src = elements[key] || fallback;
@@ -112,7 +115,7 @@ function getPdfLayoutMap(doc, template) {
             y: originY + (src.y || 0) * scale,
             w: (src.w || 0) * scale,
             h: (src.h || 0) * scale,
-            fontSize: Math.max(7, (src.fontSize || 12) * scale),
+            fontSize: Math.max(8, (src.fontSize || 12) * fontScale),
         };
     }
 
@@ -129,7 +132,7 @@ function getPdfLayoutMap(doc, template) {
     return {
         leftLogo: mapRect('leftLogo', { x: 20, y: 20, w: 140, h: 46 }),
         rightLogo: mapRect('rightLogo', { x: 1040, y: 20, w: 140, h: 46 }),
-        title: mapRect('title', { x: 420, y: 18, w: 360, h: 36, fontSize: 30 }),
+        title: mapRect('title', { x: 420, y: 18, w: 360, h: 36, fontSize: 28 }),
         subtitle: mapRect('subtitle', { x: 420, y: 56, w: 360, h: 24, fontSize: 14 }),
         projectLine: mapRect('projectLine', { x: 380, y: 82, w: 440, h: 22, fontSize: 12 }),
         submissionDate: mapRect('submissionDate', { x: 960, y: 86, w: 220, h: 20, fontSize: 11 }),
