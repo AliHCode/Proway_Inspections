@@ -275,7 +275,7 @@ function buildExportTemplateFromStudio(studioTemplate, activeProjectName = '') {
         table: {
             headFillColor: studioTemplate?.tableConfig?.headFillColor || '#1e293b',
             headTextColor: studioTemplate?.tableConfig?.headTextColor || '#ffffff',
-            bodyFontSize: 10,
+            bodyFontSize: 11,
             headFontSize: 10,
             compactMode: false,
             headerLayerHeight: 110,

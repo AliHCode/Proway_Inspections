@@ -21,7 +21,7 @@ const DEFAULT_EXPORT_TEMPLATE = {
     table: {
         headFillColor: '#1e293b',
         headTextColor: '#ffffff',
-        bodyFontSize: 10,
+        bodyFontSize: 11,
         headFontSize: 10,
         compactMode: false,
         headerLayerHeight: 110,
@@ -462,6 +462,7 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
             overflow: 'linebreak',
             lineWidth: 0.4,
             lineColor: [0, 0, 0],
+            textColor: [0, 0, 0],
         },
         headStyles: {
             fillColor: hexToRgb(template.table.headFillColor, [30, 41, 59]),
@@ -629,6 +630,7 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
             overflow: 'linebreak',
             lineWidth: 0.4,
             lineColor: [0, 0, 0],
+            textColor: [0, 0, 0],
         },
         headStyles: {
             fillColor: hexToRgb(template.table.headFillColor, [30, 41, 59]),
