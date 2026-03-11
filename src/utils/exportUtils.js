@@ -5,8 +5,10 @@ import { formatDateDisplay } from './rfiLogic';
 import { sanitizeColumnWidth, widthPxToExcelChars } from './tableLayout';
 
 const PDF_PX_TO_PT = 0.6;
-const PDF_SAFE_MARGIN = 14;
-const PDF_COMPACT_FACTOR = 0.84;
+const PDF_SAFE_MARGIN = 10;
+const PDF_COMPACT_FACTOR = 1;
+// Columns to exclude from PDF (shown only on screen)
+const PDF_EXCLUDED_COLUMNS = new Set(['attachments']);
 const DEFAULT_EXPORT_TEMPLATE = {
     header: {
         title: 'RFI Summary',
@@ -19,8 +21,8 @@ const DEFAULT_EXPORT_TEMPLATE = {
     table: {
         headFillColor: '#1e293b',
         headTextColor: '#ffffff',
-        bodyFontSize: 8,
-        headFontSize: 8,
+        bodyFontSize: 10,
+        headFontSize: 10,
         compactMode: false,
         headerLayerHeight: 110,
         columnLabels: {},
@@ -272,7 +274,7 @@ function buildExportColumns(orderedTableColumns = [], template = null) {
     const columns = [];
 
     const orderedVisible = orderedTableColumns.length > 0
-        ? orderedTableColumns.filter((c) => c.field_key !== 'actions')
+        ? orderedTableColumns.filter((c) => c.field_key !== 'actions' && !PDF_EXCLUDED_COLUMNS.has(c.field_key))
         : [
             { field_key: 'serial', field_name: 'Serial No' },
             { field_key: 'description', field_name: 'Description' },
@@ -458,11 +460,16 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
             fontSize: bodyFontSize,
             cellPadding: cellPad,
             overflow: 'linebreak',
+            lineWidth: 0.4,
+            lineColor: [0, 0, 0],
         },
         headStyles: {
             fillColor: hexToRgb(template.table.headFillColor, [30, 41, 59]),
             textColor: hexToRgb(template.table.headTextColor, [255, 255, 255]),
             fontSize: headFontSize,
+            fontStyle: 'bold',
+            lineWidth: 0.5,
+            lineColor: [0, 0, 0],
         },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         didParseCell: function (data) {
@@ -620,12 +627,16 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
             cellPadding: dCellPad,
             font: 'helvetica',
             overflow: 'linebreak',
+            lineWidth: 0.4,
+            lineColor: [0, 0, 0],
         },
         headStyles: {
             fillColor: hexToRgb(template.table.headFillColor, [30, 41, 59]),
             textColor: hexToRgb(template.table.headTextColor, [255, 255, 255]),
             fontStyle: 'bold',
             fontSize: dHeadFontSize,
+            lineWidth: 0.5,
+            lineColor: [0, 0, 0],
         },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         didParseCell: function (data) {
