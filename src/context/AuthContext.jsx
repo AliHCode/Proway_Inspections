@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { USER_ROLES } from '../utils/constants';
+import { unregisterCurrentPushSubscription } from '../utils/pushNotifications';
 
 const AuthContext = createContext(null);
 
@@ -238,6 +239,13 @@ export function AuthProvider({ children }) {
         setLoading(true);
         // Clear cached profile so offline mode doesn't keep a stale session
         localStorage.removeItem(PROFILE_CACHE_KEY);
+        if (user?.id) {
+            try {
+                await unregisterCurrentPushSubscription(user.id);
+            } catch (error) {
+                console.error('Error removing push subscription during logout:', error);
+            }
+        }
         await supabase.auth.signOut();
         // Listener sets loading false and user null automatically
     }

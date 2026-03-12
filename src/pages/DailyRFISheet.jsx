@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRFI } from '../context/RFIContext';
 import { getToday } from '../utils/rfiLogic';
@@ -14,6 +15,7 @@ import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/export
 import { useProject } from '../context/ProjectContext';
 
 export default function DailyRFISheet() {
+    const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
     const { activeProject, projectFields, orderedTableColumns, getTableColumnStyle, columnWidthMap } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
@@ -26,6 +28,7 @@ export default function DailyRFISheet() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedImages, setSelectedImages] = useState(null);
     const [markupTarget, setMarkupTarget] = useState(null);
+    const [focusedRfiId, setFocusedRfiId] = useState(null);
 
     const { carriedOver, newRfis } = getRFIsForDate(currentDate);
 
@@ -222,6 +225,39 @@ export default function DailyRFISheet() {
         // If the timeline date changes, close any previously opened discussion modal.
         setDetailTarget(null);
     }, [currentDate]);
+
+    useEffect(() => {
+        const targetRfiId = searchParams.get('rfi');
+        if (!targetRfiId || !rfis?.length || !user?.id) return;
+
+        const targetRfi = rfis.find((rfi) => rfi.id === targetRfiId && rfi.filedBy === user.id);
+        if (!targetRfi) return;
+
+        const targetDate = targetRfi.carryoverTo || targetRfi.originalFiledDate || targetRfi.filedDate;
+        if (targetDate && currentDate !== targetDate) {
+            setCurrentDate(targetDate);
+            return;
+        }
+
+        setDetailTarget(targetRfi);
+        setFocusedRfiId(targetRfi.id);
+
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('rfi');
+        nextParams.delete('source');
+        setSearchParams(nextParams, { replace: true });
+
+        const scrollTimer = window.setTimeout(() => {
+            const row = document.querySelector(`[data-rfi-id="${targetRfi.id}"]`);
+            row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 180);
+        const clearTimer = window.setTimeout(() => setFocusedRfiId(null), 4500);
+
+        return () => {
+            window.clearTimeout(scrollTimer);
+            window.clearTimeout(clearTimer);
+        };
+    }, [searchParams, setSearchParams, rfis, user, currentDate]);
 
     // Background Scroll Locking
     useEffect(() => {
@@ -511,7 +547,11 @@ export default function DailyRFISheet() {
                                 </thead>
                                 <tbody>
                                     {myCarriedOver.map((rfi, idx) => (
-                                        <tr key={rfi.id} className="carryover-row">
+                                        <tr
+                                            key={rfi.id}
+                                            data-rfi-id={rfi.id}
+                                            className={`carryover-row ${focusedRfiId === rfi.id ? 'notification-focus-row' : ''}`.trim()}
+                                        >
                                             {orderedTableColumns.map(col => renderDisplayCell(rfi, col, idx, true))}
                                         </tr>
                                     ))}
@@ -536,7 +576,11 @@ export default function DailyRFISheet() {
                                 </thead>
                                 <tbody>
                                     {myNewRfis.map((rfi, idx) => (
-                                        <tr key={rfi.id}>
+                                        <tr
+                                            key={rfi.id}
+                                            data-rfi-id={rfi.id}
+                                            className={focusedRfiId === rfi.id ? 'notification-focus-row' : ''}
+                                        >
                                             {orderedTableColumns.map(col => renderDisplayCell(rfi, col, idx, false))}
                                         </tr>
                                     ))}

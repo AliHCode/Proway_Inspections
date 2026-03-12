@@ -489,6 +489,16 @@ h6 {
   cursor: not-allowed;
 }
 
+.notif-blocked-hint {
+  font-size: 0.72rem;
+  color: var(--clr-text-muted);
+  background: #fff8e1;
+  border-left: 3px solid #f59e0b;
+  padding: 0.45rem 0.75rem;
+  margin: -0.25rem 0 0.25rem;
+  line-height: 1.45;
+}
+
 .header-dropdown-item.notify,
 .header-dropdown-item.logout {
   margin-top: 0.5rem;
@@ -4408,5 +4418,418 @@ body,
 
   .data-metric-value {
     font-size: 1.55rem;
+  }
+}
+/* ============================================
+   SUMMARY PAGE & DATE RANGE PICKER
+   ============================================ */
+
+/* Pick card */
+.summ-picker-card {
+  background: var(--clr-bg-elevated);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Quick presets */
+.summ-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 1rem;
+}
+.summ-preset {
+  padding: 0.32rem 0.85rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--clr-border-dark);
+  background: #fff;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--clr-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-main);
+  line-height: 1;
+}
+.summ-preset:hover {
+  border-color: var(--clr-brand-primary);
+  color: var(--clr-brand-primary);
+  background: var(--clr-bg-hover);
+}
+.summ-preset.active {
+  background: var(--clr-brand-primary);
+  border-color: var(--clr-brand-primary);
+  color: #fff;
+}
+
+/* Step hint */
+.summ-pick-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--clr-text-muted);
+  margin-bottom: 1rem;
+  font-style: italic;
+}
+.summ-hint-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.summ-hint-dot.step1 { background: var(--clr-info); }
+.summ-hint-dot.step2 { background: var(--clr-success); }
+
+/* Calendar outer wrap */
+.summ-cal-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+.summ-cal-nav {
+  background: none;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--clr-text-secondary);
+  flex-shrink: 0;
+  margin-top: 30px;
+  transition: all var(--transition-fast);
+}
+.summ-cal-nav:hover {
+  border-color: var(--clr-brand-primary);
+  color: var(--clr-brand-primary);
+  background: var(--clr-bg-hover);
+}
+.summ-cal-divider {
+  width: 1px;
+  background: var(--clr-border);
+  align-self: stretch;
+  margin-top: 30px;
+  flex-shrink: 0;
+}
+
+/* Single month panel */
+.summ-cal-month { flex: 1; min-width: 0; }
+.summ-cal-mname {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--clr-text-main);
+  text-align: center;
+  margin-bottom: 0.65rem;
+  letter-spacing: 0.01em;
+}
+/* 7-col grid, zero column-gap so range strips connect edge-to-edge */
+.summ-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 1px;
+}
+.summ-cal-wd {
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--clr-text-muted);
+  padding: 0.4rem 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Day cells */
+.cal-day {
+  position: relative;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition-fast);
+}
+.cal-day--blank { cursor: default; pointer-events: none; }
+
+/* Inner circle */
+.cal-day-num {
+  position: relative;
+  z-index: 1;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.82rem;
+  color: var(--clr-text-main);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+/* Today: outline */
+.cal-day--today .cal-day-num {
+  border: 2px solid var(--clr-brand-primary);
+  font-weight: 700;
+}
+
+/* Range strip */
+.cal-day--in-range { background: #EEF2FF; }
+.cal-day--hover-range { background: #E0E7FF; }
+
+/* Half-gradients for start/end so strip connects to range days */
+.cal-day--range-start { background: linear-gradient(to right, transparent 50%, #EEF2FF 50%); }
+.cal-day--range-end   { background: linear-gradient(to left,  transparent 50%, #EEF2FF 50%); }
+.cal-day--range-hover-end { background: linear-gradient(to left, transparent 50%, #E0E7FF 50%); }
+
+/* Filled circles */
+.cal-day--range-start .cal-day-num,
+.cal-day--range-end .cal-day-num,
+.cal-day--single .cal-day-num {
+  background: var(--clr-brand-primary);
+  color: #fff;
+  font-weight: 700;
+  border: none;
+}
+.cal-day--range-hover-end .cal-day-num {
+  background: #94A3B8;
+  color: #fff;
+  font-weight: 600;
+  border: none;
+}
+
+/* Hover on unselected days */
+.cal-day:not(.cal-day--blank):not(.cal-day--range-start):not(.cal-day--range-end):not(.cal-day--single):not(.cal-day--range-hover-end):hover .cal-day-num {
+  background: var(--clr-bg-hover);
+}
+.cal-day--in-range:hover .cal-day-num { background: #C7D2FE; }
+
+/* Period info bar */
+.summ-period-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  background: var(--clr-bg-elevated);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+.summ-period-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 180px;
+}
+.summ-period-range {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--clr-text-main);
+}
+.summ-period-count {
+  font-size: 0.78rem;
+  color: var(--clr-text-muted);
+  background: var(--clr-bg-hover);
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+.summ-stat-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+.summ-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.28rem 0.65rem;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+.summ-pill.approved { background: var(--clr-success-bg); color: var(--clr-success); }
+.summ-pill.rejected { background: var(--clr-danger-bg);  color: var(--clr-danger); }
+.summ-pill.pending  { background: var(--clr-warning-bg); color: var(--clr-warning); }
+.summ-pill.info     { background: var(--clr-info-bg);    color: var(--clr-info); }
+
+.summ-export-group { display: flex; gap: 0.5rem; flex-shrink: 0; }
+
+/* Table card */
+.summ-table-card {
+  background: var(--clr-bg-elevated);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.summ-scroll {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 60vh;
+}
+.summ-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: 3.5rem 2rem;
+  color: var(--clr-text-muted);
+  font-size: 0.9rem;
+}
+.summ-empty-hint { font-size: 0.78rem; color: var(--clr-text-muted); }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .summ-cal-divider,
+  .summ-cal-month:last-of-type { display: none; }
+  .summ-period-bar { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
+  .summ-period-info { min-width: 0; }
+}
+@media (max-width: 480px) {
+  .summ-picker-card { padding: 0.9rem 0.85rem; }
+  .summ-cal-wrap { gap: 0.35rem; }
+  .summ-cal-nav { width: 28px; height: 28px; margin-top: 26px; }
+  .cal-day { height: 34px; }
+  .cal-day-num { width: 28px; height: 28px; font-size: 0.75rem; }
+  .summ-presets { gap: 0.35rem; }
+  .summ-preset { font-size: 0.72rem; padding: 0.28rem 0.55rem; }
+  .summ-export-group { width: 100%; }
+  .summ-export-group .btn { flex: 1; justify-content: center; }
+  .summ-period-range { font-size: 0.85rem; }
+}
+
+/* ============================================
+   REGISTERED DEVICES / NOTIFICATION FOCUS
+   ============================================ */
+.device-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.device-stat-card {
+  background: var(--clr-bg-elevated);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.device-stat-icon {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--clr-bg-hover);
+  color: var(--clr-brand-primary);
+  margin-bottom: 0.6rem;
+}
+
+.device-stat-value {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--clr-brand-primary);
+}
+
+.device-stat-label {
+  font-size: 0.8rem;
+  color: var(--clr-text-muted);
+  margin-top: 0.2rem;
+}
+
+.device-table-card {
+  background: var(--clr-bg-elevated);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.device-empty-state {
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--clr-text-muted);
+}
+
+.device-user-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.device-user-cell span {
+  font-size: 0.74rem;
+  color: var(--clr-text-muted);
+}
+
+.device-role-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.55rem;
+  border-radius: var(--radius-full);
+  background: var(--clr-bg-hover);
+  color: var(--clr-brand-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.device-endpoint {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--clr-text-secondary);
+  background: var(--clr-bg-hover);
+  padding: 0.3rem 0.45rem;
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.notification-focus-row {
+  animation: notificationRowPulse 2.6s ease-out;
+  outline: 2px solid #94a3b8;
+  outline-offset: -2px;
+}
+
+.notification-focus-row td {
+  background: #eef2ff;
+}
+
+@keyframes notificationRowPulse {
+  0% {
+    box-shadow: inset 0 0 0 9999px rgba(99, 102, 241, 0.18);
+  }
+  100% {
+    box-shadow: inset 0 0 0 9999px rgba(99, 102, 241, 0);
+  }
+}
+
+@media (max-width: 768px) {
+  .device-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .device-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .device-endpoint {
+    word-break: break-all;
   }
 }

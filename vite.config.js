@@ -19,15 +19,19 @@ export default defineConfig({
                 maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MiB
             },
             manifest: {
+                id: '/',
+                start_url: '/',
+                scope: '/',
                 name: 'ProWay Inspections',
                 short_name: 'ProWay',
                 description: 'RFI Management System for Construction',
                 theme_color: '#111827',
                 background_color: '#FAFAFA',
                 display: 'standalone',
+                display_override: ['standalone', 'minimal-ui', 'browser'],
                 icons: [
-                    { src: '/favicon.png', sizes: '192x192', type: 'image/png' },
-                    { src: '/dashboardlogo.png', sizes: '512x512', type: 'image/png' }
+                    { src: '/favicon.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+                    { src: '/dashboardlogo.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
                 ]
             }
         })

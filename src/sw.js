@@ -63,24 +63,30 @@ registerRoute(
 self.addEventListener('push', (event) => {
     if (!event.data) return;
 
-    let data;
-    try {
-        data = event.data.json();
-    } catch {
-        data = { title: 'ProWay Inspections', body: event.data.text() };
-    }
+    event.waitUntil((async () => {
+        let data;
+        try {
+            data = event.data.json();
+        } catch {
+            data = { title: 'ProWay Inspections', body: event.data.text() };
+        }
 
-    const title = data.title || 'ProWay Inspections';
-    const options = {
-        body: data.body || data.message || '',
-        icon: '/favicon.png',
-        badge: '/favicon.png',
-        tag: data.tag || 'proway-notification',
-        renotify: true,
-        data: { url: data.url || '/', rfiId: data.rfiId || null },
-    };
+        const openClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+        const hasFocusedClient = openClients.some((client) => client.focused);
+        if (hasFocusedClient) return;
 
-    event.waitUntil(self.registration.showNotification(title, options));
+        const title = data.title || 'ProWay Inspections';
+        const options = {
+            body: data.body || data.message || '',
+            icon: '/favicon.png',
+            badge: '/favicon.png',
+            tag: data.tag || 'proway-notification',
+            renotify: true,
+            data: { url: data.url || '/', rfiId: data.rfiId || null },
+        };
+
+        await self.registration.showNotification(title, options);
+    })());
 });
 
 // ─── Notification Click Handler ────────────────────────────────────────────

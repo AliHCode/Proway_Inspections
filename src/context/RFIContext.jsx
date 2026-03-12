@@ -13,6 +13,8 @@ import {
     serializeImagesForQueue,
     deserializeQueuedImages,
 } from '../utils/offlineQueue';
+import { pushSupportStatus, syncPushSubscriptionForUser } from '../utils/pushNotifications';
+import { buildNotificationOpenPath } from '../utils/notificationLinks';
 
 const RFIContext = createContext(null);
 const NOTIFICATION_PROMPT_SEEN_KEY = 'proway_notification_prompt_seen_v1';
@@ -281,6 +283,9 @@ export function RFIProvider({ children }) {
                             toast.dismiss(t.id);
                             Notification.requestPermission().then((permission) => {
                                 if (permission === 'granted') {
+                                    syncPushSubscriptionForUser(user.id).catch((error) => {
+                                        console.error('Error registering push subscription:', error);
+                                    });
                                     toast.success('Notifications enabled! 🔔');
                                 }
                             });
@@ -298,6 +303,14 @@ export function RFIProvider({ children }) {
             ),
             { duration: 10000, icon: '🔔' }
         );
+    }, [user]);
+
+    useEffect(() => {
+        if (!user) return;
+
+        syncPushSubscriptionForUser(user.id).catch((error) => {
+            console.error('Error syncing push subscription:', error);
+        });
     }, [user]);
 
     useEffect(() => {
@@ -354,7 +367,10 @@ export function RFIProvider({ children }) {
                     fetchNotifications();
                     // Show native browser notification when the page is not visible
                     // (covers background tabs, minimised browser, mobile home screen)
-                    if (document.visibilityState === 'hidden' || !document.hasFocus()) {
+                    if (
+                        (document.visibilityState === 'hidden' || !document.hasFocus()) &&
+                        pushSupportStatus() !== 'supported'
+                    ) {
                         showNativeNotification(
                             payload.new.title,
                             payload.new.message,
@@ -1129,6 +1145,20 @@ export function RFIProvider({ children }) {
                 message,
                 rfi_id: rfiId
             }]);
+
+            const { error: pushError } = await supabase.functions.invoke('send-push', {
+                body: {
+                    userId,
+                    title,
+                    message,
+                    rfiId,
+                    url: buildNotificationOpenPath(rfiId)
+                }
+            });
+
+            if (pushError) {
+                console.error('Error sending push notification:', pushError);
+            }
         } catch (error) {
             console.error("Error creating notification:", error);
         }

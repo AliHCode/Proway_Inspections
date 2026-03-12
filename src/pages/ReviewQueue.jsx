@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRFI } from '../context/RFIContext';
 import { useProject } from '../context/ProjectContext';
@@ -14,6 +15,7 @@ import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/export
 import { CheckCircle, XCircle, MessageSquare, X, FileDown, Table, ClipboardList } from 'lucide-react';
 
 export default function ReviewQueue() {
+    const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
     const { approveRFI, rejectRFI, requestInfo, getReviewQueue, rfis, uploadImages, contractors } = useRFI();
     const { activeProject, projectFields, orderedTableColumns, columnWidthMap, getTableColumnStyle } = useProject();
@@ -27,6 +29,7 @@ export default function ReviewQueue() {
     const [selectedImages, setSelectedImages] = useState(null);
     const [scrollTrigger, setScrollTrigger] = useState(0);
     const [selectedRfiIds, setSelectedRfiIds] = useState([]);
+    const [focusedRfiId, setFocusedRfiId] = useState(null);
 
     const queue = getReviewQueue(currentDate);
 
@@ -89,6 +92,55 @@ export default function ReviewQueue() {
         // If the timeline date changes, close any previously opened discussion modal.
         setDetailTarget(null);
     }, [currentDate]);
+
+    useEffect(() => {
+        const targetRfiId = searchParams.get('rfi');
+        if (!targetRfiId || !rfis?.length || !user?.id) return;
+
+        const targetRfi = rfis.find((rfi) => rfi.id === targetRfiId);
+        if (!targetRfi) return;
+
+        const targetFilter =
+            targetRfi.status === 'approved'
+                ? 'approved'
+                : targetRfi.status === 'rejected'
+                    ? 'rejected'
+                    : targetRfi.assignedTo === user.id
+                        ? 'my_assigned'
+                        : 'to_review';
+
+        const targetDate = targetRfi.reviewedAt?.slice(0, 10) || targetRfi.carryoverTo || targetRfi.originalFiledDate || targetRfi.filedDate;
+
+        if (filter !== targetFilter) {
+            setFilter(targetFilter);
+            return;
+        }
+
+        if (targetDate && currentDate !== targetDate) {
+            setCurrentDate(targetDate);
+            return;
+        }
+
+        setDetailTarget(targetRfi);
+        setFocusedRfiId(targetRfi.id);
+        setScrollTrigger((prev) => prev + 1);
+
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('rfi');
+        nextParams.delete('source');
+        setSearchParams(nextParams, { replace: true });
+
+        const scrollTimer = window.setTimeout(() => {
+            const row = document.querySelector(`[data-rfi-id="${targetRfi.id}"]`);
+            row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 180);
+        const clearTimer = window.setTimeout(() => setFocusedRfiId(null), 4500);
+
+        return () => {
+            window.clearTimeout(scrollTimer);
+            window.clearTimeout(clearTimer);
+        };
+    }, [searchParams, setSearchParams, rfis, user, currentDate, filter]);
 
     // Background Scroll Locking
     useEffect(() => {
@@ -362,7 +414,11 @@ export default function ReviewQueue() {
                                     {filteredItems.map((rfi) => {
                                         const isCarryover = rfi.status === 'rejected' && rfi.carryoverTo === currentDate;
                                         return (
-                                            <tr key={rfi.id} className={isCarryover ? 'carryover-row' : ''}>
+                                            <tr
+                                                key={rfi.id}
+                                                data-rfi-id={rfi.id}
+                                                className={`${isCarryover ? 'carryover-row ' : ''}${focusedRfiId === rfi.id ? 'notification-focus-row' : ''}`.trim()}
+                                            >
                                                 <td className="col-serial">
                                                     {(filter === 'to_review' || filter === 'my_assigned') && (
                                                         <input

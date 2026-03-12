@@ -14,6 +14,9 @@ import AdminDashboard from './pages/AdminDashboard';
 import UsersPage from './pages/UsersPage';
 import AdminFormatDesigner from './pages/AdminFormatDesigner';
 import PendingApproval from './pages/PendingApproval';
+import SummaryPage from './pages/SummaryPage';
+import RegisteredDevicesPage from './pages/RegisteredDevicesPage';
+import NotificationRedirect from './pages/NotificationRedirect';
 import { useProject } from './context/ProjectContext';
 
 function ProtectedRoute({ children, allowedRoles }) {
@@ -68,6 +71,14 @@ function AppRoutes() {
                     </ProtectedRoute>
                 }
             />
+                <Route
+                    path="/contractor/summary"
+                    element={
+                        <ProtectedRoute allowedRoles={['contractor']}>
+                            <SummaryPage />
+                        </ProtectedRoute>
+                    }
+                />
             <Route
                 path="/consultant"
                 element={
@@ -84,6 +95,14 @@ function AppRoutes() {
                     </ProtectedRoute>
                 }
             />
+                <Route
+                    path="/consultant/summary"
+                    element={
+                        <ProtectedRoute allowedRoles={['consultant']}>
+                            <SummaryPage />
+                        </ProtectedRoute>
+                    }
+                />
             <Route
                 path="/admin"
                 element={
@@ -108,6 +127,15 @@ function AppRoutes() {
                     </ProtectedRoute>
                 }
             />
+            <Route
+                path="/admin/registered-devices"
+                element={
+                    <ProtectedRoute allowedRoles={['admin']}>
+                        <RegisteredDevicesPage />
+                    </ProtectedRoute>
+                }
+            />
+            <Route path="/notification-open" element={<NotificationRedirect />} />
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );

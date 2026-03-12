@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRFI } from '../context/RFIContext';
 import { Bell, Check, X, BellDot } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { buildNotificationOpenPath } from '../utils/notificationLinks';
 
 export default function NotificationCenter() {
     const { notifications, markNotificationRead, markAllNotificationsRead, unreadCount } = useRFI();
@@ -23,8 +24,7 @@ export default function NotificationCenter() {
     const handleNotificationClick = (notification) => {
         markNotificationRead(notification.id);
         setIsOpen(false);
-        // If it references an RFI, navigate them to the right dashboard based on role to find it
-        // This could be made smarter with actual routing to the specific RFI modal in the future
+        navigate(buildNotificationOpenPath(notification.rfi_id));
     };
 
     return (

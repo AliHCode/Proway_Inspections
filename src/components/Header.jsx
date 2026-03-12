@@ -1,9 +1,11 @@
 import { useAuth } from '../context/AuthContext';
 import { useProject } from '../context/ProjectContext';
-import { LogOut, Menu, X, Building, Shield, User, Briefcase, UserCircle, LayoutDashboard, FileText, ClipboardList, Bell } from 'lucide-react';
+import { LogOut, Menu, X, Building, Shield, User, Briefcase, UserCircle, LayoutDashboard, FileText, ClipboardList, Bell, Smartphone } from 'lucide-react';
+import { BarChart2 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import NotificationCenter from './NotificationCenter';
+import { syncPushSubscriptionForUser } from '../utils/pushNotifications';
 
 export default function Header() {
     const { user, logout } = useAuth();
@@ -50,11 +52,21 @@ export default function Header() {
 
         if (Notification.permission === 'granted') {
             setNotifPermission('granted');
+            if (user?.id) {
+                await syncPushSubscriptionForUser(user.id).catch((error) => {
+                    console.error('Error syncing push subscription:', error);
+                });
+            }
             return;
         }
 
         const result = await Notification.requestPermission();
         setNotifPermission(result);
+        if (result === 'granted' && user?.id) {
+            await syncPushSubscriptionForUser(user.id).catch((error) => {
+                console.error('Error syncing push subscription:', error);
+            });
+        }
     };
 
     return (
@@ -157,6 +169,14 @@ export default function Header() {
                             <FileText size={16} /> Daily RFI Sheet
                         </button>
                     )}
+                        {isContractor && (
+                            <button
+                                onClick={() => { navigate('/contractor/summary'); setMenuOpen(false); }}
+                                className={`header-dropdown-item ${location.pathname.includes('/contractor/summary') ? 'active' : ''}`}
+                            >
+                                <BarChart2 size={16} /> Summary
+                            </button>
+                        )}
                     {user.role === 'consultant' && (
                         <>
                             <button
@@ -165,6 +185,12 @@ export default function Header() {
                             >
                                 <ClipboardList size={16} /> Review Queue
                             </button>
+                                <button
+                                    onClick={() => { navigate('/consultant/summary'); setMenuOpen(false); }}
+                                    className={`header-dropdown-item ${location.pathname.includes('/consultant/summary') ? 'active' : ''}`}
+                                >
+                                    <BarChart2 size={16} /> Summary
+                                </button>
                         </>
                     )}
                     {isAdmin && (
@@ -181,16 +207,29 @@ export default function Header() {
                             >
                                 <Shield size={16} /> Project Export Format
                             </button>
+                            <button
+                                onClick={() => { navigate('/admin/registered-devices'); setMenuOpen(false); }}
+                                className={`header-dropdown-item ${location.pathname === '/admin/registered-devices' ? 'active' : ''}`}
+                            >
+                                <Smartphone size={16} /> Registered Devices
+                            </button>
                         </>
                     )}
                     {canManageNotifications && (
-                        <button
-                            onClick={handleEnableNotifications}
-                            className={`header-dropdown-item notify ${notifPermission === 'granted' ? 'active' : ''}`}
-                            disabled={notifPermission === 'unsupported'}
-                        >
-                            <Bell size={16} /> {getNotificationButtonLabel()}
-                        </button>
+                        <>
+                            <button
+                                onClick={handleEnableNotifications}
+                                className={`header-dropdown-item notify ${notifPermission === 'granted' ? 'active' : ''}`}
+                                disabled={notifPermission === 'unsupported' || notifPermission === 'denied'}
+                            >
+                                <Bell size={16} /> {getNotificationButtonLabel()}
+                            </button>
+                            {notifPermission === 'denied' && (
+                                <div className="notif-blocked-hint">
+                                    To re-enable: click the <strong>lock / info icon</strong> in your browser address bar → <em>Notifications</em> → Allow, then reload.
+                                </div>
+                            )}
+                        </>
                     )}
                     <button onClick={() => { logout(); navigate('/'); }} className="header-dropdown-item logout">
                         <LogOut size={16} /> Sign Out
