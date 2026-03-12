@@ -478,14 +478,31 @@ h6 {
   font-weight: 600;
 }
 
+/* Custom override for notification active state */
+.header-dropdown-item.notify.active {
+  background-color: #ffffff !important;
+  color: var(--clr-brand-secondary);
+}
+
 .header-dropdown-item.notify:disabled {
   opacity: 0.65;
   cursor: not-allowed;
 }
 
+.header-dropdown-item.notify,
 .header-dropdown-item.logout {
   margin-top: 0.5rem;
   border-top: 1px solid var(--clr-border);
+  border-radius: 0;
+}
+
+/* If both are present, remove the divider from the second one (logout) */
+.header-dropdown-item.notify + .header-dropdown-item.logout {
+  margin-top: 0;
+  border-top: none;
+}
+
+.header-dropdown-item.logout {
   border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   color: var(--clr-danger);
 }

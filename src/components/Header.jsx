@@ -167,15 +167,6 @@ export default function Header() {
                             </button>
                         </>
                     )}
-                    {canManageNotifications && (
-                        <button
-                            onClick={handleEnableNotifications}
-                            className={`header-dropdown-item notify ${notifPermission === 'granted' ? 'active' : ''}`}
-                            disabled={notifPermission === 'unsupported'}
-                        >
-                            <Bell size={16} /> {getNotificationButtonLabel()}
-                        </button>
-                    )}
                     {isAdmin && (
                         <>
                             <button
@@ -191,6 +182,15 @@ export default function Header() {
                                 <Shield size={16} /> Project Export Format
                             </button>
                         </>
+                    )}
+                    {canManageNotifications && (
+                        <button
+                            onClick={handleEnableNotifications}
+                            className={`header-dropdown-item notify ${notifPermission === 'granted' ? 'active' : ''}`}
+                            disabled={notifPermission === 'unsupported'}
+                        >
+                            <Bell size={16} /> {getNotificationButtonLabel()}
+                        </button>
                     )}
                     <button onClick={() => { logout(); navigate('/'); }} className="header-dropdown-item logout">
                         <LogOut size={16} /> Sign Out
