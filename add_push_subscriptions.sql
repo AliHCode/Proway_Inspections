@@ -4,6 +4,7 @@ create extension if not exists pgcrypto;
 create table if not exists public.push_subscriptions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
+  device_install_id text,
   endpoint text not null unique,
   p256dh text,
   auth text,
@@ -15,6 +16,43 @@ create table if not exists public.push_subscriptions (
   created_at timestamp with time zone not null default timezone('utc'::text, now()),
   updated_at timestamp with time zone not null default timezone('utc'::text, now())
 );
+
+alter table public.push_subscriptions
+  add column if not exists device_install_id text;
+
+update public.push_subscriptions
+set device_install_id = md5(
+  user_id::text || '|' || coalesce(device_label, '') || '|' || coalesce(user_agent, '')
+)
+where device_install_id is null or device_install_id = endpoint;
+
+alter table public.push_subscriptions
+  alter column device_install_id set not null;
+
+with ranked as (
+  select
+    id,
+    row_number() over (
+      partition by user_id, device_install_id
+      order by updated_at desc, created_at desc, id desc
+    ) as rn
+  from public.push_subscriptions
+)
+delete from public.push_subscriptions p
+using ranked r
+where p.id = r.id
+  and r.rn > 1;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'push_subscriptions_user_device_install_key'
+  ) then
+    alter table public.push_subscriptions
+      add constraint push_subscriptions_user_device_install_key unique (user_id, device_install_id);
+  end if;
+end $$;
 
 create index if not exists push_subscriptions_user_id_idx
   on public.push_subscriptions (user_id);

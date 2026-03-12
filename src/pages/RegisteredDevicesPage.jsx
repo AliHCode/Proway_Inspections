@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw, Search, Smartphone, ShieldCheck, Clock3 } from 'lucide-react';
 import Header from '../components/Header';
 import { supabase } from '../utils/supabaseClient';
+import { pushSupportStatus } from '../utils/pushNotifications';
 
 function maskEndpoint(endpoint = '') {
     if (!endpoint) return '—';
@@ -19,6 +20,28 @@ export default function RegisteredDevicesPage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
+    const [actionMessage, setActionMessage] = useState('');
+    const [sendingUserId, setSendingUserId] = useState(null);
+    const [currentDeviceStatus, setCurrentDeviceStatus] = useState({
+        support: 'checking',
+        permission: typeof Notification !== 'undefined' ? Notification.permission : 'unsupported',
+        displayMode: 'browser',
+        platform: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
+    });
+
+    useEffect(() => {
+        const isStandalone = typeof window !== 'undefined' && (
+            window.matchMedia?.('(display-mode: standalone)').matches ||
+            window.navigator.standalone === true
+        );
+
+        setCurrentDeviceStatus({
+            support: pushSupportStatus(),
+            permission: typeof Notification !== 'undefined' ? Notification.permission : 'unsupported',
+            displayMode: isStandalone ? 'standalone' : 'browser',
+            platform: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
+        });
+    }, []);
 
     const fetchDevices = useCallback(async () => {
         setLoading(true);
@@ -92,6 +115,42 @@ export default function RegisteredDevicesPage() {
         };
     }, [filteredDevices]);
 
+    function showActionMessage(message, isError = false) {
+        setActionMessage(isError ? `Error: ${message}` : message);
+        window.setTimeout(() => setActionMessage(''), 3500);
+    }
+
+    async function handleSendTestPush(targetUserId, targetName) {
+        if (!targetUserId) return;
+        setSendingUserId(targetUserId);
+
+        try {
+            const { data, error } = await supabase.functions.invoke('send-push', {
+                body: {
+                    userId: targetUserId,
+                    title: 'ProWay Test Push 🔔',
+                    message: 'This is a test notification from the Registered Devices admin panel.',
+                    rfiId: null,
+                    url: '/notification-open?source=test'
+                }
+            });
+
+            if (error) throw error;
+
+            const sentCount = Number(data?.sent || 0);
+            if (sentCount > 0) {
+                showActionMessage(`Test push sent to ${targetName || 'user'} (${sentCount} endpoint${sentCount > 1 ? 's' : ''}).`);
+            } else {
+                showActionMessage(`No active endpoints for ${targetName || 'this user'}.`, true);
+            }
+        } catch (error) {
+            console.error('Error sending test push:', error);
+            showActionMessage(error?.message || 'Unable to send test push.', true);
+        } finally {
+            setSendingUserId(null);
+        }
+    }
+
     return (
         <div className="page-wrapper">
             <Header />
@@ -111,6 +170,25 @@ export default function RegisteredDevicesPage() {
                 {errorMessage && (
                     <div className="submit-message warning">{errorMessage}</div>
                 )}
+                {actionMessage && (
+                    <div className={`submit-message ${actionMessage.startsWith('Error:') ? 'warning' : 'success'}`}>
+                        {actionMessage}
+                    </div>
+                )}
+
+                <div className="device-debug-banner">
+                    <div>
+                        <strong>Current device status:</strong>{' '}
+                        Push support: <span className="device-role-pill">{currentDeviceStatus.support}</span>{' '}
+                        Permission: <span className="device-role-pill">{currentDeviceStatus.permission}</span>{' '}
+                        Mode: <span className="device-role-pill">{currentDeviceStatus.displayMode}</span>
+                    </div>
+                    {/iPhone|iPad/i.test(currentDeviceStatus.platform) && currentDeviceStatus.displayMode !== 'standalone' && (
+                        <div className="device-debug-hint">
+                            iPhone/iPad only receive closed-app web push from the installed Home Screen app, not from a normal Safari tab.
+                        </div>
+                    )}
+                </div>
 
                 <div className="device-stat-grid">
                     <div className="device-stat-card">
@@ -163,6 +241,7 @@ export default function RegisteredDevicesPage() {
                                         <th>Device</th>
                                         <th>Last Seen</th>
                                         <th>Endpoint</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -189,6 +268,15 @@ export default function RegisteredDevicesPage() {
                                                 <td>{formatLastSeen(device.last_seen_at)}</td>
                                                 <td>
                                                     <code className="device-endpoint">{maskEndpoint(device.endpoint)}</code>
+                                                </td>
+                                                <td>
+                                                    <button
+                                                        className="btn btn-sm btn-secondary"
+                                                        onClick={() => handleSendTestPush(device.user_id, profile.name)}
+                                                        disabled={sendingUserId === device.user_id}
+                                                    >
+                                                        {sendingUserId === device.user_id ? 'Sending...' : 'Send Test Push'}
+                                                    </button>
                                                 </td>
                                             </tr>
                                         );

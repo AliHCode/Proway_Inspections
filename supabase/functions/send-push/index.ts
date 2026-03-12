@@ -1,7 +1,9 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import webpush from 'npm:web-push@3.6.7';
+// @ts-nocheck
 
-const corsHeaders = {
+import { createClient } from '@supabase/supabase-js';
+import webpush from 'web-push';
+
+const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
@@ -26,7 +28,7 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -65,15 +67,26 @@ Deno.serve(async (req) => {
 
     const { data: subscriptions, error: subscriptionsError } = await supabase
       .from('push_subscriptions')
-      .select('id, endpoint, subscription')
+      .select('id, endpoint, subscription, device_install_id, updated_at')
       .eq('user_id', userId)
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .order('updated_at', { ascending: false });
 
     if (subscriptionsError) {
       throw subscriptionsError;
     }
 
-    if (!subscriptions || subscriptions.length === 0) {
+    const latestByInstall = new Map<string, typeof subscriptions[number]>();
+    for (const record of subscriptions || []) {
+      const installId = record.device_install_id || record.endpoint;
+      if (!latestByInstall.has(installId)) {
+        latestByInstall.set(installId, record);
+      }
+    }
+
+    const dedupedSubscriptions = Array.from(latestByInstall.values());
+
+    if (dedupedSubscriptions.length === 0) {
       return new Response(JSON.stringify({ sent: 0, removed: 0, reason: 'no-subscriptions' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -92,13 +105,19 @@ Deno.serve(async (req) => {
     const invalidIds: string[] = [];
     let sent = 0;
 
-    for (const record of subscriptions) {
+    for (const record of dedupedSubscriptions) {
       try {
         await webpush.sendNotification(record.subscription, payload);
         sent += 1;
-      } catch (error) {
-        const statusCode = error?.statusCode ?? error?.status ?? 0;
-        console.error('Push delivery failed:', record.endpoint, statusCode, error?.body || error?.message || error);
+      } catch (error: unknown) {
+        const pushError = error as {
+          statusCode?: number;
+          status?: number;
+          body?: string;
+          message?: string;
+        };
+        const statusCode = pushError.statusCode ?? pushError.status ?? 0;
+        console.error('Push delivery failed:', record.endpoint, statusCode, pushError.body || pushError.message || error);
 
         if (statusCode === 404 || statusCode === 410) {
           invalidIds.push(record.id);
@@ -121,9 +140,10 @@ Deno.serve(async (req) => {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  } catch (error) {
+  } catch (error: unknown) {
+    const requestError = error as { message?: string };
     console.error('send-push failed:', error);
-    return new Response(JSON.stringify({ error: error?.message || 'Unexpected error' }), {
+    return new Response(JSON.stringify({ error: requestError.message || 'Unexpected error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

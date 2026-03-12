@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { useProject } from '../context/ProjectContext';
 import { LogOut, Menu, X, Building, Shield, User, Briefcase, UserCircle, LayoutDashboard, FileText, ClipboardList, Bell, Smartphone } from 'lucide-react';
 import { BarChart2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import NotificationCenter from './NotificationCenter';
 import { syncPushSubscriptionForUser } from '../utils/pushNotifications';
@@ -15,6 +15,7 @@ export default function Header() {
     const [menuOpen, setMenuOpen] = useState(false);
     const [projectMenuOpen, setProjectMenuOpen] = useState(false);
     const [notifPermission, setNotifPermission] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported');
+    const [pushBadge, setPushBadge] = useState({ state: 'checking', label: 'Push: Checking' });
 
     if (!user) return null;
 
@@ -38,6 +39,50 @@ export default function Header() {
         if (notifPermission === 'unsupported') return 'Notifications Not Supported';
         return 'Enable Notifications';
     };
+
+    useEffect(() => {
+        let cancelled = false;
+
+        async function refreshPushBadge() {
+            if (typeof window === 'undefined') return;
+            if (typeof Notification === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+                if (!cancelled) setPushBadge({ state: 'unsupported', label: 'Push: Unsupported' });
+                return;
+            }
+
+            const permission = Notification.permission;
+            if (permission === 'denied') {
+                if (!cancelled) setPushBadge({ state: 'blocked', label: 'Push: Blocked' });
+                return;
+            }
+            if (permission !== 'granted') {
+                if (!cancelled) setPushBadge({ state: 'off', label: 'Push: Off' });
+                return;
+            }
+
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                const subscription = await registration.pushManager.getSubscription();
+                if (!cancelled) {
+                    setPushBadge(
+                        subscription
+                            ? { state: 'subscribed', label: 'Push: Subscribed' }
+                            : { state: 'granted-no-sub', label: 'Push: Granted (Not Subscribed)' }
+                    );
+                }
+            } catch {
+                if (!cancelled) setPushBadge({ state: 'error', label: 'Push: Unknown' });
+            }
+        }
+
+        refreshPushBadge();
+        window.addEventListener('focus', refreshPushBadge);
+
+        return () => {
+            cancelled = true;
+            window.removeEventListener('focus', refreshPushBadge);
+        };
+    }, [user?.id, notifPermission]);
 
     const handleEnableNotifications = async () => {
         if (typeof Notification === 'undefined') {
@@ -124,6 +169,7 @@ export default function Header() {
             )}
 
             <div className="header-user-info">
+                <span className={`push-status-chip ${pushBadge.state}`}>{pushBadge.label}</span>
                 <NotificationCenter />
             </div>
 

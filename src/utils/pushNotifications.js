@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+const DEVICE_INSTALL_KEY = 'proway_device_install_id_v1';
 
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -29,11 +30,24 @@ function isPushSupported() {
 }
 
 async function upsertSubscription(userId, subscription) {
+    const installId = getOrCreateDeviceInstallId();
     const payload = subscription.toJSON();
+
+    // Ensure this install has at most one active subscription row.
+    const { error: cleanupError } = await supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('user_id', userId)
+        .eq('device_install_id', installId)
+        .neq('endpoint', subscription.endpoint);
+
+    if (cleanupError) throw cleanupError;
+
     const { error } = await supabase
         .from('push_subscriptions')
         .upsert({
             user_id: userId,
+            device_install_id: installId,
             endpoint: subscription.endpoint,
             p256dh: payload.keys?.p256dh || null,
             auth: payload.keys?.auth || null,
@@ -42,21 +56,42 @@ async function upsertSubscription(userId, subscription) {
             device_label: getDeviceLabel(),
             is_active: true,
             last_seen_at: new Date().toISOString(),
-        }, { onConflict: 'endpoint' });
+        }, { onConflict: 'user_id,device_install_id' });
 
     if (error) throw error;
 }
 
-async function deleteStoredSubscription(userId, endpoint) {
-    if (!endpoint) return;
+async function deleteStoredSubscription(userId) {
+    const installId = getOrCreateDeviceInstallId();
 
     const { error } = await supabase
         .from('push_subscriptions')
         .delete()
         .eq('user_id', userId)
-        .eq('endpoint', endpoint);
+        .eq('device_install_id', installId);
 
     if (error) throw error;
+}
+
+function createInstallId() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+
+    return `install_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+}
+
+function getOrCreateDeviceInstallId() {
+    try {
+        const existing = localStorage.getItem(DEVICE_INSTALL_KEY);
+        if (existing) return existing;
+
+        const generated = createInstallId();
+        localStorage.setItem(DEVICE_INSTALL_KEY, generated);
+        return generated;
+    } catch {
+        return createInstallId();
+    }
 }
 
 export async function syncPushSubscriptionForUser(userId) {
@@ -68,13 +103,12 @@ export async function syncPushSubscriptionForUser(userId) {
     if (Notification.permission === 'denied') {
         const existingSubscription = await registration.pushManager.getSubscription();
         if (existingSubscription) {
-            const endpoint = existingSubscription.endpoint;
             try {
                 await existingSubscription.unsubscribe();
             } catch {
                 // Ignore local unsubscribe failures; still remove server record.
             }
-            await deleteStoredSubscription(userId, endpoint);
+            await deleteStoredSubscription(userId);
         }
         return { status: 'denied' };
     }
@@ -110,15 +144,13 @@ export async function unregisterCurrentPushSubscription(userId) {
         return { status: 'not-found' };
     }
 
-    const endpoint = existingSubscription.endpoint;
-
     try {
         await existingSubscription.unsubscribe();
     } catch {
         // Ignore local unsubscribe failures; still remove server record.
     }
 
-    await deleteStoredSubscription(userId, endpoint);
+    await deleteStoredSubscription(userId);
     return { status: 'removed' };
 }
 
