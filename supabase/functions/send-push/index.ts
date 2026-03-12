@@ -1,7 +1,7 @@
 // @ts-nocheck
 
-import { createClient } from '@supabase/supabase-js';
-import webpush from 'web-push';
+import { createClient } from 'npm:@supabase/supabase-js@2';
+import webpush from 'npm:web-push@3.6.7';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
