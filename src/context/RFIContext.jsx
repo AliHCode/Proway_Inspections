@@ -1146,6 +1146,9 @@ export function RFIProvider({ children }) {
                 rfi_id: rfiId
             }]);
 
+            const { data: sessionData } = await supabase.auth.getSession();
+            const accessToken = sessionData?.session?.access_token;
+
             const { error: pushError } = await supabase.functions.invoke('send-push', {
                 body: {
                     userId,
@@ -1153,7 +1156,8 @@ export function RFIProvider({ children }) {
                     message,
                     rfiId,
                     url: buildNotificationOpenPath(rfiId)
-                }
+                },
+                headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
             });
 
             if (pushError) {

@@ -125,6 +125,9 @@ export default function RegisteredDevicesPage() {
         setSendingUserId(targetUserId);
 
         try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const accessToken = sessionData?.session?.access_token;
+
             const { data, error } = await supabase.functions.invoke('send-push', {
                 body: {
                     userId: targetUserId,
@@ -132,7 +135,8 @@ export default function RegisteredDevicesPage() {
                     message: 'This is a test notification from the Registered Devices admin panel.',
                     rfiId: null,
                     url: '/notification-open?source=test'
-                }
+                },
+                headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
             });
 
             if (error) throw error;

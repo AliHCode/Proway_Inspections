@@ -56,7 +56,7 @@ async function upsertSubscription(userId, subscription) {
             device_label: getDeviceLabel(),
             is_active: true,
             last_seen_at: new Date().toISOString(),
-        }, { onConflict: 'user_id,device_install_id' });
+        }, { onConflict: 'endpoint' });
 
     if (error) throw error;
 }
