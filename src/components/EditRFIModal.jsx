@@ -3,26 +3,34 @@ import { X, Pencil, Upload, Brush, Save, MapPin, Tag, FileText, Camera } from 'l
 import { INSPECTION_TYPES } from '../utils/constants';
 import ImageMarkupModal from './ImageMarkupModal';
 
-export default function EditRFIModal({ rfi, onSave, onClose }) {
+export default function EditRFIModal({ rfi, projectFields = [], onSave, onClose }) {
     const [description, setDescription] = useState(rfi.description || '');
     const [location, setLocation] = useState(rfi.location || '');
     const [inspectionType, setInspectionType] = useState(rfi.inspectionType || INSPECTION_TYPES[0]);
     const [existingImages, setExistingImages] = useState(rfi.images || []);
     const [newFiles, setNewFiles] = useState([]);
+    const [customFields, setCustomFields] = useState(rfi.customFields || {});
     const [markupTarget, setMarkupTarget] = useState(null); // { source: 'existing'|'new', index }
     const fileInputRef = useRef(null);
 
     function handleSubmit(e) {
         e.preventDefault();
         if (!description.trim() || !location.trim()) return;
+        const confirmed = window.confirm('Save changes to this inspection?');
+        if (!confirmed) return;
         onSave({
             description: description.trim(),
             location: location.trim(),
             inspectionType,
             existingImages,
             newFiles,
+            customFields,
         });
         onClose();
+    }
+
+    function updateCustomFieldValue(fieldKey, value) {
+        setCustomFields((prev) => ({ ...prev, [fieldKey]: value }));
     }
 
     function getPreviewUrl(file) {
@@ -85,6 +93,84 @@ export default function EditRFIModal({ rfi, onSave, onClose }) {
                         }}>
                             <Pencil size={20} color="var(--clr-info)" />
                         </div>
+
+                        {projectFields.length > 0 && (
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--clr-text-main)', marginBottom: '0.65rem' }}>
+                                    Additional Fields
+                                </label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                    {projectFields.map((field) => {
+                                        const value = customFields?.[field.field_key] || '';
+                                        if (field.field_type === 'select') {
+                                            return (
+                                                <div key={field.id || field.field_key}>
+                                                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--clr-text-secondary)', marginBottom: '0.35rem' }}>
+                                                        {field.field_name}
+                                                    </label>
+                                                    <select
+                                                        value={value}
+                                                        onChange={(e) => updateCustomFieldValue(field.field_key, e.target.value)}
+                                                        style={{
+                                                            width: '100%', padding: '0.7rem 0.9rem', borderRadius: '10px',
+                                                            border: '1px solid var(--clr-border)', background: '#fff',
+                                                            fontSize: '0.9rem', fontFamily: 'inherit', outline: 'none',
+                                                            boxSizing: 'border-box'
+                                                        }}
+                                                    >
+                                                        <option value="">- Select -</option>
+                                                        {(field.options || []).map((option) => (
+                                                            <option key={option} value={option}>{option}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            );
+                                        }
+
+                                        if (field.field_type === 'textarea') {
+                                            return (
+                                                <div key={field.id || field.field_key} style={{ gridColumn: '1 / -1' }}>
+                                                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--clr-text-secondary)', marginBottom: '0.35rem' }}>
+                                                        {field.field_name}
+                                                    </label>
+                                                    <textarea
+                                                        rows={3}
+                                                        value={value}
+                                                        onChange={(e) => updateCustomFieldValue(field.field_key, e.target.value)}
+                                                        style={{
+                                                            width: '100%', padding: '0.8rem 0.9rem', borderRadius: '10px',
+                                                            border: '1px solid var(--clr-border)', background: '#fff',
+                                                            fontSize: '0.9rem', fontFamily: 'inherit', outline: 'none',
+                                                            boxSizing: 'border-box', resize: 'vertical'
+                                                        }}
+                                                    />
+                                                </div>
+                                            );
+                                        }
+
+                                        const type = field.field_type === 'number' ? 'number' : field.field_type === 'date' ? 'date' : 'text';
+                                        return (
+                                            <div key={field.id || field.field_key}>
+                                                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--clr-text-secondary)', marginBottom: '0.35rem' }}>
+                                                    {field.field_name}
+                                                </label>
+                                                <input
+                                                    type={type}
+                                                    value={value}
+                                                    onChange={(e) => updateCustomFieldValue(field.field_key, e.target.value)}
+                                                    style={{
+                                                        width: '100%', padding: '0.7rem 0.9rem', borderRadius: '10px',
+                                                        border: '1px solid var(--clr-border)', background: '#fff',
+                                                        fontSize: '0.9rem', fontFamily: 'inherit', outline: 'none',
+                                                        boxSizing: 'border-box'
+                                                    }}
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                         <div>
                             <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--clr-text-main)' }}>
                                 Edit Inspection

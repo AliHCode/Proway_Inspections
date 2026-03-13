@@ -1,15 +1,21 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { X, Calendar, MapPin, Tag, User, MessageSquare, History, List } from 'lucide-react';
 import ThreadedComments from './ThreadedComments';
 import AuditLog from './AuditLog';
 import StatusBadge from './StatusBadge';
 import { formatDateDisplay } from '../utils/rfiLogic';
 import { useRFI } from '../context/RFIContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function RFIDetailModal({ rfi, onClose, externalScrollTrigger }) {
     const [activeTab, setActiveTab] = useState('discussion');
     const [tabScrollTrigger, setTabScrollTrigger] = useState(0);
-    const { rfis } = useRFI();
+    const { user } = useAuth();
+    const { rfis, uploadImages, addAttachmentsToRFI } = useRFI();
+    const [attachmentFiles, setAttachmentFiles] = useState([]);
+    const [note, setNote] = useState('');
+    const [savingAttachments, setSavingAttachments] = useState(false);
+    const fileInputRef = useRef(null);
 
     if (!rfi) return null;
 
@@ -51,6 +57,26 @@ export default function RFIDetailModal({ rfi, onClose, externalScrollTrigger }) 
         }
         setActiveTab(tab);
     };
+
+    async function handleSaveConsultantUpdate() {
+        if (savingAttachments) return;
+        if (attachmentFiles.length === 0 && !note.trim()) return;
+
+        const confirmed = window.confirm('Save attachments/notes to this RFI?');
+        if (!confirmed) return;
+
+        setSavingAttachments(true);
+        try {
+            const uploaded = attachmentFiles.length > 0 ? await uploadImages(attachmentFiles) : [];
+            await addAttachmentsToRFI(rfi.id, uploaded, note.trim());
+            setAttachmentFiles([]);
+            setNote('');
+        } catch (error) {
+            console.error('Failed to save consultant update:', error);
+        } finally {
+            setSavingAttachments(false);
+        }
+    }
 
     return (
         <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1000 }}>
@@ -144,6 +170,56 @@ export default function RFIDetailModal({ rfi, onClose, externalScrollTrigger }) 
                                         </a>
                                     ))}
                                 </div>
+                            </div>
+                        )}
+
+                        {user?.role === 'consultant' && (
+                            <div className="rfi-attachments-pane" style={{ marginTop: '1rem', borderTop: '1px solid var(--clr-border)', paddingTop: '1rem' }}>
+                                <h4 className="rfi-pane-heading">Consultant Update</h4>
+                                <textarea
+                                    rows={3}
+                                    placeholder="Optional note/remark"
+                                    value={note}
+                                    onChange={(e) => setNote(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        marginBottom: '0.6rem',
+                                        border: '1px solid var(--clr-border)',
+                                        borderRadius: '8px',
+                                        padding: '0.55rem 0.65rem',
+                                        fontFamily: 'inherit',
+                                    }}
+                                />
+                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        multiple
+                                        accept="image/*"
+                                        style={{ display: 'none' }}
+                                        onChange={(e) => {
+                                            const files = Array.from(e.target.files || []);
+                                            setAttachmentFiles((prev) => [...prev, ...files]);
+                                            e.target.value = '';
+                                        }}
+                                    />
+                                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => fileInputRef.current?.click()}>
+                                        Add Attachments
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-sm btn-primary"
+                                        onClick={handleSaveConsultantUpdate}
+                                        disabled={savingAttachments || (attachmentFiles.length === 0 && !note.trim())}
+                                    >
+                                        {savingAttachments ? 'Saving...' : 'Save Update'}
+                                    </button>
+                                </div>
+                                {attachmentFiles.length > 0 && (
+                                    <p style={{ fontSize: '0.75rem', color: 'var(--clr-text-secondary)', marginTop: '0.45rem' }}>
+                                        {attachmentFiles.length} file(s) ready to upload.
+                                    </p>
+                                )}
                             </div>
                         )}
                     </aside>

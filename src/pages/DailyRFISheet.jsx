@@ -172,6 +172,8 @@ export default function DailyRFISheet() {
     }
 
     function handleResubmit(rfiId) {
+        const confirmed = window.confirm('Re-submit this inspection for consultant review?');
+        if (!confirmed) return;
         resubmitRFI(rfiId, currentDate);
     }
 
@@ -183,6 +185,7 @@ export default function DailyRFISheet() {
             location: payload.location,
             inspectionType: payload.inspectionType,
             images: [...payload.existingImages, ...uploaded],
+            customFields: payload.customFields || {},
         });
     }
 
@@ -699,6 +702,7 @@ export default function DailyRFISheet() {
                     <EditRFIModal
                         key={editTarget.id}
                         rfi={editTarget}
+                        projectFields={projectFields}
                         onSave={handleSaveEdit}
                         onClose={() => setEditTarget(null)}
                     />

@@ -46,8 +46,17 @@ export default function ReviewQueue() {
     if (filter === 'rejected') filteredItems = todayRejected;
     if (filter === 'my_assigned') filteredItems = queue.all.filter(r => r.assignedTo === user.id);
 
-    function handleApprove(rfiId) {
-        approveRFI(rfiId, user.id);
+    async function handleApprove(rfiId) {
+        const target = rfis.find((r) => r.id === rfiId);
+        if (!target) return;
+
+        const confirmed = window.confirm(`Approve RFI #${target.serialNo}?`);
+        if (!confirmed) return;
+
+        const remarksInput = window.prompt('Optional approval remarks (leave blank to skip):', target.remarks || '');
+        if (remarksInput === null) return;
+
+        await approveRFI(rfiId, user.id, remarksInput.trim());
         setActionMessage('✅ Inspection Approved Successfully');
         setTimeout(() => setActionMessage(''), 2000);
     }
@@ -172,12 +181,12 @@ export default function ReviewQueue() {
     }
 
     function renderReviewActionCell(rfi) {
-        if (filter === 'to_review' || filter === 'my_assigned') {
+        if (filter === 'to_review' || filter === 'my_assigned' || filter === 'approved') {
             return (
                 <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
                     <button
                         onClick={() => handleApprove(rfi.id)}
-                        title="Approve"
+                        title={filter === 'approved' ? 'Update Approval' : 'Approve'}
                         style={{
                             background: 'transparent', border: '1.5px solid #d1d5db',
                             borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
@@ -195,7 +204,7 @@ export default function ReviewQueue() {
                             setRejectTarget(rfi);
                             setDetailTarget(null);
                         }}
-                        title="Reject"
+                        title={filter === 'approved' ? 'Change to Rejected' : 'Reject'}
                         style={{
                             background: 'transparent', border: '1.5px solid #d1d5db',
                             borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
@@ -207,6 +216,25 @@ export default function ReviewQueue() {
                         onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.background = 'transparent'; }}
                     >
                         <XCircle size={15} />
+                    </button>
+                    <button
+                        onClick={() => {
+                            setInfoRequestTarget(rfi);
+                            setDetailTarget(null);
+                            setRejectTarget(null);
+                        }}
+                        title="Request Info"
+                        style={{
+                            background: 'transparent', border: '1.5px solid #d1d5db',
+                            borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '3px',
+                            color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
+                            fontFamily: 'inherit', transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = '#9ca3af'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = '#f9fafb'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.background = 'transparent'; }}
+                    >
+                        <MessageSquare size={15} />
                     </button>
                     <button
                         onClick={() => {

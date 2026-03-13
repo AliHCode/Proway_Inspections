@@ -683,17 +683,22 @@ export function RFIProvider({ children }) {
     }, [activeProject, fetchAllRFIs, getNextSerialNoForDate, normalizeImagesForSubmission, notifyConsultantsAboutFiledRFI, refreshPendingSyncCount]);
 
     /** Approve an RFI */
-    async function approveRFI(rfiId, reviewedBy) {
+    async function approveRFI(rfiId, reviewedBy, remarks = '', consultantAttachments = []) {
         const targetRfi = rfis.find(r => r.id === rfiId);
         if (!targetRfi) return;
 
         try {
+            const mergedImages = [
+                ...(targetRfi.images || []),
+                ...(consultantAttachments || []),
+            ];
             const { error } = await supabase.from('rfis').update({
                 status: RFI_STATUS.APPROVED,
                 reviewed_by: reviewedBy,
                 reviewed_at: new Date().toISOString(),
-                remarks: null,
+                remarks: remarks?.trim() ? remarks.trim() : null,
                 carryover_to: null,
+                images: mergedImages,
             }).eq('id', rfiId);
             if (error) throw error;
 
@@ -701,10 +706,15 @@ export function RFIProvider({ children }) {
             await createNotification(
                 targetRfi.filedBy,
                 "RFI Approved ✅",
-                `Your RFI #${targetRfi.serialNo} for ${targetRfi.location} was approved.`,
+                remarks?.trim()
+                    ? `Your RFI #${targetRfi.serialNo} for ${targetRfi.location} was approved. Remarks: ${remarks.trim()}`
+                    : `Your RFI #${targetRfi.serialNo} for ${targetRfi.location} was approved.`,
                 rfiId
             );
-            await logAuditEvent(rfiId, 'approved');
+            await logAuditEvent(rfiId, 'approved', {
+                remarks: remarks?.trim() || null,
+                attachmentsAdded: (consultantAttachments || []).length,
+            });
             await fetchAllRFIs();
         } catch (error) {
             console.error("Error approving RFI:", error);
@@ -992,6 +1002,67 @@ export function RFIProvider({ children }) {
         }
     }
 
+    async function updateComment(commentId, content) {
+        if (!user) return;
+        const trimmed = content?.trim();
+        if (!trimmed) return;
+
+        try {
+            const { error } = await supabase
+                .from('comments')
+                .update({ content: trimmed })
+                .eq('id', commentId)
+                .eq('user_id', user.id);
+
+            if (error) throw error;
+            await logAuditEvent(null, 'comment_edited', { commentId });
+        } catch (error) {
+            console.error('Error updating comment:', error);
+            throw error;
+        }
+    }
+
+    async function addAttachmentsToRFI(rfiId, attachmentUrls = [], note = '') {
+        const targetRfi = rfis.find(r => r.id === rfiId);
+        if (!targetRfi) return;
+
+        const cleanUrls = (attachmentUrls || []).filter(Boolean);
+        const cleanNote = note?.trim() || '';
+        if (cleanUrls.length === 0 && !cleanNote) return;
+
+        try {
+            const mergedImages = [...(targetRfi.images || [])];
+            cleanUrls.forEach((url) => {
+                if (!mergedImages.includes(url)) mergedImages.push(url);
+            });
+
+            const updates = { images: mergedImages };
+            if (cleanNote) {
+                updates.remarks = cleanNote;
+            }
+
+            const { error } = await supabase
+                .from('rfis')
+                .update(updates)
+                .eq('id', rfiId);
+            if (error) throw error;
+
+            if (cleanNote) {
+                await addComment(rfiId, `Consultant note: ${cleanNote}`);
+            }
+
+            await logAuditEvent(rfiId, 'attachments_added', {
+                count: cleanUrls.length,
+                note: cleanNote || null,
+            });
+
+            await fetchAllRFIs();
+        } catch (error) {
+            console.error('Error adding attachments to RFI:', error);
+            throw error;
+        }
+    }
+
     /** Delete an RFI */
     async function deleteRFI(rfiId) {
         try {
@@ -1012,6 +1083,7 @@ export function RFIProvider({ children }) {
             if (updates.location !== undefined) dbUpdates.location = updates.location;
             if (updates.inspectionType !== undefined) dbUpdates.inspection_type = updates.inspectionType;
             if (updates.images !== undefined) dbUpdates.images = updates.images;
+            if (updates.customFields !== undefined) dbUpdates.custom_fields = updates.customFields;
 
             const { error } = await supabase.from('rfis').update(dbUpdates).eq('id', rfiId);
             if (error) throw error;
@@ -1210,6 +1282,8 @@ export function RFIProvider({ children }) {
                 getStats,
                 fetchComments,
                 addComment,
+                updateComment,
+                addAttachmentsToRFI,
                 markNotificationRead,
                 markAllNotificationsRead,
                 createNotification

@@ -6,11 +6,13 @@ import { Send, Loader2 } from 'lucide-react';
 
 export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger }) {
     const { user } = useAuth();
-    const { fetchComments, addComment } = useRFI();
+    const { fetchComments, addComment, updateComment } = useRFI();
     const [comments, setComments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [newComment, setNewComment] = useState('');
+    const [editingCommentId, setEditingCommentId] = useState(null);
+    const [editingValue, setEditingValue] = useState('');
     const prevCommentsLength = useRef(0);
     const messagesEndRef = useRef(null);
 
@@ -68,6 +70,32 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
         }
     };
 
+    const startEdit = (comment) => {
+        setEditingCommentId(comment.id);
+        setEditingValue(comment.content);
+    };
+
+    const cancelEdit = () => {
+        setEditingCommentId(null);
+        setEditingValue('');
+    };
+
+    const handleEditSubmit = async (commentId) => {
+        const trimmed = editingValue.trim();
+        if (!trimmed || submitting) return;
+
+        setSubmitting(true);
+        try {
+            await updateComment(commentId, trimmed);
+            await loadComments();
+            cancelEdit();
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     if (loading) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
@@ -97,7 +125,51 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
                                             {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                     </div>
-                                    <div className="comment-content">{c.content}</div>
+                                    {editingCommentId === c.id ? (
+                                        <div style={{ display: 'grid', gap: '0.45rem' }}>
+                                            <input
+                                                type="text"
+                                                value={editingValue}
+                                                onChange={(e) => setEditingValue(e.target.value)}
+                                                className="comment-input"
+                                                disabled={submitting}
+                                            />
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem' }}>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-sm btn-ghost"
+                                                    onClick={cancelEdit}
+                                                    disabled={submitting}
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-sm btn-action"
+                                                    onClick={() => handleEditSubmit(c.id)}
+                                                    disabled={submitting || !editingValue.trim()}
+                                                >
+                                                    Resend
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="comment-content">{c.content}</div>
+                                            {isMe && (
+                                                <div style={{ marginTop: '0.35rem', display: 'flex', justifyContent: 'flex-end' }}>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-ghost"
+                                                        onClick={() => startEdit(c)}
+                                                        style={{ padding: '0.2rem 0.45rem', fontSize: '0.72rem' }}
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         );

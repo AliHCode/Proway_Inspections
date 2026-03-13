@@ -7,6 +7,8 @@ export default function InfoRequestModal({ rfi, onRequestInfo, onClose }) {
     function handleSubmit(e) {
         e.preventDefault();
         if (!remarks.trim()) return;
+        const confirmed = window.confirm('Send this information request to contractor?');
+        if (!confirmed) return;
         onRequestInfo(rfi.id, remarks.trim());
         onClose();
     }

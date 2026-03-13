@@ -20,6 +20,8 @@ export default function RejectModal({ rfi, onReject, onClose, contractors = [] }
     function handleSubmit(e) {
         e.preventDefault();
         if (!remarks.trim()) return;
+        const confirmed = window.confirm('Confirm rejection for this inspection?');
+        if (!confirmed) return;
         onReject(rfi.id, remarks.trim(), files);
         onClose();
     }
