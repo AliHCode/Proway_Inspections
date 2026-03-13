@@ -8,7 +8,6 @@ import Header from '../components/Header';
 import DateNavigator from '../components/DateNavigator';
 import StatusBadge from '../components/StatusBadge';
 import RejectModal from '../components/RejectModal';
-import InfoRequestModal from '../components/InfoRequestModal';
 import RFIDetailModal from '../components/RFIDetailModal';
 import UserAvatar from '../components/UserAvatar';
 import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
@@ -17,12 +16,11 @@ import { CheckCircle, XCircle, MessageSquare, X, FileDown, Table, ClipboardList 
 export default function ReviewQueue() {
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
-    const { approveRFI, rejectRFI, requestInfo, getReviewQueue, rfis, uploadImages, contractors } = useRFI();
+    const { approveRFI, rejectRFI, getReviewQueue, rfis, uploadImages, contractors } = useRFI();
     const { activeProject, projectFields, orderedTableColumns, columnWidthMap, getTableColumnStyle } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
     const [currentDate, setCurrentDate] = useState(getToday());
     const [rejectTarget, setRejectTarget] = useState(null);
-    const [infoRequestTarget, setInfoRequestTarget] = useState(null);
     const [detailTarget, setDetailTarget] = useState(null);
     const [filter, setFilter] = useState('to_review'); // to_review, approved, rejected
     const [actionMessage, setActionMessage] = useState('');
@@ -65,12 +63,6 @@ export default function ReviewQueue() {
         const uploaded = files.length > 0 ? await uploadImages(files) : [];
         rejectRFI(rfiId, user.id, remarks, uploaded);
         setActionMessage('❌ Inspection Rejected & Returned');
-        setTimeout(() => setActionMessage(''), 3000);
-    }
-
-    function handleRequestInfo(rfiId, remarks) {
-        requestInfo(rfiId, user.id, remarks);
-        setActionMessage('⚠️ Info Requested — returned to contractor');
         setTimeout(() => setActionMessage(''), 3000);
     }
 
@@ -153,14 +145,14 @@ export default function ReviewQueue() {
 
     // Background Scroll Locking
     useEffect(() => {
-        const isModalOpen = !!(detailTarget || rejectTarget || infoRequestTarget || selectedImages);
+        const isModalOpen = !!(detailTarget || rejectTarget || selectedImages);
         if (isModalOpen) {
             document.body.classList.add('no-scroll');
         } else {
             document.body.classList.remove('no-scroll');
         }
         return () => document.body.classList.remove('no-scroll');
-    }, [detailTarget, rejectTarget, infoRequestTarget, selectedImages]);
+    }, [detailTarget, rejectTarget, selectedImages]);
 
     function scrollToPageBottom() {
         const scrollNow = () => {
@@ -219,28 +211,8 @@ export default function ReviewQueue() {
                     </button>
                     <button
                         onClick={() => {
-                            setInfoRequestTarget(rfi);
-                            setDetailTarget(null);
-                            setRejectTarget(null);
-                        }}
-                        title="Request Info"
-                        style={{
-                            background: 'transparent', border: '1.5px solid #d1d5db',
-                            borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: '3px',
-                            color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
-                            fontFamily: 'inherit', transition: 'all 0.15s',
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = '#9ca3af'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = '#f9fafb'; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.background = 'transparent'; }}
-                    >
-                        <MessageSquare size={15} />
-                    </button>
-                    <button
-                        onClick={() => {
                             setDetailTarget(rfi);
                             setRejectTarget(null);
-                            setInfoRequestTarget(null);
                             setScrollTrigger(prev => prev + 1);
                             setTimeout(() => scrollToPageBottom(), 80);
                         }}
@@ -268,7 +240,6 @@ export default function ReviewQueue() {
                     onClick={() => {
                         setDetailTarget(rfi);
                         setRejectTarget(null);
-                        setInfoRequestTarget(null);
                         setScrollTrigger(prev => prev + 1);
                         setTimeout(() => scrollToPageBottom(), 80);
                     }}
@@ -502,15 +473,6 @@ export default function ReviewQueue() {
                         onReject={handleReject}
                         contractors={contractors}
                         onClose={() => setRejectTarget(null)}
-                    />
-                )}
-
-                {/* Request Info Modal */}
-                {infoRequestTarget && (
-                    <InfoRequestModal
-                        rfi={infoRequestTarget}
-                        onRequestInfo={handleRequestInfo}
-                        onClose={() => setInfoRequestTarget(null)}
                     />
                 )}
 

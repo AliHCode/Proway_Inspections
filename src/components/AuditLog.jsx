@@ -96,7 +96,7 @@ function formatAction(action) {
         created: 'Created this RFI',
         approved: 'Approved this RFI',
         rejected: 'Rejected this RFI',
-        info_requested: 'Requested more information',
+        info_requested: 'Returned for rework',
         resubmitted: 'Resubmitted this RFI',
         assigned: 'Assigned this RFI',
         commented: 'Added a comment',

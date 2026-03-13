@@ -336,8 +336,8 @@ export default function DailyRFISheet() {
                     return (
                         <td key={col.field_key} style={style}>
                             <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                <button className="btn btn-sm btn-action btn-resubmit" onClick={() => handleResubmit(rfi.id)} title={rfi.status === RFI_STATUS.INFO_REQUESTED ? "Submit Info & Re-queue" : "Re-submit for inspection"} style={{ flex: 1 }}>
-                                    <RefreshCw size={14} /> {rfi.status === RFI_STATUS.INFO_REQUESTED ? 'Submit Info' : 'Re-submit'}
+                                <button className="btn btn-sm btn-action btn-resubmit" onClick={() => handleResubmit(rfi.id)} title="Re-submit for inspection" style={{ flex: 1 }}>
+                                    <RefreshCw size={14} /> Re-submit
                                 </button>
                                 {rfi.status === RFI_STATUS.REJECTED && (
                                     <button className="btn btn-sm btn-action" onClick={() => handleCreateRevision(rfi)} title="Create new revision from this rejected RFI" style={{ flex: 1, backgroundColor: 'var(--clr-brand-primary)', color: 'white', borderColor: 'var(--clr-brand-primary)' }}>
@@ -529,7 +529,7 @@ export default function DailyRFISheet() {
                     </div>
                 </div>
 
-                {/* Carried Over / Info Requested Section */}
+                {/* Carried Over Section */}
                 {myCarriedOver.length > 0 && (
                     <div className="sheet-section carryover-section">
                         <div className="section-banner carryover-banner">

@@ -341,8 +341,6 @@ export function RFIProvider({ children }) {
                         toast.success('Inspection Approved ✅');
                     } else if (status === 'rejected') {
                         toast.error('Inspection Rejected ❌');
-                    } else if (status === 'info_requested') {
-                        toast('Info Requested ⚠️', { icon: '📝' });
                     } else {
                         toast('RFI updated', { icon: '🔄' });
                     }
@@ -850,34 +848,6 @@ export function RFIProvider({ children }) {
         }
     }
 
-    /** Request Info on an RFI (Kicks back to contractor without formal rejection) */
-    async function requestInfo(rfiId, reviewedBy, remarks) {
-        const targetRfi = rfis.find(r => r.id === rfiId);
-        if (!targetRfi) return;
-
-        try {
-            const { error } = await supabase.from('rfis').update({
-                status: RFI_STATUS.INFO_REQUESTED,
-                reviewed_by: reviewedBy,
-                reviewed_at: new Date().toISOString(),
-                remarks: remarks,
-            }).eq('id', rfiId);
-            if (error) throw error;
-
-            // Notify Contractor
-            await createNotification(
-                targetRfi.filedBy,
-                "Info Requested ⚠️",
-                `Consultant requested info on RFI #${targetRfi.serialNo}: ${remarks}`,
-                rfiId
-            );
-            await logAuditEvent(rfiId, 'info_requested', { remarks });
-            await fetchAllRFIs();
-        } catch (error) {
-            console.error("Error requesting info on RFI:", error);
-        }
-    }
-
     /** Re-submit a rejected/carried-over RFI (reset to pending for current day) */
     async function resubmitRFI(rfiId, newDate) {
         const targetRfi = rfis.find(r => r.id === rfiId);
@@ -1022,46 +992,6 @@ export function RFIProvider({ children }) {
         }
     }
 
-    async function addAttachmentsToRFI(rfiId, attachmentUrls = [], note = '') {
-        const targetRfi = rfis.find(r => r.id === rfiId);
-        if (!targetRfi) return;
-
-        const cleanUrls = (attachmentUrls || []).filter(Boolean);
-        const cleanNote = note?.trim() || '';
-        if (cleanUrls.length === 0 && !cleanNote) return;
-
-        try {
-            const mergedImages = [...(targetRfi.images || [])];
-            cleanUrls.forEach((url) => {
-                if (!mergedImages.includes(url)) mergedImages.push(url);
-            });
-
-            const updates = { images: mergedImages };
-            if (cleanNote) {
-                updates.remarks = cleanNote;
-            }
-
-            const { error } = await supabase
-                .from('rfis')
-                .update(updates)
-                .eq('id', rfiId);
-            if (error) throw error;
-
-            if (cleanNote) {
-                await addComment(rfiId, `Consultant note: ${cleanNote}`);
-            }
-
-            await logAuditEvent(rfiId, 'attachments_added', {
-                count: cleanUrls.length,
-                note: cleanNote || null,
-            });
-
-            await fetchAllRFIs();
-        } catch (error) {
-            console.error('Error adding attachments to RFI:', error);
-            throw error;
-        }
-    }
 
     /** Delete an RFI */
     async function deleteRFI(rfiId) {
@@ -1273,7 +1203,6 @@ export function RFIProvider({ children }) {
                 bulkApproveRFI,
                 bulkAssignRFI,
                 rejectRFI,
-                requestInfo,
                 resubmitRFI,
                 deleteRFI,
                 updateRFI,
@@ -1283,7 +1212,6 @@ export function RFIProvider({ children }) {
                 fetchComments,
                 addComment,
                 updateComment,
-                addAttachmentsToRFI,
                 markNotificationRead,
                 markAllNotificationsRead,
                 createNotification
