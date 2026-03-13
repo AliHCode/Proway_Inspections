@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRFI } from '../context/RFIContext';
@@ -10,7 +10,7 @@ import StatusBadge from '../components/StatusBadge';
 import RFIDetailModal from '../components/RFIDetailModal';
 import EditRFIModal from '../components/EditRFIModal';
 import ImageMarkupModal from '../components/ImageMarkupModal';
-import { Plus, Trash2, Send, AlertTriangle, RefreshCw, X, MessageSquare, Pencil, FileDown, Table, ClipboardList, Brush } from 'lucide-react';
+import { Plus, Trash2, Send, RefreshCw, X, MessageSquare, Pencil, FileDown, Table, ClipboardList, Brush } from 'lucide-react';
 import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
 import { useProject } from '../context/ProjectContext';
 
@@ -30,12 +30,10 @@ export default function DailyRFISheet() {
     const [markupTarget, setMarkupTarget] = useState(null);
     const [focusedRfiId, setFocusedRfiId] = useState(null);
     const [showNewRfiEntry, setShowNewRfiEntry] = useState(false);
-    const pendingSectionRef = useRef(null);
 
-    const { carriedOver, newRfis } = getRFIsForDate(currentDate);
+    const { newRfis } = getRFIsForDate(currentDate);
 
     // Filter to only show this contractor's RFIs
-    const myCarriedOver = carriedOver.filter((r) => r.filedBy === user.id);
     const myNewRfis = newRfis.filter((r) => r.filedBy === user.id);
 
     const reportRfis = rfis ? rfis.filter(r =>
@@ -44,9 +42,9 @@ export default function DailyRFISheet() {
         ((r.reviewedAt && r.reviewedAt.startsWith(currentDate)) || r.filedDate === currentDate)
     ) : [];
 
-    const pendingTillDate = rfis
+    const previousPendingRfis = rfis
         ? rfis
-            .filter((r) => r.filedBy === user.id && r.status === RFI_STATUS.PENDING && r.filedDate <= currentDate)
+            .filter((r) => r.filedBy === user.id && r.status === RFI_STATUS.PENDING && r.filedDate < currentDate)
             .sort((a, b) => b.filedDate.localeCompare(a.filedDate) || b.serialNo - a.serialNo)
         : [];
 
@@ -303,10 +301,6 @@ export default function DailyRFISheet() {
         });
     }
 
-    function jumpToPendingSection() {
-        pendingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
     // ─── Ordered column rendering helpers ───
     const NEW_ENTRY_SKIP_COLS = ['status', 'remarks'];
     const newEntryColumns = orderedTableColumns.filter(col => !NEW_ENTRY_SKIP_COLS.includes(col.field_key));
@@ -538,24 +532,16 @@ export default function DailyRFISheet() {
                                 </button>
                             </div>
                         )}
-                        <button
-                            className="btn btn-sm"
-                            style={{ backgroundColor: 'transparent', color: 'var(--clr-warning)', border: '1px solid var(--clr-warning)', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                            onClick={jumpToPendingSection}
-                            title="View all pending RFIs up to selected date"
-                        >
-                            <AlertTriangle size={16} /> Pending RFIs ({pendingTillDate.length})
-                        </button>
                         <DateNavigator currentDate={currentDate} onDateChange={setCurrentDate} />
                     </div>
                 </div>
 
-                {/* Pending Till Date Section */}
-                <div className="sheet-section filed-section" ref={pendingSectionRef}>
-                    <h2 className="section-title">⏳ Pending RFIs Till {currentDate}</h2>
-                    {pendingTillDate.length === 0 ? (
+                {/* Filed RFIs - previous pending first, then today's filed */}
+                <div className="sheet-section filed-section">
+                    <h2 className="section-title">📝 Filed RFIs</h2>
+                    {(previousPendingRfis.length === 0 && myNewRfis.length === 0) ? (
                         <div className="empty-state" style={{ padding: '1rem 1.25rem' }}>
-                            <p style={{ margin: 0 }}>No pending RFIs till selected date.</p>
+                            <p style={{ margin: 0 }}>No filed RFIs to show for this date.</p>
                         </div>
                     ) : (
                         <div className="rfi-table-wrapper">
@@ -568,66 +554,22 @@ export default function DailyRFISheet() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {pendingTillDate.map((rfi, idx) => (
-                                        <tr key={rfi.id} data-rfi-id={rfi.id}>
-                                            {orderedTableColumns.map(col => renderDisplayCell(rfi, col, idx, false))}
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
-
-                {/* Carried Over Section */}
-                {myCarriedOver.length > 0 && (
-                    <div className="sheet-section carryover-section">
-                        <div className="section-banner carryover-banner">
-                            <AlertTriangle size={18} />
-                            <span>
-                                <strong>{myCarriedOver.length} Actionable RFI{myCarriedOver.length > 1 ? 's' : ''}</strong>
-                                {' '}carried over — provide requested info or fix rejections and re-submit.
-                            </span>
-                        </div>
-                        <div className="rfi-table-wrapper">
-                            <table className="rfi-table editable">
-                                <thead>
-                                    <tr>
-                                        {orderedTableColumns.map(col => (
-                                            <th key={col.field_key} style={getTableColumnStyle(col.field_key)}>{col.field_name}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {myCarriedOver.map((rfi, idx) => (
+                                    {previousPendingRfis.map((rfi, idx) => (
                                         <tr
                                             key={rfi.id}
                                             data-rfi-id={rfi.id}
-                                            className={`carryover-row ${focusedRfiId === rfi.id ? 'notification-focus-row' : ''}`.trim()}
+                                            className={focusedRfiId === rfi.id ? 'notification-focus-row' : ''}
                                         >
-                                            {orderedTableColumns.map(col => renderDisplayCell(rfi, col, idx, true))}
+                                            {orderedTableColumns.map(col => renderDisplayCell(rfi, col, idx, false))}
                                         </tr>
                                     ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
 
-                {/* Already Filed RFIs for Today */}
-                {myNewRfis.length > 0 && (
-                    <div className="sheet-section filed-section">
-                        <h2 className="section-title">📝 Filed RFIs for {currentDate}</h2>
-                        <div className="rfi-table-wrapper">
-                            <table className="rfi-table editable">
-                                <thead>
-                                    <tr>
-                                        {orderedTableColumns.map(col => (
-                                            <th key={col.field_key} style={getTableColumnStyle(col.field_key)}>{col.field_name}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
+                                    {previousPendingRfis.length > 0 && myNewRfis.length > 0 && (
+                                        <tr className="rfi-table-divider-row">
+                                            <td colSpan={orderedTableColumns.length}>Today's Filed RFIs</td>
+                                        </tr>
+                                    )}
+
                                     {myNewRfis.map((rfi, idx) => (
                                         <tr
                                             key={rfi.id}
@@ -640,28 +582,30 @@ export default function DailyRFISheet() {
                                 </tbody>
                             </table>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
 
                 {/* New RFI Entry (Spreadsheet-like) */}
                 <div className="sheet-section new-entry-section">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                        <h2 className="section-title" style={{ marginBottom: 0 }}>
-                            <Plus size={18} /> Create New RFIs
-                        </h2>
+                    <div className="new-entry-launcher">
+                        <div className="new-entry-launcher-copy">
+                            <span className="new-entry-kicker">RFI Workspace</span>
+                            <h2 className="new-entry-title">Create New RFIs</h2>
+                            <p className="new-entry-subtitle">Open the entry grid only when you are ready to file fresh requests.</p>
+                        </div>
                         <button
                             className="btn btn-primary"
                             onClick={() => setShowNewRfiEntry((prev) => !prev)}
                             type="button"
                         >
-                            <Plus size={16} /> {showNewRfiEntry ? 'Hide Entry Table' : 'Add New RFIs'}
+                            <Plus size={16} /> {showNewRfiEntry ? 'Close Entry Grid' : 'Open Entry Grid'}
                         </button>
                     </div>
 
                     {!showNewRfiEntry && (
-                        <p className="subtitle" style={{ marginTop: '0.75rem' }}>
-                            Start a new inspection request when needed. The entry table stays hidden to keep this page focused on analysis.
-                        </p>
+                        <div className="new-entry-placeholder">
+                            Entry grid is hidden to keep this page clean. Click <strong>Open Entry Grid</strong> to start filing.
+                        </div>
                     )}
 
                     {showNewRfiEntry && (
