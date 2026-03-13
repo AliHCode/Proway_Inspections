@@ -10,21 +10,19 @@ import StatusBadge from '../components/StatusBadge';
 import ApproveModal from '../components/ApproveModal';
 import RejectModal from '../components/RejectModal';
 import RFIDetailModal from '../components/RFIDetailModal';
-import EditRFIModal from '../components/EditRFIModal';
 import UserAvatar from '../components/UserAvatar';
 import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
-import { CheckCircle, XCircle, MessageSquare, Pencil, X, FileDown, Table, ClipboardList } from 'lucide-react';
+import { CheckCircle, XCircle, MessageSquare, X, FileDown, Table, ClipboardList } from 'lucide-react';
 
 export default function ReviewQueue() {
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
     const { approveRFI, rejectRFI, updateRFI, getReviewQueue, rfis, uploadImages, contractors } = useRFI();
-    const { activeProject, projectFields, orderedTableColumns, columnWidthMap, getTableColumnStyle } = useProject();
+    const { activeProject, orderedTableColumns, columnWidthMap, getTableColumnStyle } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
     const [currentDate, setCurrentDate] = useState(getToday());
     const [approveTarget, setApproveTarget] = useState(null);
     const [rejectTarget, setRejectTarget] = useState(null);
-    const [editTarget, setEditTarget] = useState(null);
     const [detailTarget, setDetailTarget] = useState(null);
     const [filter, setFilter] = useState('to_review'); // to_review, approved, rejected
     const [actionMessage, setActionMessage] = useState('');
@@ -32,6 +30,9 @@ export default function ReviewQueue() {
     const [scrollTrigger, setScrollTrigger] = useState(0);
     const [selectedRfiIds, setSelectedRfiIds] = useState([]);
     const [focusedRfiId, setFocusedRfiId] = useState(null);
+    const [remarksDrafts, setRemarksDrafts] = useState({});
+    const [savingRemarksById, setSavingRemarksById] = useState({});
+    const [uploadingAttachmentsById, setUploadingAttachmentsById] = useState({});
 
     const queue = getReviewQueue(currentDate);
 
@@ -62,19 +63,38 @@ export default function ReviewQueue() {
         setTimeout(() => setActionMessage(''), 3000);
     }
 
-    async function handleSaveEdit(payload) {
-        if (!editTarget) return;
-        const uploaded = payload.newFiles.length > 0 ? await uploadImages(payload.newFiles) : [];
-        await updateRFI(editTarget.id, {
-            description: payload.description,
-            location: payload.location,
-            inspectionType: payload.inspectionType,
-            remarks: payload.remarks,
-            images: [...payload.existingImages, ...uploaded],
-            customFields: payload.customFields || {},
-        });
-        setActionMessage('✏️ Inspection updated');
-        setTimeout(() => setActionMessage(''), 2500);
+    function getDraftRemark(rfi) {
+        return remarksDrafts[rfi.id] ?? (rfi.remarks || '');
+    }
+
+    async function handleSaveRemark(rfi) {
+        const nextRemarks = (remarksDrafts[rfi.id] ?? rfi.remarks ?? '').trim();
+        if (nextRemarks === (rfi.remarks || '')) return;
+
+        setSavingRemarksById((prev) => ({ ...prev, [rfi.id]: true }));
+        try {
+            await updateRFI(rfi.id, { remarks: nextRemarks });
+            setActionMessage('📝 Remarks updated');
+            setTimeout(() => setActionMessage(''), 2000);
+        } finally {
+            setSavingRemarksById((prev) => ({ ...prev, [rfi.id]: false }));
+        }
+    }
+
+    async function handleAddAttachments(rfi, files) {
+        if (!files || files.length === 0) return;
+
+        setUploadingAttachmentsById((prev) => ({ ...prev, [rfi.id]: true }));
+        try {
+            const uploaded = await uploadImages(files);
+            await updateRFI(rfi.id, {
+                images: [...(rfi.images || []), ...uploaded],
+            });
+            setActionMessage('📎 Attachments added');
+            setTimeout(() => setActionMessage(''), 2000);
+        } finally {
+            setUploadingAttachmentsById((prev) => ({ ...prev, [rfi.id]: false }));
+        }
     }
 
     const { bulkApproveRFI } = useRFI();
@@ -156,14 +176,14 @@ export default function ReviewQueue() {
 
     // Background Scroll Locking
     useEffect(() => {
-        const isModalOpen = !!(detailTarget || approveTarget || rejectTarget || editTarget || selectedImages);
+        const isModalOpen = !!(detailTarget || approveTarget || rejectTarget || selectedImages);
         if (isModalOpen) {
             document.body.classList.add('no-scroll');
         } else {
             document.body.classList.remove('no-scroll');
         }
         return () => document.body.classList.remove('no-scroll');
-    }, [detailTarget, approveTarget, rejectTarget, editTarget, selectedImages]);
+    }, [detailTarget, approveTarget, rejectTarget, selectedImages]);
 
     function scrollToPageBottom() {
         const scrollNow = () => {
@@ -226,28 +246,7 @@ export default function ReviewQueue() {
                     </button>
                     <button
                         onClick={() => {
-                            setEditTarget(rfi);
-                            setApproveTarget(null);
-                            setRejectTarget(null);
-                            setDetailTarget(null);
-                        }}
-                        title="Edit"
-                        style={{
-                            background: 'transparent', border: '1.5px solid #d1d5db',
-                            borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: '3px',
-                            color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
-                            fontFamily: 'inherit', transition: 'all 0.15s',
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = '#9ca3af'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = '#f9fafb'; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.background = 'transparent'; }}
-                    >
-                        <Pencil size={15} />
-                    </button>
-                    <button
-                        onClick={() => {
                             setDetailTarget(rfi);
-                            setEditTarget(null);
                             setRejectTarget(null);
                             setScrollTrigger(prev => prev + 1);
                             setTimeout(() => scrollToPageBottom(), 80);
@@ -320,26 +319,73 @@ export default function ReviewQueue() {
         if (col.field_key === 'location') return rfi.location;
         if (col.field_key === 'inspection_type') return rfi.inspectionType;
         if (col.field_key === 'status') return <StatusBadge status={rfi.status} />;
-        if (col.field_key === 'remarks') return isCarryover && rfi.remarks ? <span className="remarks-text">{rfi.remarks}</span> : '—';
+        if (col.field_key === 'remarks') {
+            const draftValue = getDraftRemark(rfi);
+            const isSaving = !!savingRemarksById[rfi.id];
+            const hasChanged = draftValue !== (rfi.remarks || '');
+
+            return (
+                <div style={{ display: 'grid', gap: '0.35rem' }}>
+                    <textarea
+                        value={draftValue}
+                        onChange={(e) => setRemarksDrafts((prev) => ({ ...prev, [rfi.id]: e.target.value }))}
+                        rows={2}
+                        placeholder="Add consultant remarks"
+                        style={{ width: '100%', minWidth: '180px' }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                            type="button"
+                            className="btn btn-sm btn-ghost"
+                            disabled={!hasChanged || isSaving}
+                            onClick={() => handleSaveRemark(rfi)}
+                        >
+                            {isSaving ? 'Saving...' : 'Save'}
+                        </button>
+                    </div>
+                </div>
+            );
+        }
 
         if (col.field_key === 'attachments') {
-            return rfi.images && rfi.images.length > 0 ? (
-                <div
-                    className="image-preview-grid consultant-grid"
-                    onClick={() => setSelectedImages(rfi.images)}
-                    title="Click to view full size"
-                >
-                    {rfi.images.slice(0, 3).map((url, idx) => (
-                        <img key={idx} src={url} alt="attachment" className="thumbnail" />
-                    ))}
-                    {rfi.images.length > 3 && (
-                        <div className="thumbnail-more">
-                            +{rfi.images.length - 3}
+            const isUploading = !!uploadingAttachmentsById[rfi.id];
+            return (
+                <div style={{ display: 'grid', gap: '0.45rem' }}>
+                    {rfi.images && rfi.images.length > 0 ? (
+                        <div
+                            className="image-preview-grid consultant-grid"
+                            onClick={() => setSelectedImages(rfi.images)}
+                            title="Click to view full size"
+                        >
+                            {rfi.images.slice(0, 3).map((url, idx) => (
+                                <img key={idx} src={url} alt="attachment" className="thumbnail" />
+                            ))}
+                            {rfi.images.length > 3 && (
+                                <div className="thumbnail-more">
+                                    +{rfi.images.length - 3}
+                                </div>
+                            )}
                         </div>
+                    ) : (
+                        <span className="text-muted">No files yet</span>
                     )}
+
+                    <label className="btn btn-sm btn-ghost" style={{ width: 'fit-content', cursor: isUploading ? 'not-allowed' : 'pointer', opacity: isUploading ? 0.65 : 1 }}>
+                        {isUploading ? 'Uploading...' : 'Add Attachment'}
+                        <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            disabled={isUploading}
+                            onChange={(e) => {
+                                const files = Array.from(e.target.files || []);
+                                handleAddAttachments(rfi, files);
+                                e.target.value = '';
+                            }}
+                        />
+                    </label>
                 </div>
-            ) : (
-                <span className="text-muted">—</span>
             );
         }
 
@@ -519,17 +565,6 @@ export default function ReviewQueue() {
                         onReject={handleReject}
                         contractors={contractors}
                         onClose={() => setRejectTarget(null)}
-                    />
-                )}
-
-                {editTarget && (
-                    <EditRFIModal
-                        key={editTarget.id}
-                        rfi={editTarget}
-                        projectFields={projectFields}
-                        orderedColumns={orderedTableColumns}
-                        onSave={handleSaveEdit}
-                        onClose={() => setEditTarget(null)}
                     />
                 )}
 
