@@ -7,6 +7,7 @@ import { getToday, formatDateDisplay } from '../utils/rfiLogic';
 import Header from '../components/Header';
 import DateNavigator from '../components/DateNavigator';
 import StatusBadge from '../components/StatusBadge';
+import ApproveModal from '../components/ApproveModal';
 import RejectModal from '../components/RejectModal';
 import RFIDetailModal from '../components/RFIDetailModal';
 import UserAvatar from '../components/UserAvatar';
@@ -20,6 +21,7 @@ export default function ReviewQueue() {
     const { activeProject, projectFields, orderedTableColumns, columnWidthMap, getTableColumnStyle } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
     const [currentDate, setCurrentDate] = useState(getToday());
+    const [approveTarget, setApproveTarget] = useState(null);
     const [rejectTarget, setRejectTarget] = useState(null);
     const [detailTarget, setDetailTarget] = useState(null);
     const [filter, setFilter] = useState('to_review'); // to_review, approved, rejected
@@ -44,17 +46,9 @@ export default function ReviewQueue() {
     if (filter === 'rejected') filteredItems = todayRejected;
     if (filter === 'my_assigned') filteredItems = queue.all.filter(r => r.assignedTo === user.id);
 
-    async function handleApprove(rfiId) {
-        const target = rfis.find((r) => r.id === rfiId);
-        if (!target) return;
-
-        const confirmed = window.confirm(`Approve RFI #${target.serialNo}?`);
-        if (!confirmed) return;
-
-        const remarksInput = window.prompt('Optional approval remarks (leave blank to skip):', target.remarks || '');
-        if (remarksInput === null) return;
-
-        await approveRFI(rfiId, user.id, remarksInput.trim());
+    async function handleApprove(rfiId, remarks = '', files = []) {
+        const uploaded = files.length > 0 ? await uploadImages(files) : [];
+        await approveRFI(rfiId, user.id, remarks, uploaded);
         setActionMessage('✅ Inspection Approved Successfully');
         setTimeout(() => setActionMessage(''), 2000);
     }
@@ -145,14 +139,14 @@ export default function ReviewQueue() {
 
     // Background Scroll Locking
     useEffect(() => {
-        const isModalOpen = !!(detailTarget || rejectTarget || selectedImages);
+        const isModalOpen = !!(detailTarget || approveTarget || rejectTarget || selectedImages);
         if (isModalOpen) {
             document.body.classList.add('no-scroll');
         } else {
             document.body.classList.remove('no-scroll');
         }
         return () => document.body.classList.remove('no-scroll');
-    }, [detailTarget, rejectTarget, selectedImages]);
+    }, [detailTarget, approveTarget, rejectTarget, selectedImages]);
 
     function scrollToPageBottom() {
         const scrollNow = () => {
@@ -177,7 +171,11 @@ export default function ReviewQueue() {
             return (
                 <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
                     <button
-                        onClick={() => handleApprove(rfi.id)}
+                        onClick={() => {
+                            setApproveTarget(rfi);
+                            setRejectTarget(null);
+                            setDetailTarget(null);
+                        }}
                         title={filter === 'approved' ? 'Update Approval' : 'Approve'}
                         style={{
                             background: 'transparent', border: '1.5px solid #d1d5db',
@@ -466,6 +464,16 @@ export default function ReviewQueue() {
                 )}
 
                 {/* Inline Rejection Widget */}
+                {approveTarget && (
+                    <ApproveModal
+                        key={approveTarget.id}
+                        rfi={approveTarget}
+                        contractors={contractors}
+                        onApprove={handleApprove}
+                        onClose={() => setApproveTarget(null)}
+                    />
+                )}
+
                 {rejectTarget && (
                     <RejectModal
                         key={rejectTarget.id}

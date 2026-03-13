@@ -709,6 +709,24 @@ export function RFIProvider({ children }) {
                     : `Your RFI #${targetRfi.serialNo} for ${targetRfi.location} was approved.`,
                 rfiId
             );
+
+            const mentionMatches = (remarks || '').match(/@([a-z0-9._-]+)/gi) || [];
+            const mentionKeys = new Set(mentionMatches.map((m) => m.slice(1).toLowerCase()));
+            const taggedContractors = contractors.filter((c) =>
+                mentionKeys.has(c.name.toLowerCase().replace(/\s+/g, ''))
+            );
+
+            for (const tagged of taggedContractors) {
+                if (tagged.id !== targetRfi.filedBy) {
+                    await createNotification(
+                        tagged.id,
+                        'Tagged in Approval Remarks',
+                        `You were tagged on approved RFI #${targetRfi.serialNo}: ${remarks.trim()}`,
+                        rfiId
+                    );
+                }
+            }
+
             await logAuditEvent(rfiId, 'approved', {
                 remarks: remarks?.trim() || null,
                 attachmentsAdded: (consultantAttachments || []).length,
