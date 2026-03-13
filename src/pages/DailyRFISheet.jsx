@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRFI } from '../context/RFIContext';
@@ -29,6 +29,8 @@ export default function DailyRFISheet() {
     const [selectedImages, setSelectedImages] = useState(null);
     const [markupTarget, setMarkupTarget] = useState(null);
     const [focusedRfiId, setFocusedRfiId] = useState(null);
+    const [showNewRfiEntry, setShowNewRfiEntry] = useState(false);
+    const pendingSectionRef = useRef(null);
 
     const { carriedOver, newRfis } = getRFIsForDate(currentDate);
 
@@ -41,6 +43,12 @@ export default function DailyRFISheet() {
         (r.status === 'approved' || r.status === 'rejected') &&
         ((r.reviewedAt && r.reviewedAt.startsWith(currentDate)) || r.filedDate === currentDate)
     ) : [];
+
+    const pendingTillDate = rfis
+        ? rfis
+            .filter((r) => r.filedBy === user.id && r.status === RFI_STATUS.PENDING && r.filedDate <= currentDate)
+            .sort((a, b) => b.filedDate.localeCompare(a.filedDate) || b.serialNo - a.serialNo)
+        : [];
 
     const markupImage = markupTarget
         ? newRows.find((r) => r.tempId === markupTarget.tempId)?.images?.[markupTarget.imageIndex] || null
@@ -295,6 +303,10 @@ export default function DailyRFISheet() {
         });
     }
 
+    function jumpToPendingSection() {
+        pendingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
     // ─── Ordered column rendering helpers ───
     const NEW_ENTRY_SKIP_COLS = ['status', 'remarks'];
     const newEntryColumns = orderedTableColumns.filter(col => !NEW_ENTRY_SKIP_COLS.includes(col.field_key));
@@ -526,8 +538,45 @@ export default function DailyRFISheet() {
                                 </button>
                             </div>
                         )}
+                        <button
+                            className="btn btn-sm"
+                            style={{ backgroundColor: 'transparent', color: 'var(--clr-warning)', border: '1px solid var(--clr-warning)', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                            onClick={jumpToPendingSection}
+                            title="View all pending RFIs up to selected date"
+                        >
+                            <AlertTriangle size={16} /> Pending RFIs ({pendingTillDate.length})
+                        </button>
                         <DateNavigator currentDate={currentDate} onDateChange={setCurrentDate} />
                     </div>
+                </div>
+
+                {/* Pending Till Date Section */}
+                <div className="sheet-section filed-section" ref={pendingSectionRef}>
+                    <h2 className="section-title">⏳ Pending RFIs Till {currentDate}</h2>
+                    {pendingTillDate.length === 0 ? (
+                        <div className="empty-state" style={{ padding: '1rem 1.25rem' }}>
+                            <p style={{ margin: 0 }}>No pending RFIs till selected date.</p>
+                        </div>
+                    ) : (
+                        <div className="rfi-table-wrapper">
+                            <table className="rfi-table editable">
+                                <thead>
+                                    <tr>
+                                        {orderedTableColumns.map(col => (
+                                            <th key={col.field_key} style={getTableColumnStyle(col.field_key)}>{col.field_name}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pendingTillDate.map((rfi, idx) => (
+                                        <tr key={rfi.id} data-rfi-id={rfi.id}>
+                                            {orderedTableColumns.map(col => renderDisplayCell(rfi, col, idx, false))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
 
                 {/* Carried Over Section */}
@@ -596,59 +645,79 @@ export default function DailyRFISheet() {
 
                 {/* New RFI Entry (Spreadsheet-like) */}
                 <div className="sheet-section new-entry-section">
-                    <h2 className="section-title">
-                        <Plus size={18} /> Add New RFIs
-                    </h2>
-                    <div className="rfi-table-wrapper">
-                        <table className="rfi-table editable">
-                            <thead>
-                                <tr>
-                                    {newEntryColumns.map(col => {
-                                        const style = getTableColumnStyle(col.field_key);
-                                        let label = col.field_name;
-                                        if (col.field_key === 'description' || col.field_key === 'location') label += ' *';
-                                        if (!col.is_builtin && col.is_required) label += ' *';
-                                        return <th key={col.field_key} style={style}>{label}</th>;
-                                    })}
-                                    <th className="col-assign">Assign To</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {newRows.map((row, idx) => (
-                                    <tr key={row.tempId}>
-                                        {newEntryColumns.map(col => renderNewEntryCell(row, col, idx))}
-                                        <td className="col-assign">
-                                            <select
-                                                className="cell-select"
-                                                value={row.assignedTo}
-                                                onChange={(e) => updateRow(row.tempId, 'assignedTo', e.target.value)}
-                                            >
-                                                <option value="">— Auto —</option>
-                                                {consultants.map((c) => (
-                                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                                ))}
-                                            </select>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div className="sheet-actions">
-                        <button className="btn btn-ghost" onClick={addRow} disabled={isSubmitting}>
-                            <Plus size={16} /> Add Row
-                        </button>
-                        <button className="btn btn-primary" onClick={handleSubmit} disabled={isSubmitting}>
-                            {isSubmitting ? <RefreshCw size={16} className="spin" /> : <Send size={16} />}
-                            {isSubmitting ? 'Submitting...' : 'Submit RFIs'}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <h2 className="section-title" style={{ marginBottom: 0 }}>
+                            <Plus size={18} /> Create New RFIs
+                        </h2>
+                        <button
+                            className="btn btn-primary"
+                            onClick={() => setShowNewRfiEntry((prev) => !prev)}
+                            type="button"
+                        >
+                            <Plus size={16} /> {showNewRfiEntry ? 'Hide Entry Table' : 'Add New RFIs'}
                         </button>
                     </div>
 
-                    {submitMessage && (
-                        <div className={`submit-message ${submitMessage.includes('✅') ? 'success' : 'error'}`}>
-                            {submitMessage}
-                        </div>
+                    {!showNewRfiEntry && (
+                        <p className="subtitle" style={{ marginTop: '0.75rem' }}>
+                            Start a new inspection request when needed. The entry table stays hidden to keep this page focused on analysis.
+                        </p>
+                    )}
+
+                    {showNewRfiEntry && (
+                        <>
+                            <div className="rfi-table-wrapper" style={{ marginTop: '1rem' }}>
+                                <table className="rfi-table editable">
+                                    <thead>
+                                        <tr>
+                                            {newEntryColumns.map(col => {
+                                                const style = getTableColumnStyle(col.field_key);
+                                                let label = col.field_name;
+                                                if (col.field_key === 'description' || col.field_key === 'location') label += ' *';
+                                                if (!col.is_builtin && col.is_required) label += ' *';
+                                                return <th key={col.field_key} style={style}>{label}</th>;
+                                            })}
+                                            <th className="col-assign">Assign To</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {newRows.map((row, idx) => (
+                                            <tr key={row.tempId}>
+                                                {newEntryColumns.map(col => renderNewEntryCell(row, col, idx))}
+                                                <td className="col-assign">
+                                                    <select
+                                                        className="cell-select"
+                                                        value={row.assignedTo}
+                                                        onChange={(e) => updateRow(row.tempId, 'assignedTo', e.target.value)}
+                                                    >
+                                                        <option value="">— Auto —</option>
+                                                        {consultants.map((c) => (
+                                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="sheet-actions">
+                                <button className="btn btn-ghost" onClick={addRow} disabled={isSubmitting}>
+                                    <Plus size={16} /> Add Row
+                                </button>
+                                <button className="btn btn-primary" onClick={handleSubmit} disabled={isSubmitting}>
+                                    {isSubmitting ? <RefreshCw size={16} className="spin" /> : <Send size={16} />}
+                                    {isSubmitting ? 'Submitting...' : 'Submit RFIs'}
+                                </button>
+                            </div>
+
+                            {submitMessage && (
+                                <div className={`submit-message ${submitMessage.includes('✅') ? 'success' : 'error'}`}>
+                                    {submitMessage}
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
 
