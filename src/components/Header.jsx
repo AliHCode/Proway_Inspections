@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { useProject } from '../context/ProjectContext';
 import { LogOut, Menu, X, Building, Shield, User, Briefcase, UserCircle, LayoutDashboard, FileText, ClipboardList, Bell, Smartphone } from 'lucide-react';
 import { BarChart2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import NotificationCenter from './NotificationCenter';
 import { syncPushSubscriptionForUser } from '../utils/pushNotifications';
@@ -40,49 +40,50 @@ export default function Header() {
         return 'Enable Notifications';
     };
 
-    useEffect(() => {
-        let cancelled = false;
-
-        async function refreshPushBadge() {
-            if (typeof window === 'undefined') return;
-            if (typeof Notification === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-                if (!cancelled) setPushBadge({ state: 'unsupported', label: 'Push: Unsupported' });
-                return;
-            }
-
-            const permission = Notification.permission;
-            if (permission === 'denied') {
-                if (!cancelled) setPushBadge({ state: 'blocked', label: 'Push: Blocked' });
-                return;
-            }
-            if (permission !== 'granted') {
-                if (!cancelled) setPushBadge({ state: 'off', label: 'Push: Off' });
-                return;
-            }
-
-            try {
-                const registration = await navigator.serviceWorker.ready;
-                const subscription = await registration.pushManager.getSubscription();
-                if (!cancelled) {
-                    setPushBadge(
-                        subscription
-                            ? { state: 'subscribed', label: 'Push: Subscribed' }
-                            : { state: 'granted-no-sub', label: 'Push: Granted (Not Subscribed)' }
-                    );
-                }
-            } catch {
-                if (!cancelled) setPushBadge({ state: 'error', label: 'Push: Unknown' });
-            }
+    const refreshPushBadge = useCallback(async () => {
+        if (typeof window === 'undefined') return;
+        if (typeof Notification === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+            setPushBadge({ state: 'unsupported', label: 'Push: Unsupported' });
+            return;
         }
 
-        refreshPushBadge();
-        window.addEventListener('focus', refreshPushBadge);
+        const permission = Notification.permission;
+        if (permission === 'denied') {
+            setPushBadge({ state: 'blocked', label: 'Push: Blocked' });
+            return;
+        }
+        if (permission !== 'granted') {
+            setPushBadge({ state: 'off', label: 'Push: Off' });
+            return;
+        }
+
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            const subscription = await registration.pushManager.getSubscription();
+            setPushBadge(
+                subscription
+                    ? { state: 'subscribed', label: 'Push: Subscribed' }
+                    : { state: 'granted-no-sub', label: 'Push: Granted (Not Subscribed)' }
+            );
+        } catch {
+            setPushBadge({ state: 'error', label: 'Push: Unknown' });
+        }
+    }, []);
+
+    useEffect(() => {
+        const safeRefresh = async () => {
+            await refreshPushBadge();
+        };
+
+        safeRefresh();
+        window.addEventListener('focus', safeRefresh);
+        window.addEventListener('visibilitychange', safeRefresh);
 
         return () => {
-            cancelled = true;
-            window.removeEventListener('focus', refreshPushBadge);
+            window.removeEventListener('focus', safeRefresh);
+            window.removeEventListener('visibilitychange', safeRefresh);
         };
-    }, [user?.id, notifPermission]);
+    }, [user?.id, refreshPushBadge]);
 
     const handleEnableNotifications = async () => {
         if (typeof Notification === 'undefined') {
@@ -102,6 +103,7 @@ export default function Header() {
                     console.error('Error syncing push subscription:', error);
                 });
             }
+            await refreshPushBadge();
             return;
         }
 
@@ -111,7 +113,11 @@ export default function Header() {
             await syncPushSubscriptionForUser(user.id).catch((error) => {
                 console.error('Error syncing push subscription:', error);
             });
+            await refreshPushBadge();
+            return;
         }
+
+        await refreshPushBadge();
     };
 
     return (
