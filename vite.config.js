@@ -31,7 +31,7 @@ export default defineConfig({
                 display_override: ['standalone', 'minimal-ui', 'browser'],
                 icons: [
                     { src: '/favicon.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-                    { src: '/favicon.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+                    { src: '/dashboardlogo.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
                 ]
             }
         })
