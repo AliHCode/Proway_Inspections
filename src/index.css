@@ -253,14 +253,17 @@ h6 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.24rem 0.55rem;
-  border-radius: var(--radius-full);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
   font-size: 0.68rem;
   font-weight: 700;
   white-space: nowrap;
   border: 1px solid var(--clr-border);
   background: var(--clr-bg-hover);
   color: var(--clr-text-secondary);
+  cursor: help;
+  transition: var(--transition-fast);
 }
 
 .push-status-chip.subscribed {

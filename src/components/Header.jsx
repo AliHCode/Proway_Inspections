@@ -180,7 +180,9 @@ export default function Header() {
             )}
 
             <div className="header-user-info">
-                <span className={`push-status-chip ${pushBadge.state}`}>{pushBadge.label}</span>
+                <span className={`push-status-chip ${pushBadge.state}`} title={pushBadge.label}>
+                    <Smartphone size={14} />
+                </span>
                 <NotificationCenter />
             </div>
 
