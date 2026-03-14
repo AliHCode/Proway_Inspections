@@ -482,7 +482,6 @@ export function RFIProvider({ children }) {
         fetchContractors,
         fetchNotifications,
         refreshPendingSyncCount,
-        syncPendingConsultantActions,
         user,
     ]);
 
