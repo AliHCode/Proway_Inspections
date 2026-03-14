@@ -30,6 +30,7 @@ export default function ReviewQueue() {
     const [scrollTrigger, setScrollTrigger] = useState(0);
     const [selectedRfiIds, setSelectedRfiIds] = useState([]);
     const [focusedRfiId, setFocusedRfiId] = useState(null);
+    const [readyTableProjectId, setReadyTableProjectId] = useState(null);
 
     const queue = getReviewQueue(currentDate);
 
@@ -52,6 +53,24 @@ export default function ReviewQueue() {
         && !loadingFields
         && orderedTableColumns.length > 0
     );
+
+    useEffect(() => {
+        const projectId = activeProject?.id || null;
+        if (!projectId) {
+            setReadyTableProjectId(null);
+            return;
+        }
+
+        if (readyTableProjectId && readyTableProjectId !== projectId) {
+            setReadyTableProjectId(null);
+        }
+
+        if (tableLayoutReady && readyTableProjectId !== projectId) {
+            setReadyTableProjectId(projectId);
+        }
+    }, [activeProject?.id, tableLayoutReady, readyTableProjectId]);
+
+    const shouldShowTable = Boolean(activeProject?.id && readyTableProjectId === activeProject.id);
 
 
     async function handleApprove(rfiId, remarks = '', files = []) {
@@ -394,7 +413,7 @@ export default function ReviewQueue() {
                 )}
 
                 {/* Review Table (Excel-like format) */}
-                {!tableLayoutReady ? (
+                {!shouldShowTable ? (
                     <div className="sheet-section">
                         <div style={{ padding: '1.2rem 1.3rem', display: 'flex', alignItems: 'center', gap: '0.65rem', color: 'var(--clr-text-secondary)' }}>
                             <div className="loading-spinner" style={{ width: '16px', height: '16px' }}></div>

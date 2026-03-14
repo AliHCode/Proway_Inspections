@@ -153,7 +153,7 @@ export function ProjectProvider({ children }) {
         // keep them out of projectFields so they don't appear twice.
         const BUILTIN_KEYS = new Set(['description', 'location', 'inspection_type']);
         setLoadingFields(true);
-        setFieldsResolvedProjectId(null);
+        setFieldsResolvedProjectId((prev) => (prev === projectId ? prev : null));
         try {
             const { data, error } = await supabase
                 .from('project_fields')
@@ -207,7 +207,7 @@ export function ProjectProvider({ children }) {
             fetchProjectFields(activeProject.id);
             fetchProjectMembers(activeProject.id);
         }
-    }, [activeProject, fetchProjectFields, fetchProjectMembers]);
+    }, [activeProject?.id, fetchProjectFields, fetchProjectMembers]);
 
     // Build the ordered table columns anytime fields or active project changes
     useEffect(() => {

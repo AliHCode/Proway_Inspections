@@ -9,6 +9,7 @@ import {
 
 export default function RfiStatusPieChart({ data }) {
     // Data format expected: [{ name: 'Approved', value: 10, color: '#059669' }, ...]
+    const pieRenderKey = (data || []).map((d) => `${d.name}:${d.value}`).join('|');
 
     if (!data || data.length === 0 || data.every(d => d.value === 0)) {
         return (
@@ -22,7 +23,7 @@ export default function RfiStatusPieChart({ data }) {
         <div className="chart-container" style={{ width: '100%', height: 320 }}>
             <h3 className="chart-title">Inspection Status</h3>
             <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                <PieChart>
+                <PieChart key={pieRenderKey}>
                     <Pie
                         data={data}
                         cx="50%"
@@ -32,6 +33,7 @@ export default function RfiStatusPieChart({ data }) {
                         paddingAngle={5}
                         dataKey="value"
                         stroke="none"
+                        isAnimationActive={false}
                     >
                         {data.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
