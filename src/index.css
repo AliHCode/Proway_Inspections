@@ -2603,6 +2603,64 @@ h6 {
   align-items: center;
   justify-content: center;
 }
+
+.comment-inline-preview {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--clr-border);
+  flex-shrink: 0;
+}
+
+.comment-inline-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.comment-inline-preview-actions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.2rem;
+  padding-bottom: 2px;
+  background: linear-gradient(to top, rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0));
+}
+
+.comment-inline-preview-actions button {
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.comment-inline-preview-count {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #fff;
+  font-size: 0.56rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
   line-height: 1.4;
 }
 
@@ -2917,52 +2975,6 @@ h6 {
   }
 }
 
-.loading-text {
-  color: var(--clr-text-secondary);
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.loading-hint {
-  color: var(--clr-text-muted);
-  font-size: 0.8rem;
-  text-align: center;
-  max-width: 34ch;
-}
-
-.connectivity-banner {
-  position: sticky;
-  top: 0;
-  z-index: 120;
-  width: 100%;
-  text-align: center;
-  font-size: 0.82rem;
-  font-weight: 600;
-  padding: 0.45rem 0.75rem;
-  border-bottom: 1px solid var(--clr-border);
-}
-
-.connectivity-banner.offline {
-  background: var(--clr-warning-bg);
-  color: var(--clr-warning);
-}
-
-.connectivity-banner.online {
-  background: var(--clr-success-bg);
-  color: var(--clr-success);
-}
-
-.install-app-prompt {
-  position: fixed;
-  right: 1rem;
-  bottom: calc(1rem + env(safe-area-inset-bottom));
-  width: min(94vw, 360px);
-  z-index: 450;
-}
-
-.install-app-content {
-  background: var(--clr-bg-secondary);
-  border: 1px solid var(--clr-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   padding: 0.95rem;

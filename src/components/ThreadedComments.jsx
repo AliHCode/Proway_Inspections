@@ -125,16 +125,6 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
         setPendingImages((prev) => prev.map((img, i) => (i === index ? file : img)));
     };
 
-    const removePendingImage = (index) => {
-        setPendingImages((prev) => prev.filter((_, i) => i !== index));
-        setMarkupIndex((current) => {
-            if (current === null) return null;
-            if (current === index) return null;
-            if (current > index) return current - 1;
-            return current;
-        });
-    };
-
     const parseCommentContent = (rawContent = '') => {
         const images = [];
         const text = rawContent.replace(/\[img\](.*?)\[\/img\]/gi, (_, url) => {
@@ -245,6 +235,22 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
                     className="comment-input"
                     disabled={submitting}
                 />
+                {pendingImages.length > 0 && (
+                    <div className="comment-inline-preview" title={`${pendingImages.length} image${pendingImages.length > 1 ? 's' : ''} attached`}>
+                        <img src={URL.createObjectURL(pendingImages[0])} alt="Pending attachment" />
+                        <div className="comment-inline-preview-actions">
+                            <button type="button" onClick={() => setMarkupIndex(0)} title="Edit image">
+                                <Brush size={11} />
+                            </button>
+                            <button type="button" onClick={() => setPendingImages([])} title="Remove attachment">
+                                <X size={11} />
+                            </button>
+                        </div>
+                        {pendingImages.length > 1 && (
+                            <div className="comment-inline-preview-count">+{pendingImages.length - 1}</div>
+                        )}
+                    </div>
+                )}
                 <input
                     ref={attachInputRef}
                     type="file"
@@ -271,27 +277,6 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
                     {submitting ? <Loader2 className="spinner" size={18} /> : <Send size={18} />}
                 </button>
             </form>
-
-            {pendingImages.length > 0 && (
-                <div className="chat-pending-attachments">
-                    {pendingImages.map((file, idx) => {
-                        const src = URL.createObjectURL(file);
-                        return (
-                            <div key={`pending_${idx}`} className="chat-pending-thumb-wrap">
-                                <img src={src} alt={`Pending attachment ${idx + 1}`} className="chat-pending-thumb" />
-                                <div className="chat-pending-thumb-actions">
-                                    <button type="button" onClick={() => setMarkupIndex(idx)}>
-                                        <Brush size={12} />
-                                    </button>
-                                    <button type="button" onClick={() => removePendingImage(idx)}>
-                                        <X size={12} />
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
 
             {markupIndex !== null && pendingImages[markupIndex] && (
                 <ImageMarkupModal
