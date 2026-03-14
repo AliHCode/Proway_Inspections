@@ -2,8 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRFI } from '../context/RFIContext';
 import UserAvatar from './UserAvatar';
-import ImageMarkupModal from './ImageMarkupModal';
-import { Send, Loader2, Paperclip, Brush, X } from 'lucide-react';
+import { Send, Loader2, Paperclip, Brush, X, Undo2, RotateCcw } from 'lucide-react';
 
 export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger }) {
     const { user } = useAuth();
@@ -19,10 +18,17 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
     const [composerCaption, setComposerCaption] = useState('');
     const [composerPreviewUrls, setComposerPreviewUrls] = useState([]);
     const [activeComposerIndex, setActiveComposerIndex] = useState(0);
-    const [markupIndex, setMarkupIndex] = useState(null);
+    const [brushSize, setBrushSize] = useState(6);
+    const [brushColor, setBrushColor] = useState('#ef4444');
+    const [canvasReady, setCanvasReady] = useState(false);
+    const [canvasDirty, setCanvasDirty] = useState(false);
     const prevCommentsLength = useRef(0);
     const messagesEndRef = useRef(null);
     const attachInputRef = useRef(null);
+    const composerCanvasRef = useRef(null);
+    const drawHistoryRef = useRef([]);
+    const baseSnapshotRef = useRef(null);
+    const drawingRef = useRef(false);
 
     useEffect(() => {
         if (composerImages.length === 0) {
@@ -35,6 +41,62 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
 
         return () => nextUrls.forEach((url) => URL.revokeObjectURL(url));
     }, [composerImages]);
+
+    useEffect(() => {
+        if (!composerOpen || composerImages.length === 0 || !composerCanvasRef.current) return;
+
+        let cancelled = false;
+
+        const renderActiveImage = async () => {
+            try {
+                setCanvasReady(false);
+                const canvas = composerCanvasRef.current;
+                const ctx = canvas.getContext('2d');
+                const activeFile = composerImages[activeComposerIndex];
+                if (!ctx || !activeFile) return;
+
+                const objectUrl = URL.createObjectURL(activeFile);
+                const img = new Image();
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = objectUrl;
+                });
+
+                if (cancelled) {
+                    URL.revokeObjectURL(objectUrl);
+                    return;
+                }
+
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+                const drawWidth = img.width * scale;
+                const drawHeight = img.height * scale;
+                const drawX = (canvas.width - drawWidth) / 2;
+                const drawY = (canvas.height - drawHeight) / 2;
+
+                ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+                const snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                baseSnapshotRef.current = snapshot;
+                drawHistoryRef.current = [snapshot];
+                setCanvasDirty(false);
+                setCanvasReady(true);
+
+                URL.revokeObjectURL(objectUrl);
+            } catch (error) {
+                console.error('Failed to render attachment preview:', error);
+            }
+        };
+
+        renderActiveImage();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [composerOpen, composerImages, activeComposerIndex]);
 
     useEffect(() => {
         loadComments();
@@ -141,11 +203,111 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
         setComposerImages([]);
         setComposerCaption('');
         setActiveComposerIndex(0);
-        setMarkupIndex(null);
+        setCanvasReady(false);
+        setCanvasDirty(false);
+        drawHistoryRef.current = [];
+        baseSnapshotRef.current = null;
     };
 
-    const replaceComposerImage = (index, file) => {
-        setComposerImages((prev) => prev.map((img, i) => (i === index ? file : img)));
+    const getCanvasPoint = (e) => {
+        const canvas = composerCanvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: (e.clientX - rect.left) * (canvas.width / rect.width),
+            y: (e.clientY - rect.top) * (canvas.height / rect.height),
+        };
+    };
+
+    const startDrawing = (e) => {
+        if (!composerOpen || !canvasReady || !composerCanvasRef.current || submitting) return;
+        e.preventDefault();
+
+        const canvas = composerCanvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const { x, y } = getCanvasPoint(e);
+        drawHistoryRef.current.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = brushSize;
+        ctx.strokeStyle = brushColor;
+
+        drawingRef.current = true;
+        setCanvasDirty(true);
+    };
+
+    const drawOnCanvas = (e) => {
+        if (!drawingRef.current || !composerCanvasRef.current) return;
+        e.preventDefault();
+
+        const canvas = composerCanvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const { x, y } = getCanvasPoint(e);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+    };
+
+    const stopDrawing = () => {
+        if (!drawingRef.current) return;
+        drawingRef.current = false;
+        const ctx = composerCanvasRef.current?.getContext('2d');
+        if (ctx) {
+            ctx.beginPath();
+        }
+    };
+
+    const resetCurrentMarkup = () => {
+        const canvas = composerCanvasRef.current;
+        const ctx = canvas?.getContext('2d');
+        if (!canvas || !ctx || !baseSnapshotRef.current) return;
+
+        ctx.putImageData(baseSnapshotRef.current, 0, 0);
+        drawHistoryRef.current = [baseSnapshotRef.current];
+        setCanvasDirty(false);
+    };
+
+    const undoCurrentStroke = () => {
+        const canvas = composerCanvasRef.current;
+        const ctx = canvas?.getContext('2d');
+        if (!canvas || !ctx || drawHistoryRef.current.length <= 1) return;
+
+        drawHistoryRef.current.pop();
+        const previous = drawHistoryRef.current[drawHistoryRef.current.length - 1];
+        ctx.putImageData(previous, 0, 0);
+        setCanvasDirty(drawHistoryRef.current.length > 1);
+    };
+
+    const commitActiveMarkup = async (sourceImages) => {
+        const canvas = composerCanvasRef.current;
+        if (!canvas || !canvasReady || !canvasDirty || sourceImages.length === 0) {
+            return sourceImages;
+        }
+
+        const blob = await new Promise((resolve) => {
+            canvas.toBlob(resolve, 'image/png', 0.95);
+        });
+        if (!blob) return sourceImages;
+
+        const currentFile = sourceImages[activeComposerIndex];
+        const baseName = currentFile?.name ? currentFile.name.replace(/\.[^.]+$/, '') : `attachment-${activeComposerIndex + 1}`;
+        const markedFile = new File([blob], `${baseName}-marked.png`, { type: 'image/png' });
+        const updated = sourceImages.map((img, i) => (i === activeComposerIndex ? markedFile : img));
+
+        setComposerImages(updated);
+        setCanvasDirty(false);
+        return updated;
+    };
+
+    const handleSwitchComposerImage = async (index) => {
+        if (index === activeComposerIndex || submitting) return;
+        await commitActiveMarkup(composerImages);
+        setActiveComposerIndex(index);
     };
 
     const handleComposerSend = async () => {
@@ -154,7 +316,8 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
 
         setSubmitting(true);
         try {
-            await addComment(rfiId, trimmed, { attachments: composerImages });
+            const imagesToSend = await commitActiveMarkup(composerImages);
+            await addComment(rfiId, trimmed, { attachments: imagesToSend });
             closeComposer();
             await loadComments();
             scrollToBottom();
@@ -313,20 +476,63 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
                             </button>
                         </div>
 
+                        <div className="chat-attachment-toolbar">
+                            <div className="chat-attachment-brush">
+                                <span>Size</span>
+                                <input
+                                    type="range"
+                                    min="2"
+                                    max="24"
+                                    value={brushSize}
+                                    onChange={(e) => setBrushSize(Number(e.target.value))}
+                                    disabled={!canvasReady || submitting}
+                                />
+                            </div>
+                            <div className="chat-attachment-colors">
+                                {['#ef4444', '#22c55e', '#3b82f6', '#eab308', '#ffffff', '#000000'].map((color) => (
+                                    <button
+                                        key={color}
+                                        type="button"
+                                        className={`chat-attachment-color ${brushColor === color ? 'active' : ''}`}
+                                        style={{ background: color }}
+                                        onClick={() => setBrushColor(color)}
+                                        disabled={!canvasReady || submitting}
+                                        title="Brush color"
+                                    />
+                                ))}
+                            </div>
+                            <div className="chat-attachment-tools">
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-ghost"
+                                    onClick={undoCurrentStroke}
+                                    disabled={!canvasReady || drawHistoryRef.current.length <= 1 || submitting}
+                                >
+                                    <Undo2 size={14} /> Undo
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-ghost"
+                                    onClick={resetCurrentMarkup}
+                                    disabled={!canvasReady || !canvasDirty || submitting}
+                                >
+                                    <RotateCcw size={14} /> Reset
+                                </button>
+                            </div>
+                        </div>
+
                         <div className="chat-attachment-preview-wrap">
-                            <img
-                                src={composerPreviewUrls[activeComposerIndex]}
-                                alt={`Attachment preview ${activeComposerIndex + 1}`}
-                                className="chat-attachment-preview"
+                            <canvas
+                                ref={composerCanvasRef}
+                                className="chat-attachment-canvas"
+                                width={1100}
+                                height={620}
+                                onPointerDown={startDrawing}
+                                onPointerMove={drawOnCanvas}
+                                onPointerUp={stopDrawing}
+                                onPointerLeave={stopDrawing}
+                                onPointerCancel={stopDrawing}
                             />
-                            <button
-                                type="button"
-                                className="btn btn-sm btn-ghost chat-attachment-markup"
-                                onClick={() => setMarkupIndex(activeComposerIndex)}
-                                disabled={submitting}
-                            >
-                                <Brush size={14} /> Markup
-                            </button>
                         </div>
 
                         {composerImages.length > 1 && (
@@ -336,7 +542,7 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
                                         key={`${previewUrl}_${index}`}
                                         type="button"
                                         className={`chat-attachment-thumb ${index === activeComposerIndex ? 'active' : ''}`}
-                                        onClick={() => setActiveComposerIndex(index)}
+                                        onClick={() => handleSwitchComposerImage(index)}
                                         disabled={submitting}
                                     >
                                         <img src={previewUrl} alt={`Attachment ${index + 1}`} />
@@ -366,17 +572,6 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
                         </div>
                     </div>
                 </div>
-            )}
-
-            {markupIndex !== null && composerImages[markupIndex] && (
-                <ImageMarkupModal
-                    image={composerImages[markupIndex]}
-                    onClose={() => setMarkupIndex(null)}
-                    onSave={(annotatedFile) => {
-                        replaceComposerImage(markupIndex, annotatedFile);
-                        setMarkupIndex(null);
-                    }}
-                />
             )}
         </div>
     );
