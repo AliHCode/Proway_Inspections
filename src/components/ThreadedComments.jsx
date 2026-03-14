@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRFI } from '../context/RFIContext';
 import UserAvatar from './UserAvatar';
-import { Send, Loader2, Paperclip, Brush, X, Undo2, RotateCcw, Move } from 'lucide-react';
+import { Send, Loader2, Paperclip, Brush, X, RotateCcw, Move } from 'lucide-react';
 
 export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger }) {
     const { user } = useAuth();
@@ -25,15 +25,15 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
     const [zoomLevel, setZoomLevel] = useState(1);
     const [interactionMode, setInteractionMode] = useState('draw');
     const [isPanning, setIsPanning] = useState(false);
+    const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
     const prevCommentsLength = useRef(0);
     const messagesEndRef = useRef(null);
     const attachInputRef = useRef(null);
     const composerCanvasRef = useRef(null);
-    const previewWrapRef = useRef(null);
     const drawHistoryRef = useRef([]);
     const baseSnapshotRef = useRef(null);
     const drawingRef = useRef(false);
-    const panDragRef = useRef({ active: false, startX: 0, startY: 0, startScrollLeft: 0, startScrollTop: 0 });
+    const panDragRef = useRef({ active: false, startX: 0, startY: 0, startOffsetX: 0, startOffsetY: 0 });
     const pinchRef = useRef({ active: false, startDistance: 0, startZoom: 1 });
 
     useEffect(() => {
@@ -198,6 +198,7 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
         setComposerCaption(newComment.trim());
         setZoomLevel(1);
         setInteractionMode('draw');
+        setPanOffset({ x: 0, y: 0 });
         if (newComment.trim()) {
             setNewComment('');
         }
@@ -214,11 +215,12 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
         setZoomLevel(1);
         setInteractionMode('draw');
         setIsPanning(false);
+        setPanOffset({ x: 0, y: 0 });
         setCanvasReady(false);
         setCanvasDirty(false);
         drawHistoryRef.current = [];
         baseSnapshotRef.current = null;
-        panDragRef.current = { active: false, startX: 0, startY: 0, startScrollLeft: 0, startScrollTop: 0 };
+        panDragRef.current = { active: false, startX: 0, startY: 0, startOffsetX: 0, startOffsetY: 0 };
         pinchRef.current = { active: false, startDistance: 0, startZoom: 1 };
     };
 
@@ -231,27 +233,27 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
     };
 
     const startPanDrag = (clientX, clientY) => {
-        const wrap = previewWrapRef.current;
-        if (!wrap || zoomLevel <= 1) return;
+        if (zoomLevel <= 1) return;
 
         panDragRef.current = {
             active: true,
             startX: clientX,
             startY: clientY,
-            startScrollLeft: wrap.scrollLeft,
-            startScrollTop: wrap.scrollTop,
+            startOffsetX: panOffset.x,
+            startOffsetY: panOffset.y,
         };
         setIsPanning(true);
     };
 
     const updatePanDrag = (clientX, clientY) => {
-        const wrap = previewWrapRef.current;
-        if (!wrap || !panDragRef.current.active) return;
+        if (!panDragRef.current.active) return;
 
         const deltaX = clientX - panDragRef.current.startX;
         const deltaY = clientY - panDragRef.current.startY;
-        wrap.scrollLeft = panDragRef.current.startScrollLeft - deltaX;
-        wrap.scrollTop = panDragRef.current.startScrollTop - deltaY;
+        setPanOffset({
+            x: panDragRef.current.startOffsetX + deltaX,
+            y: panDragRef.current.startOffsetY + deltaY,
+        });
     };
 
     const stopPanDrag = () => {
@@ -323,17 +325,6 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
         setCanvasDirty(false);
     };
 
-    const undoCurrentStroke = () => {
-        const canvas = composerCanvasRef.current;
-        const ctx = canvas?.getContext('2d');
-        if (!canvas || !ctx || drawHistoryRef.current.length <= 1) return;
-
-        drawHistoryRef.current.pop();
-        const previous = drawHistoryRef.current[drawHistoryRef.current.length - 1];
-        ctx.putImageData(previous, 0, 0);
-        setCanvasDirty(drawHistoryRef.current.length > 1);
-    };
-
     const commitActiveMarkup = async (sourceImages) => {
         const canvas = composerCanvasRef.current;
         if (!canvas || !canvasReady || !canvasDirty || sourceImages.length === 0) {
@@ -359,21 +350,20 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
         if (index === activeComposerIndex || submitting) return;
         await commitActiveMarkup(composerImages);
         setActiveComposerIndex(index);
+        setZoomLevel(1);
+        setPanOffset({ x: 0, y: 0 });
     };
 
     const handleZoomOut = () => {
-        setZoomLevel((prev) => clampZoom(prev - 0.2));
+        setZoomLevel((prev) => {
+            const next = clampZoom(prev - 0.2);
+            if (next === 1) setPanOffset({ x: 0, y: 0 });
+            return next;
+        });
     };
 
     const handleZoomIn = () => {
         setZoomLevel((prev) => clampZoom(prev + 0.2));
-    };
-
-    const handlePreviewWheel = (e) => {
-        if (!composerOpen) return;
-        e.preventDefault();
-        const delta = e.deltaY < 0 ? 0.12 : -0.12;
-        setZoomLevel((prev) => clampZoom(prev + delta));
     };
 
     const handlePreviewPointerDown = (e) => {
@@ -659,18 +649,15 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
                                 <button
                                     type="button"
                                     className={`btn btn-sm ${interactionMode === 'pan' ? 'btn-action' : 'btn-ghost'}`}
-                                    onClick={() => setInteractionMode('pan')}
+                                    onClick={() => {
+                                        setInteractionMode('pan');
+                                        if (zoomLevel <= 1) {
+                                            setZoomLevel(1.4);
+                                        }
+                                    }}
                                     disabled={submitting}
                                 >
                                     <Move size={14} /> Pan
-                                </button>
-                                <button
-                                    type="button"
-                                    className="btn btn-sm btn-ghost"
-                                    onClick={undoCurrentStroke}
-                                    disabled={!canvasReady || drawHistoryRef.current.length <= 1 || submitting}
-                                >
-                                    <Undo2 size={14} /> Undo
                                 </button>
                                 <button
                                     type="button"
@@ -684,9 +671,7 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
                         </div>
 
                         <div
-                            ref={previewWrapRef}
                             className={`chat-attachment-preview-wrap ${interactionMode === 'pan' ? 'pan-mode' : ''} ${isPanning ? 'is-panning' : ''}`}
-                            onWheel={handlePreviewWheel}
                             onPointerDown={handlePreviewPointerDown}
                             onPointerMove={handlePreviewPointerMove}
                             onPointerUp={handlePreviewPointerUp}
@@ -702,10 +687,10 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
                                 width={1100}
                                 height={620}
                                 style={{
-                                    width: `${zoomLevel * 100}%`,
-                                    minWidth: '100%',
-                                    height: 'auto',
-                                    maxWidth: 'none',
+                                    width: 'auto',
+                                    height: '100%',
+                                    transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
+                                    transformOrigin: 'center center',
                                 }}
                                 onPointerDown={startDrawing}
                                 onPointerMove={drawOnCanvas}

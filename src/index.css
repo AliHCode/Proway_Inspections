@@ -2760,9 +2760,9 @@ h6 {
   padding: 0.7rem;
   position: relative;
   display: flex;
-  justify-content: flex-start;
-  align-items: flex-start;
-  overflow: auto;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
   touch-action: none;
 }
 
@@ -2770,6 +2770,7 @@ h6 {
   display: block;
   border-radius: 10px;
   cursor: crosshair;
+  max-width: 100%;
 }
 
 .chat-attachment-preview-wrap.pan-mode {
