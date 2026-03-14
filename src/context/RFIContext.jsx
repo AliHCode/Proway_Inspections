@@ -26,6 +26,34 @@ function rfiCacheKey(userId, projectId) {
     return `${RFI_CACHE_PREFIX}:${userId || 'anon'}:${projectId || 'none'}`;
 }
 
+function normalizeRfiRecord(rfi = {}) {
+    const fallbackDate = new Date().toISOString().slice(0, 10);
+    const filedDate = typeof rfi.filedDate === 'string' && rfi.filedDate
+        ? rfi.filedDate
+        : (typeof rfi.originalFiledDate === 'string' && rfi.originalFiledDate ? rfi.originalFiledDate : fallbackDate);
+
+    return {
+        ...rfi,
+        id: rfi.id || `cached-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        serialNo: Number.isFinite(Number(rfi.serialNo)) ? Number(rfi.serialNo) : 0,
+        description: rfi.description || '',
+        location: rfi.location || '',
+        inspectionType: rfi.inspectionType || '',
+        filedDate,
+        originalFiledDate: rfi.originalFiledDate || filedDate,
+        status: rfi.status || RFI_STATUS.PENDING,
+        images: Array.isArray(rfi.images) ? rfi.images : [],
+        customFields: rfi.customFields && typeof rfi.customFields === 'object' ? rfi.customFields : {},
+    };
+}
+
+function normalizeRfisArray(items = []) {
+    if (!Array.isArray(items)) return [];
+    return items
+        .filter((item) => item && typeof item === 'object')
+        .map((item) => normalizeRfiRecord(item));
+}
+
 function normalizeMentionKey(value = '') {
     return String(value).toLowerCase().replace(/[^a-z0-9]/g, '');
 }
@@ -53,8 +81,9 @@ export function RFIProvider({ children }) {
             const raw = localStorage.getItem(rfiCacheKey(user.id, projectId));
             if (!raw) return false;
             const parsed = JSON.parse(raw);
-            if (!Array.isArray(parsed.rfis)) return false;
-            setRfis(parsed.rfis);
+            const normalized = normalizeRfisArray(parsed.rfis);
+            if (normalized.length === 0) return false;
+            setRfis(normalized);
             return true;
         } catch {
             return false;
@@ -179,8 +208,9 @@ export function RFIProvider({ children }) {
                 createdAt: r.created_at,
                 customFields: r.custom_fields || {},
             }));
-            setRfis(formatted || []);
-            persistRfiCache(activeProject.id, formatted || []);
+            const normalized = normalizeRfisArray(formatted || []);
+            setRfis(normalized);
+            persistRfiCache(activeProject.id, normalized);
         } catch (error) {
             console.error('Error fetching RFIs:', error);
             if (!restored) {
@@ -1292,7 +1322,7 @@ export function RFIProvider({ children }) {
 
     /** Get RFIs for a specific date with carryover logic (Sync from local state array) */
     function getRFIsForDate(targetDate) {
-        const todaysRfis = rfis.filter((rfi) => rfi.filedDate === targetDate);
+        const todaysRfis = rfis.filter((rfi) => (rfi.filedDate || '') === targetDate);
         const carriedOver = rfis.filter(
             (rfi) =>
                 rfi.status === RFI_STATUS.REJECTED &&
@@ -1331,15 +1361,15 @@ export function RFIProvider({ children }) {
     /** Get all pending RFIs for consultant review (Sync from local state array) */
     function getReviewQueue(targetDate) {
         const pending = rfis.filter(
-            (rfi) => rfi.status === RFI_STATUS.PENDING && rfi.filedDate <= targetDate
+            (rfi) => rfi.status === RFI_STATUS.PENDING && (rfi.filedDate || '') <= targetDate
         );
 
         const sortQueue = (a, b) => {
             // Older content first
-            if (a.filedDate !== b.filedDate) {
-                return a.filedDate.localeCompare(b.filedDate);
+            if ((a.filedDate || '') !== (b.filedDate || '')) {
+                return (a.filedDate || '').localeCompare(b.filedDate || '');
             }
-            return a.serialNo - b.serialNo;
+            return (a.serialNo || 0) - (b.serialNo || 0);
         };
 
         const combined = [...pending].sort(sortQueue);

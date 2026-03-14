@@ -58,8 +58,8 @@ export default function ConsultantDashboard() {
             <main className="dashboard-page">
                 <div className="dashboard-header">
                     <div>
-                        <h1>Welcome, {user.name}</h1>
-                        <p className="subtitle">{user.company} — Consultant Dashboard</p>
+                        <h1>Welcome, {user?.name || 'Consultant'}</h1>
+                        <p className="subtitle">{user?.company || 'ProWay'} — Consultant Dashboard</p>
                     </div>
                     <div style={{ display: 'flex', gap: '0.75rem' }}>
                         <button className="btn btn-primary" onClick={() => navigate('/consultant/review')}>

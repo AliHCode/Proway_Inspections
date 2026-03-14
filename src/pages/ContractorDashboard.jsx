@@ -94,8 +94,8 @@ export default function ContractorDashboard() {
             <main className="dashboard-page">
                 <div className="dashboard-header">
                     <div>
-                        <h1>Welcome, {user.name}</h1>
-                        <p className="subtitle">{user.company} — Contractor Dashboard</p>
+                        <h1>Welcome, {user?.name || 'Contractor'}</h1>
+                        <p className="subtitle">{user?.company || 'ProWay'} — Contractor Dashboard</p>
                     </div>
                     <button className="btn btn-primary" onClick={() => navigate('/contractor/rfi-sheet')}>
                         <Plus size={18} /> File RFIs

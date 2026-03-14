@@ -100,10 +100,15 @@ export function AuthProvider({ children }) {
             const cached = localStorage.getItem(PROFILE_CACHE_KEY);
             if (!cached) return false;
             const profile = JSON.parse(cached);
+            if (!profile || typeof profile !== 'object' || !profile.id) {
+                localStorage.removeItem(PROFILE_CACHE_KEY);
+                return false;
+            }
             if (expectedUserId && profile.id !== expectedUserId) return false;
             setUser(profile);
             return true;
         } catch {
+            localStorage.removeItem(PROFILE_CACHE_KEY);
             return false;
         }
     }
