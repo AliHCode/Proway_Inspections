@@ -1,6 +1,6 @@
 import { useAuth } from '../context/AuthContext';
 import { useProject } from '../context/ProjectContext';
-import { LogOut, Menu, X, Building, Shield, User, Briefcase, UserCircle, LayoutDashboard, FileText, ClipboardList, Bell, Smartphone, GitBranch } from 'lucide-react';
+import { LogOut, Menu, X, Building, Shield, User, Briefcase, UserCircle, LayoutDashboard, FileText, ClipboardList, Bell, Smartphone, GitBranch, ListChecks } from 'lucide-react';
 import { BarChart2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -224,6 +224,14 @@ export default function Header() {
                             className={`header-dropdown-item ${location.pathname.includes('rfi-sheet') ? 'active' : ''}`}
                         >
                             <FileText size={16} /> Daily RFI Sheet
+                        </button>
+                    )}
+                    {isContractor && (
+                        <button
+                            onClick={() => { navigate('/contractor/rfi-status-tracker'); setMenuOpen(false); }}
+                            className={`header-dropdown-item ${location.pathname.includes('/contractor/rfi-status-tracker') ? 'active' : ''}`}
+                        >
+                            <ListChecks size={16} /> RFI Status Tracker
                         </button>
                     )}
                         {isContractor && (
