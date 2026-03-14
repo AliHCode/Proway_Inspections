@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRFI } from '../context/RFIContext';
 import UserAvatar from './UserAvatar';
-import { Send, Loader2, Paperclip, Brush, X, Undo2, RotateCcw } from 'lucide-react';
+import { Send, Loader2, Paperclip, Brush, X, Undo2, RotateCcw, Move } from 'lucide-react';
 
 export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger }) {
     const { user } = useAuth();
@@ -22,13 +22,19 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
     const [brushColor, setBrushColor] = useState('#ef4444');
     const [canvasReady, setCanvasReady] = useState(false);
     const [canvasDirty, setCanvasDirty] = useState(false);
+    const [zoomLevel, setZoomLevel] = useState(1);
+    const [interactionMode, setInteractionMode] = useState('draw');
+    const [isPanning, setIsPanning] = useState(false);
     const prevCommentsLength = useRef(0);
     const messagesEndRef = useRef(null);
     const attachInputRef = useRef(null);
     const composerCanvasRef = useRef(null);
+    const previewWrapRef = useRef(null);
     const drawHistoryRef = useRef([]);
     const baseSnapshotRef = useRef(null);
     const drawingRef = useRef(false);
+    const panDragRef = useRef({ active: false, startX: 0, startY: 0, startScrollLeft: 0, startScrollTop: 0 });
+    const pinchRef = useRef({ active: false, startDistance: 0, startZoom: 1 });
 
     useEffect(() => {
         if (composerImages.length === 0) {
@@ -190,6 +196,8 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
         setComposerImages(files);
         setActiveComposerIndex(0);
         setComposerCaption(newComment.trim());
+        setZoomLevel(1);
+        setInteractionMode('draw');
         if (newComment.trim()) {
             setNewComment('');
         }
@@ -203,10 +211,53 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
         setComposerImages([]);
         setComposerCaption('');
         setActiveComposerIndex(0);
+        setZoomLevel(1);
+        setInteractionMode('draw');
+        setIsPanning(false);
         setCanvasReady(false);
         setCanvasDirty(false);
         drawHistoryRef.current = [];
         baseSnapshotRef.current = null;
+        panDragRef.current = { active: false, startX: 0, startY: 0, startScrollLeft: 0, startScrollTop: 0 };
+        pinchRef.current = { active: false, startDistance: 0, startZoom: 1 };
+    };
+
+    const clampZoom = (value) => Math.max(1, Math.min(4, Number(value.toFixed(2))));
+
+    const getTouchDistance = (touchA, touchB) => {
+        const dx = touchA.clientX - touchB.clientX;
+        const dy = touchA.clientY - touchB.clientY;
+        return Math.hypot(dx, dy);
+    };
+
+    const startPanDrag = (clientX, clientY) => {
+        const wrap = previewWrapRef.current;
+        if (!wrap || zoomLevel <= 1) return;
+
+        panDragRef.current = {
+            active: true,
+            startX: clientX,
+            startY: clientY,
+            startScrollLeft: wrap.scrollLeft,
+            startScrollTop: wrap.scrollTop,
+        };
+        setIsPanning(true);
+    };
+
+    const updatePanDrag = (clientX, clientY) => {
+        const wrap = previewWrapRef.current;
+        if (!wrap || !panDragRef.current.active) return;
+
+        const deltaX = clientX - panDragRef.current.startX;
+        const deltaY = clientY - panDragRef.current.startY;
+        wrap.scrollLeft = panDragRef.current.startScrollLeft - deltaX;
+        wrap.scrollTop = panDragRef.current.startScrollTop - deltaY;
+    };
+
+    const stopPanDrag = () => {
+        if (!panDragRef.current.active) return;
+        panDragRef.current.active = false;
+        setIsPanning(false);
     };
 
     const getCanvasPoint = (e) => {
@@ -219,7 +270,7 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
     };
 
     const startDrawing = (e) => {
-        if (!composerOpen || !canvasReady || !composerCanvasRef.current || submitting) return;
+        if (!composerOpen || !canvasReady || !composerCanvasRef.current || submitting || interactionMode !== 'draw') return;
         e.preventDefault();
 
         const canvas = composerCanvasRef.current;
@@ -308,6 +359,79 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
         if (index === activeComposerIndex || submitting) return;
         await commitActiveMarkup(composerImages);
         setActiveComposerIndex(index);
+    };
+
+    const handleZoomOut = () => {
+        setZoomLevel((prev) => clampZoom(prev - 0.2));
+    };
+
+    const handleZoomIn = () => {
+        setZoomLevel((prev) => clampZoom(prev + 0.2));
+    };
+
+    const handlePreviewWheel = (e) => {
+        if (!composerOpen) return;
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.12 : -0.12;
+        setZoomLevel((prev) => clampZoom(prev + delta));
+    };
+
+    const handlePreviewPointerDown = (e) => {
+        if (interactionMode !== 'pan' || zoomLevel <= 1 || submitting) return;
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        e.preventDefault();
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+        startPanDrag(e.clientX, e.clientY);
+    };
+
+    const handlePreviewPointerMove = (e) => {
+        if (interactionMode !== 'pan' || !panDragRef.current.active) return;
+        e.preventDefault();
+        updatePanDrag(e.clientX, e.clientY);
+    };
+
+    const handlePreviewPointerUp = () => {
+        stopPanDrag();
+    };
+
+    const handlePreviewTouchStart = (e) => {
+        if (e.touches.length === 2) {
+            pinchRef.current = {
+                active: true,
+                startDistance: getTouchDistance(e.touches[0], e.touches[1]),
+                startZoom: zoomLevel,
+            };
+            stopPanDrag();
+            return;
+        }
+
+        if (interactionMode === 'pan' && e.touches.length === 1 && zoomLevel > 1) {
+            startPanDrag(e.touches[0].clientX, e.touches[0].clientY);
+        }
+    };
+
+    const handlePreviewTouchMove = (e) => {
+        if (pinchRef.current.active && e.touches.length === 2) {
+            e.preventDefault();
+            const distance = getTouchDistance(e.touches[0], e.touches[1]);
+            const zoom = pinchRef.current.startZoom * (distance / Math.max(pinchRef.current.startDistance, 1));
+            setZoomLevel(clampZoom(zoom));
+            return;
+        }
+
+        if (interactionMode === 'pan' && panDragRef.current.active && e.touches.length === 1) {
+            e.preventDefault();
+            updatePanDrag(e.touches[0].clientX, e.touches[0].clientY);
+        }
+    };
+
+    const handlePreviewTouchEnd = (e) => {
+        if (e.touches.length < 2) {
+            pinchRef.current.active = false;
+        }
+        if (e.touches.length === 0) {
+            stopPanDrag();
+        }
     };
 
     const handleComposerSend = async () => {
@@ -501,7 +625,45 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
                                     />
                                 ))}
                             </div>
+                            <div className="chat-attachment-zoom-controls">
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-ghost"
+                                    onClick={handleZoomOut}
+                                    disabled={zoomLevel <= 1 || submitting}
+                                >
+                                    -
+                                </button>
+                                <span>{Math.round(zoomLevel * 100)}%</span>
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-ghost"
+                                    onClick={handleZoomIn}
+                                    disabled={zoomLevel >= 4 || submitting}
+                                >
+                                    +
+                                </button>
+                            </div>
                             <div className="chat-attachment-tools">
+                                <button
+                                    type="button"
+                                    className={`btn btn-sm ${interactionMode === 'draw' ? 'btn-action' : 'btn-ghost'}`}
+                                    onClick={() => {
+                                        setInteractionMode('draw');
+                                        stopPanDrag();
+                                    }}
+                                    disabled={submitting}
+                                >
+                                    <Brush size={14} /> Draw
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`btn btn-sm ${interactionMode === 'pan' ? 'btn-action' : 'btn-ghost'}`}
+                                    onClick={() => setInteractionMode('pan')}
+                                    disabled={submitting}
+                                >
+                                    <Move size={14} /> Pan
+                                </button>
                                 <button
                                     type="button"
                                     className="btn btn-sm btn-ghost"
@@ -521,12 +683,30 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
                             </div>
                         </div>
 
-                        <div className="chat-attachment-preview-wrap">
+                        <div
+                            ref={previewWrapRef}
+                            className={`chat-attachment-preview-wrap ${interactionMode === 'pan' ? 'pan-mode' : ''} ${isPanning ? 'is-panning' : ''}`}
+                            onWheel={handlePreviewWheel}
+                            onPointerDown={handlePreviewPointerDown}
+                            onPointerMove={handlePreviewPointerMove}
+                            onPointerUp={handlePreviewPointerUp}
+                            onPointerCancel={handlePreviewPointerUp}
+                            onTouchStart={handlePreviewTouchStart}
+                            onTouchMove={handlePreviewTouchMove}
+                            onTouchEnd={handlePreviewTouchEnd}
+                            onTouchCancel={handlePreviewTouchEnd}
+                        >
                             <canvas
                                 ref={composerCanvasRef}
                                 className="chat-attachment-canvas"
                                 width={1100}
                                 height={620}
+                                style={{
+                                    width: `${zoomLevel * 100}%`,
+                                    minWidth: '100%',
+                                    height: 'auto',
+                                    maxWidth: 'none',
+                                }}
                                 onPointerDown={startDrawing}
                                 onPointerMove={drawOnCanvas}
                                 onPointerUp={stopDrawing}

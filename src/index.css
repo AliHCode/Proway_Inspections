@@ -2720,6 +2720,20 @@ h6 {
   gap: 0.35rem;
 }
 
+.chat-attachment-zoom-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.chat-attachment-zoom-controls span {
+  min-width: 48px;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--clr-text-muted);
+}
+
 .chat-attachment-color {
   width: 18px;
   height: 18px;
@@ -2746,17 +2760,24 @@ h6 {
   padding: 0.7rem;
   position: relative;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  justify-content: flex-start;
+  align-items: flex-start;
+  overflow: auto;
+  touch-action: none;
 }
 
 .chat-attachment-canvas {
-  width: 100%;
-  height: 100%;
   display: block;
   border-radius: 10px;
-  touch-action: none;
   cursor: crosshair;
+}
+
+.chat-attachment-preview-wrap.pan-mode {
+  cursor: grab;
+}
+
+.chat-attachment-preview-wrap.is-panning {
+  cursor: grabbing;
 }
 
 .chat-attachment-thumbs {
