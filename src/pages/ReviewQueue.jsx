@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRFI } from '../context/RFIContext';
@@ -12,7 +12,7 @@ import RejectModal from '../components/RejectModal';
 import RFIDetailModal from '../components/RFIDetailModal';
 import UserAvatar from '../components/UserAvatar';
 import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
-import { CheckCircle, XCircle, MessageSquare, X, FileDown, Table, ClipboardList } from 'lucide-react';
+import { CheckCircle, XCircle, MessageSquare, X, FileDown, Table, ClipboardList, Filter } from 'lucide-react';
 
 export default function ReviewQueue() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -31,6 +31,10 @@ export default function ReviewQueue() {
     const [selectedRfiIds, setSelectedRfiIds] = useState([]);
     const [focusedRfiId, setFocusedRfiId] = useState(null);
     const [readyTableProjectId, setReadyTableProjectId] = useState(null);
+    const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+    const [selectedFilterColumn, setSelectedFilterColumn] = useState('');
+    const [columnFilterValues, setColumnFilterValues] = useState({});
+    const [filterValueSearch, setFilterValueSearch] = useState('');
 
     const queue = getReviewQueue(currentDate);
 
@@ -42,10 +46,63 @@ export default function ReviewQueue() {
         (r) => r.status === 'rejected' && r.reviewedAt && r.reviewedAt.startsWith(currentDate)
     );
 
-    let filteredItems = queue.all;
-    if (filter === 'approved') filteredItems = todayApproved;
-    if (filter === 'rejected') filteredItems = todayRejected;
-    if (filter === 'my_assigned') filteredItems = queue.all.filter(r => r.assignedTo === user.id);
+    let baseItems = queue.all;
+    if (filter === 'approved') baseItems = todayApproved;
+    if (filter === 'rejected') baseItems = todayRejected;
+    if (filter === 'my_assigned') baseItems = queue.all.filter(r => r.assignedTo === user.id);
+
+    const FILTER_EXCLUDED_COLUMNS = new Set(['serial', 'actions', 'attachments']);
+    const filterableColumns = orderedTableColumns.filter((col) => !FILTER_EXCLUDED_COLUMNS.has(col.field_key));
+
+    const getColumnRawValue = (rfi, fieldKey) => {
+        if (fieldKey === 'description') return rfi.description;
+        if (fieldKey === 'location') return rfi.location;
+        if (fieldKey === 'inspection_type') return rfi.inspectionType;
+        if (fieldKey === 'status') return rfi.status;
+        if (fieldKey === 'remarks') return rfi.remarks;
+        return rfi.customFields?.[fieldKey];
+    };
+
+    const normalizeFilterValue = (value) => {
+        if (value === null || value === undefined) return '—';
+        const text = String(value).trim();
+        return text || '—';
+    };
+
+    const columnLabelMap = useMemo(() => {
+        const map = {};
+        filterableColumns.forEach((col) => {
+            map[col.field_key] = col.field_name;
+        });
+        return map;
+    }, [filterableColumns]);
+
+    const activeFilterEntries = useMemo(
+        () => Object.entries(columnFilterValues).filter(([, values]) => Array.isArray(values) && values.length > 0),
+        [columnFilterValues]
+    );
+
+    const filteredItems = baseItems.filter((rfi) => {
+        return activeFilterEntries.every(([fieldKey, selectedValues]) => {
+            const rfiValue = normalizeFilterValue(getColumnRawValue(rfi, fieldKey));
+            return selectedValues.includes(rfiValue);
+        });
+    });
+
+    const availableValuesForSelectedColumn = useMemo(() => {
+        if (!selectedFilterColumn) return [];
+
+        const values = new Set(
+            baseItems.map((rfi) => normalizeFilterValue(getColumnRawValue(rfi, selectedFilterColumn)))
+        );
+
+        const normalizedSearch = filterValueSearch.trim().toLowerCase();
+        return Array.from(values)
+            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+            .filter((value) => !normalizedSearch || value.toLowerCase().includes(normalizedSearch));
+    }, [baseItems, selectedFilterColumn, filterValueSearch]);
+
+    const selectedValuesForColumn = columnFilterValues[selectedFilterColumn] || [];
 
     const tableLayoutReady = Boolean(
         activeProject?.id
@@ -69,6 +126,28 @@ export default function ReviewQueue() {
             setReadyTableProjectId(projectId);
         }
     }, [activeProject?.id, tableLayoutReady, readyTableProjectId]);
+
+    useEffect(() => {
+        const validKeys = new Set(filterableColumns.map((col) => col.field_key));
+        setColumnFilterValues((prev) => {
+            const next = {};
+            Object.entries(prev).forEach(([key, values]) => {
+                if (validKeys.has(key) && Array.isArray(values) && values.length > 0) {
+                    next[key] = values;
+                }
+            });
+            return next;
+        });
+
+        if (!selectedFilterColumn || !validKeys.has(selectedFilterColumn)) {
+            setSelectedFilterColumn(filterableColumns[0]?.field_key || '');
+        }
+    }, [filterableColumns, selectedFilterColumn]);
+
+    useEffect(() => {
+        const visibleIds = new Set(filteredItems.map((rfi) => rfi.id));
+        setSelectedRfiIds((prev) => prev.filter((id) => visibleIds.has(id)));
+    }, [filteredItems]);
 
     const shouldShowTable = Boolean(activeProject?.id && readyTableProjectId === activeProject.id);
 
@@ -194,49 +273,55 @@ export default function ReviewQueue() {
     function renderReviewActionCell(rfi) {
         const canEditThisRfi = canUserEditRfi(rfi);
         const canChatThisRfi = canUserDiscussRfi(rfi);
+        const showApproveAction = filter !== 'approved';
+        const showRejectAction = filter !== 'rejected';
 
         if (filter === 'to_review' || filter === 'my_assigned' || filter === 'approved' || filter === 'rejected') {
             return (
                 <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
                     {canEditThisRfi && (
                         <>
-                            <button
-                                onClick={() => {
-                                    setApproveTarget(rfi);
-                                    setRejectTarget(null);
-                                    setDetailTarget(null);
-                                }}
-                                title={filter === 'approved' ? 'Update Approval' : 'Approve'}
-                                style={{
-                                    background: 'transparent', border: '1.5px solid #d1d5db',
-                                    borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
-                                    display: 'flex', alignItems: 'center', gap: '3px',
-                                    color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
-                                    fontFamily: 'inherit', transition: 'all 0.15s',
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.borderColor = '#9ca3af'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = '#f9fafb'; }}
-                                onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.background = 'transparent'; }}
-                            >
-                                <CheckCircle size={15} />
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setRejectTarget(rfi);
-                                    setDetailTarget(null);
-                                }}
-                                title={filter === 'approved' ? 'Change to Rejected' : 'Reject'}
-                                style={{
-                                    background: 'transparent', border: '1.5px solid #d1d5db',
-                                    borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
-                                    display: 'flex', alignItems: 'center', gap: '3px',
-                                    color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
-                                    fontFamily: 'inherit', transition: 'all 0.15s',
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.borderColor = '#9ca3af'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = '#f9fafb'; }}
-                                onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.background = 'transparent'; }}
-                            >
-                                <XCircle size={15} />
-                            </button>
+                            {showApproveAction && (
+                                <button
+                                    onClick={() => {
+                                        setApproveTarget(rfi);
+                                        setRejectTarget(null);
+                                        setDetailTarget(null);
+                                    }}
+                                    title="Approve"
+                                    style={{
+                                        background: 'transparent', border: '1.5px solid #d1d5db',
+                                        borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', gap: '3px',
+                                        color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
+                                        fontFamily: 'inherit', transition: 'all 0.15s',
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#9ca3af'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = '#f9fafb'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.background = 'transparent'; }}
+                                >
+                                    <CheckCircle size={15} />
+                                </button>
+                            )}
+                            {showRejectAction && (
+                                <button
+                                    onClick={() => {
+                                        setRejectTarget(rfi);
+                                        setDetailTarget(null);
+                                    }}
+                                    title="Reject"
+                                    style={{
+                                        background: 'transparent', border: '1.5px solid #d1d5db',
+                                        borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', gap: '3px',
+                                        color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
+                                        fontFamily: 'inherit', transition: 'all 0.15s',
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#9ca3af'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = '#f9fafb'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.background = 'transparent'; }}
+                                >
+                                    <XCircle size={15} />
+                                </button>
+                            )}
                         </>
                     )}
                     {canChatThisRfi && (
@@ -344,6 +429,34 @@ export default function ReviewQueue() {
         return rfi.customFields?.[col.field_key] || '—';
     }
 
+    const toggleColumnFilterValue = (fieldKey, value) => {
+        setColumnFilterValues((prev) => {
+            const existing = prev[fieldKey] || [];
+            const nextValues = existing.includes(value)
+                ? existing.filter((v) => v !== value)
+                : [...existing, value];
+
+            if (nextValues.length === 0) {
+                const { [fieldKey]: _removed, ...rest } = prev;
+                return rest;
+            }
+            return { ...prev, [fieldKey]: nextValues };
+        });
+    };
+
+    const clearSelectedColumnFilters = () => {
+        if (!selectedFilterColumn) return;
+        setColumnFilterValues((prev) => {
+            const { [selectedFilterColumn]: _removed, ...rest } = prev;
+            return rest;
+        });
+    };
+
+    const clearAllColumnFilters = () => {
+        setColumnFilterValues({});
+        setFilterValueSearch('');
+    };
+
     return (
         <div className="page-wrapper">
             <Header />
@@ -355,6 +468,70 @@ export default function ReviewQueue() {
                     </div>
                     <div className="review-header-controls">
                         <div className="export-actions review-export-actions" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                            <div className="review-filter-wrap">
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-ghost review-filter-btn"
+                                    onClick={() => setFilterPopoverOpen((prev) => !prev)}
+                                    title="Filter table"
+                                >
+                                    <Filter size={15} /> Filters
+                                    {activeFilterEntries.length > 0 && <span className="review-filter-count">{activeFilterEntries.length}</span>}
+                                </button>
+                                {filterPopoverOpen && (
+                                    <div className="review-filter-popover">
+                                        <div className="review-filter-popover-header">
+                                            <h4>Filter Table</h4>
+                                            <button type="button" className="btn btn-sm btn-ghost" onClick={() => setFilterPopoverOpen(false)}>
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+
+                                        <label className="review-filter-label">Column</label>
+                                        <select
+                                            className="review-filter-select"
+                                            value={selectedFilterColumn}
+                                            onChange={(e) => {
+                                                setSelectedFilterColumn(e.target.value);
+                                                setFilterValueSearch('');
+                                            }}
+                                        >
+                                            {filterableColumns.map((col) => (
+                                                <option key={col.field_key} value={col.field_key}>{col.field_name}</option>
+                                            ))}
+                                        </select>
+
+                                        <label className="review-filter-label">Values</label>
+                                        <input
+                                            type="text"
+                                            className="review-filter-search"
+                                            placeholder="Search values..."
+                                            value={filterValueSearch}
+                                            onChange={(e) => setFilterValueSearch(e.target.value)}
+                                        />
+
+                                        <div className="review-filter-values">
+                                            {availableValuesForSelectedColumn.length === 0 ? (
+                                                <div className="review-filter-empty">No values found</div>
+                                            ) : availableValuesForSelectedColumn.map((value) => (
+                                                <label key={`${selectedFilterColumn}_${value}`} className="review-filter-value-item">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedValuesForColumn.includes(value)}
+                                                        onChange={() => toggleColumnFilterValue(selectedFilterColumn, value)}
+                                                    />
+                                                    <span>{value}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+
+                                        <div className="review-filter-actions">
+                                            <button type="button" className="btn btn-sm btn-ghost" onClick={clearSelectedColumnFilters}>Clear Column</button>
+                                            <button type="button" className="btn btn-sm btn-ghost" onClick={clearAllColumnFilters}>Clear All</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                             <button
                                 className="btn btn-sm"
                                 style={{ backgroundColor: 'transparent', color: 'var(--clr-brand-secondary)', border: '1px solid var(--clr-border-dark)', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
@@ -405,6 +582,28 @@ export default function ReviewQueue() {
                         <span className="mini-stat-value">{queue.all.filter(r => r.assignedTo === user.id).length}</span>
                     </div>
                 </div>
+
+                {activeFilterEntries.length > 0 && (
+                    <div className="review-active-filters">
+                        {activeFilterEntries.map(([fieldKey, values]) => (
+                            <span key={fieldKey} className="review-filter-chip">
+                                {columnLabelMap[fieldKey] || fieldKey}: {values.join(', ')}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setColumnFilterValues((prev) => {
+                                            const { [fieldKey]: _removed, ...rest } = prev;
+                                            return rest;
+                                        });
+                                    }}
+                                >
+                                    <X size={12} />
+                                </button>
+                            </span>
+                        ))}
+                        <button type="button" className="btn btn-sm btn-ghost" onClick={clearAllColumnFilters}>Clear All</button>
+                    </div>
+                )}
 
                 {actionMessage && (
                     <div className={`submit-message ${actionMessage.includes('✅') ? 'success' : 'warning'}`}>
