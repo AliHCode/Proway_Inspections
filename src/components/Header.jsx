@@ -128,7 +128,7 @@ export default function Header() {
     return (
         <header className="app-header">
             <div className="header-left" onClick={() => navigate(dashPath)} style={{ padding: '0.25rem 0' }}>
-                <img src="/dashboardlogo.png" alt="ProWay Logo" className="header-logo-img" style={{ height: '50px', objectFit: 'contain' }} />
+                <img src="/dashboardlogo.png" alt="ProWay Logo" className="header-logo-img" style={{ height: '38px', objectFit: 'contain' }} />
             </div>
 
             {/* Project Selector */}

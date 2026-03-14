@@ -1015,7 +1015,7 @@ h6 {
    ============================================ */
 .premium-dashboard {
   --bento-gap: 1.25rem;
-  padding: 1.5rem 0;
+  padding: 0 0 1.5rem 0; /* Remove top padding to keep header at top */
 }
 
 .bento-grid {
@@ -1077,12 +1077,15 @@ h6 {
 @media (max-width: 640px) {
   .bento-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
   }
+  
   .bento-grid > div {
-    grid-column: span 2;
+    grid-column: span 2 !important;
   }
-  .bento-span-3, .bento-span-4 {
-    grid-column: span 1;
+
+  .bento-span-3 {
+    grid-column: span 1 !important;
   }
 }
 
