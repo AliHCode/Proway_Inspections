@@ -24,7 +24,7 @@ import { useProject } from './context/ProjectContext';
 
 function ProtectedRoute({ children, allowedRoles }) {
     const { user, loading } = useAuth();
-    if (loading) return <LoadingSpinner message="Setting up your workspace..." />;
+    if (loading) return <LoadingSpinner />;
     if (!user) return <Navigate to="/" replace />;
     if (allowedRoles && !allowedRoles.includes(user.role)) {
         const home = user.role === 'admin' ? '/admin' : user.role === 'contractor' ? '/contractor' : user.role === 'consultant' ? '/consultant' : '/';
@@ -39,7 +39,7 @@ function AppRoutes() {
 
     if (loading || (loadingProjects && projects.length === 0)) {
         return (
-            <LoadingSpinner message="Setting up your workspace..." />
+            <LoadingSpinner />
         );
     }
 

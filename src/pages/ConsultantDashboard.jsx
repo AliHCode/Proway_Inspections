@@ -60,90 +60,136 @@ export default function ConsultantDashboard() {
         .slice(-7);
 
     return (
-        <div className="page-wrapper">
+        <div className="page-wrapper premium-dashboard">
             <Header />
             <main className="dashboard-page">
-                <div className="dashboard-header">
-                    <div>
+                <header className="premium-header">
+                    <div className="premium-welcome">
                         <h1>Welcome, {user?.name || 'Consultant'}</h1>
-                        <p className="subtitle">{user?.company || 'ProWay'} — Consultant Dashboard</p>
+                        <p>{user?.company || 'ProWay'} — Consultant Workspace</p>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        <button className="btn btn-primary" onClick={() => navigate('/consultant/review')}>
-                            <FileSearch size={18} /> Review RFIs
+                    <div className="premium-actions" style={{ display: 'flex', gap: '0.75rem' }}>
+                        <button className="btn-command" onClick={() => navigate('/consultant/review')}>
+                            <FileSearch size={18} strokeWidth={2.5} /> Review RFIs
                         </button>
-                        <button className="btn btn-sm" onClick={() => navigate('/consultant/rejection-journey')}>
+                        <button className="btn btn-ghost" style={{ backgroundColor: 'rgba(255,255,255,0.5)', backdropFilter: 'blur(4px)', fontSize: '0.85rem' }} onClick={() => navigate('/consultant/rejection-journey')}>
                             <GitBranch size={16} /> Rejection Journey
                         </button>
                     </div>
-                </div>
+                </header>
 
-                {queue.all.length > 0 && (
-                    <div className="carryover-alert">
-                        <ClipboardCheck size={20} />
-                        <span>
-                            <strong>{queue.all.length} RFI{queue.all.length > 1 ? 's' : ''}</strong> awaiting your review
-                            {queue.carriedOver.length > 0 && (
-                                <> — including <strong>{queue.carriedOver.length} rejected carryover{queue.carriedOver.length > 1 ? 's' : ''}</strong></>
-                            )}
-                        </span>
-                        <button className="btn btn-sm btn-primary" onClick={() => navigate('/consultant/review')}>
-                            Review Now
-                        </button>
+                <div className="bento-grid">
+                    {/* Stats Section */}
+                    <div className="bento-span-3">
+                        <StatsCard
+                            icon={<Clock size={20} />}
+                            label="Pending Review"
+                            value={queue.all.length}
+                            subtitle="In your queue"
+                            trend={queue.all.length > 5 ? "up" : "down"}
+                            trendValue={queue.all.length > 0 ? "Action Req" : "Clear"}
+                            color="#f59e0b"
+                        />
                     </div>
-                )}
+                    <div className="bento-span-3">
+                        <StatsCard
+                            icon={<CheckCircle size={20} />}
+                            label="Approved"
+                            value={statusBreakdown.find(s => s.name === 'Approved')?.value || 0}
+                            subtitle="Today"
+                            trend="up"
+                            trendValue="Daily"
+                            color="#10b981"
+                        />
+                    </div>
+                    <div className="bento-span-3">
+                        <StatsCard
+                            icon={<XCircle size={20} />}
+                            label="Rejected"
+                            value={statusBreakdown.find(s => s.name === 'Rejected')?.value || 0}
+                            subtitle="Today"
+                            trend="down"
+                            trendValue="Daily"
+                            color="#ef4444"
+                        />
+                    </div>
+                    <div className="bento-span-3">
+                        <StatsCard
+                            icon={<ClipboardCheck size={20} />}
+                            label="Total Reviewed"
+                            value={(statusBreakdown.find(s => s.name === 'Approved')?.value || 0) + (statusBreakdown.find(s => s.name === 'Rejected')?.value || 0) + (statusBreakdown.find(s => s.name === 'Info Req.')?.value || 0)}
+                            subtitle="Today's throughput"
+                            trend="up"
+                            trendValue="Verified"
+                            color="#3b82f6"
+                        />
+                    </div>
 
-                {/* --- ANALYTICS CHARTS SECTION --- */}
-                <div className="dashboard-section charts-section" style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '2rem', background: 'transparent', border: 'none', boxShadow: 'none' }}>
-                    <div className="chart-card" style={{ flex: '1 1 300px', minWidth: 0, background: 'var(--clr-bg-secondary)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--clr-border)' }}>
+                    {/* Chart Section */}
+                    <div className="bento-span-8 bento-row-2">
                         <RfiTrendChart data={trendData} />
                     </div>
-                    <div className="chart-card" style={{ flex: '1 1 300px', minWidth: 0, background: 'var(--clr-bg-secondary)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--clr-border)' }}>
+                    <div className="bento-span-4 bento-row-2">
                         <RfiStatusPieChart data={statusBreakdown} />
                     </div>
-                </div>
 
-                {/* --- ACTIVITY TIMELINE & QUEUE SUMMARY SECTION --- */}
-                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-
-                    {/* Activity Timeline (Feed) */}
-                    <div className="dashboard-section" style={{ flex: '1 1 300px', minWidth: 0, margin: 0, maxWidth: '100%' }}>
-                        <div className="section-header">
-                            <h2><Clock size={20} /> Recent Activity</h2>
+                    {/* Activity & Queue Section */}
+                    <div className="bento-span-8 premium-card">
+                        <div className="section-header" style={{ border: 'none', padding: 0, marginBottom: '1.5rem' }}>
+                            <h2 style={{ fontSize: '1rem', fontWeight: 600 }}><Clock size={18} style={{ marginRight: '0.5rem' }} /> Recent Activity</h2>
                         </div>
-                        <div style={{ padding: '1.5rem' }}>
+                        <div style={{ padding: '0 0.5rem' }}>
                             <ActivityTimeline rfis={rfis.filter(r => r.filedDate === today)} limit={5} />
                         </div>
                     </div>
 
-                    {/* Review Queue Summary */}
-                    <div className="dashboard-section" style={{ flex: '1 1 300px', minWidth: 0, margin: 0, maxWidth: '100%' }}>
-                        <div className="section-header">
-                            <h2><AlertTriangle size={20} /> Review Queue Summary</h2>
+                    <div className="bento-span-4 premium-card">
+                        <div className="section-header" style={{ border: 'none', padding: 0, marginBottom: '1.5rem' }}>
+                            <h2 style={{ fontSize: '1rem', fontWeight: 600 }}><AlertTriangle size={18} style={{ marginRight: '0.5rem' }} /> Review Queue Summary</h2>
                         </div>
 
                         {queue.all.length === 0 ? (
-                            <div className="empty-state">
-                                <CheckCircle size={48} />
-                                <h3>All Caught Up!</h3>
-                                <p>No RFIs are waiting for review right now.</p>
+                            <div className="empty-state" style={{ padding: '2rem', textAlign: 'center' }}>
+                                <CheckCircle size={40} style={{ color: 'var(--clr-success)', marginBottom: '1rem', opacity: 0.6 }} />
+                                <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>All Caught Up!</h3>
+                                <p style={{ fontSize: '0.85rem', color: 'var(--clr-text-muted)' }}>No RFIs are waiting for review right now.</p>
                             </div>
                         ) : (
                             <div className="review-summary">
                                 {queue.carriedOver.length > 0 && (
-                                    <div className="summary-item rejected">
-                                        <XCircle size={20} />
+                                    <div className="summary-item rejected" style={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        gap: '0.75rem', 
+                                        padding: '1rem', 
+                                        background: 'rgba(239, 68, 68, 0.05)', 
+                                        borderRadius: '12px',
+                                        marginBottom: '1rem',
+                                        fontSize: '0.85rem',
+                                        color: '#ef4444'
+                                    }}>
+                                        <XCircle size={18} />
                                         <span>{queue.carriedOver.length} rejected carryover{queue.carriedOver.length > 1 ? 's' : ''} need re-review</span>
                                     </div>
                                 )}
                                 {queue.pending.length > 0 && (
-                                    <div className="summary-item pending">
-                                        <span className="summary-item-icon"><Clock size={18} /></span>
-                                        <span className="summary-item-text">{queue.pending.length} new RFI{queue.pending.length > 1 ? 's' : ''} pending first review</span>
+                                    <div className="summary-item pending" style={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        gap: '0.75rem', 
+                                        padding: '1rem', 
+                                        background: 'rgba(245, 158, 11, 0.05)', 
+                                        borderRadius: '12px',
+                                        marginBottom: '1rem',
+                                        fontSize: '0.85rem',
+                                        color: '#f59e0b'
+                                    }}>
+                                        <Clock size={18} />
+                                        <span>{queue.pending.length} new RFI{queue.pending.length > 1 ? 's' : ''} pending first review</span>
                                     </div>
                                 )}
-                                <button className="btn btn-primary" onClick={() => navigate('/consultant/review')} style={{ marginTop: '1rem' }}>
-                                    <FileSearch size={18} /> Open Review Queue
+                                <button className="btn btn-primary" onClick={() => navigate('/consultant/review')} style={{ width: '100%', marginTop: '0.5rem', borderRadius: '12px', padding: '0.75rem' }}>
+                                    <FileSearch size={18} style={{ marginRight: '0.5rem' }} /> Open Review Queue
                                 </button>
                             </div>
                         )}

@@ -1,11 +1,7 @@
-export default function LoadingSpinner({ message = 'Loading...', hint }) {
+export default function LoadingSpinner() {
     return (
         <div className="loading-spinner-container">
-            <div className="loading-spinner-card">
-                <div className="loading-spinner"></div>
-                <p className="loading-text">{message}</p>
-                {hint ? <p className="loading-hint">{hint}</p> : null}
-            </div>
+            <div className="loading-spinner"></div>
         </div>
     );
 }

@@ -186,18 +186,19 @@ export default function ReviewQueue() {
             }
         };
 
-        const closeOnResize = () => {
-            setFilterPopoverOpen(false);
-        };
+        // REMOVED: closeOnResize closes the popover when mobile keyboard opens
+        // const closeOnResize = () => {
+        //     setFilterPopoverOpen(false);
+        // };
 
         document.addEventListener('pointerdown', closeOnOutsidePointer);
         document.addEventListener('keydown', closeOnEscape);
-        window.addEventListener('resize', closeOnResize);
+        // window.addEventListener('resize', closeOnResize);
 
         return () => {
             document.removeEventListener('pointerdown', closeOnOutsidePointer);
             document.removeEventListener('keydown', closeOnEscape);
-            window.removeEventListener('resize', closeOnResize);
+            // window.removeEventListener('resize', closeOnResize);
         };
     }, [filterPopoverOpen]);
 
@@ -524,37 +525,30 @@ export default function ReviewQueue() {
             <Header />
             <main className="review-page">
                 <div className="sheet-header">
-                    <div>
-                        <h1>🔍 Review Queue</h1>
-                        <p className="subtitle" style={{ marginTop: '0.25rem' }}>Manage & export daily inspections</p>
+                    <div className="sheet-tabs-container">
+                        <div className="sheet-tab active">
+                            <h2>Review Queue</h2>
+                        </div>
                     </div>
                     <div className="review-header-controls">
                         <div className="export-actions review-export-actions" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                             <button
                                 className="btn btn-sm"
-                                style={{ backgroundColor: 'transparent', color: 'var(--clr-brand-secondary)', border: '1px solid var(--clr-border-dark)', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                                style={{ backgroundColor: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
                                 onClick={() => exportToPDF(filteredItems, `ProWay_Inspections_${currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template)}
                                 title="Export to PDF"
                                 aria-label="Export to PDF"
                             >
-                                <FileDown size={16} /> PDF
+                                <FileDown size={17} /> PDF
                             </button>
                             <button
                                 className="btn btn-sm"
-                                style={{ backgroundColor: 'transparent', color: 'var(--clr-brand-secondary)', border: '1px solid var(--clr-border-dark)', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                                style={{ backgroundColor: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
                                 onClick={() => exportToExcel(filteredItems, `ProWay_Inspections_${currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template)}
                                 title="Export to Excel"
                                 aria-label="Export to Excel"
                             >
-                                <Table size={16} /> Excel
-                            </button>
-                            <button
-                                className="btn btn-sm"
-                                style={{ backgroundColor: 'var(--clr-brand-secondary)', color: 'white', border: '1px solid var(--clr-brand-secondary)', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                                onClick={() => generateDailyReport([...todayApproved, ...todayRejected], currentDate, activeProjectName, orderedTableColumns, columnWidthMap, activeProject?.export_template)}
-                                title="Generate branded daily report"
-                            >
-                                <ClipboardList size={16} /> Daily Report
+                                <Table size={17} /> Excel
                             </button>
                             <div className="review-filter-wrap">
                                 <button
@@ -827,13 +821,21 @@ export default function ReviewQueue() {
                         </div>
                     </div>
                 )}
-                        
+
             </main>
             <style>
                 {`
                 @keyframes slideUp {
-                    from { transform: translate(-50%, 20px); opacity: 0; }
                     to { transform: translate(-50%, 0); opacity: 1; }
+                }
+
+                /* Mobile Fixes */
+                .btn, .review-filter-btn, .mini-stat, .rj-all-btn, .rj-card {
+                    -webkit-tap-highlight-color: transparent;
+                    outline: none !important;
+                }
+                .btn:focus, .review-filter-btn:focus {
+                    outline: none !important;
                 }
 
                 .batch-action-bar {
