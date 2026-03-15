@@ -14,17 +14,17 @@ const vapidSubject = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:admin@example.com'
 const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY') ?? '';
 const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY') ?? '';
 
-if (!supabaseUrl || !serviceRoleKey) {
-  throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+let webpushConfigured = false;
+try {
+  if (vapidPublicKey && vapidPrivateKey) {
+    webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+    webpushConfigured = true;
+  }
+} catch (e) {
+  console.error("Failed to configure webpush on init:", e);
 }
 
-if (!vapidPublicKey || !vapidPrivateKey) {
-  throw new Error('Missing VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY');
-}
-
-webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
-
-const supabase = createClient(supabaseUrl, serviceRoleKey, {
+const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', serviceRoleKey || 'placeholder', {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
@@ -42,6 +42,14 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    if (!supabaseUrl || !serviceRoleKey || !webpushConfigured) {
+      console.error("send-push edge function is missing environment variables for initialization.");
+      return new Response(JSON.stringify({ error: 'Server misconfiguration: missing push setup' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const authHeader = req.headers.get('Authorization') ?? '';
     const jwt = authHeader.replace(/^Bearer\s+/i, '');
     let senderUserId: string | null = null;

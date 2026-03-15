@@ -578,6 +578,7 @@ export function RFIProvider({ children }) {
             throw new Error('No active project selected.');
         }
 
+        const effectiveFiledDate = filedDate || new Date().toISOString().split('T')[0];
         const normalizedImagesInput = images || [];
 
         // Dead-zone flow: persist request in IndexedDB and optimistically show it in the UI.
@@ -591,14 +592,14 @@ export function RFIProvider({ children }) {
                     location,
                     inspectionType,
                     filedBy,
-                    filedDate,
+                    filedDate: effectiveFiledDate,
                     assignedTo: assignedTo || null,
                     images: queuedImages,
                     parentId,
                 },
             });
 
-            const localDateRfis = rfis.filter((r) => r.filedDate === filedDate);
+            const localDateRfis = rfis.filter((r) => r.filedDate === effectiveFiledDate);
             const localSerial = localDateRfis.length > 0 ? Math.max(...localDateRfis.map((r) => r.serialNo || 0)) + 1 : 1;
             
             // Generate RFI code for offline
@@ -639,8 +640,8 @@ export function RFIProvider({ children }) {
                     filedBy,
                     filerName: user?.name || 'Offline User',
                     filerCompany: user?.company || '',
-                    filedDate,
-                    originalFiledDate: filedDate,
+                    filedDate: effectiveFiledDate,
+                    originalFiledDate: effectiveFiledDate,
                     status: RFI_STATUS.PENDING,
                     reviewedBy: null,
                     reviewerName: '',
@@ -666,7 +667,7 @@ export function RFIProvider({ children }) {
         }
 
         try {
-            const serialNo = await getNextSerialNoForDate(filedDate);
+            const serialNo = await getNextSerialNoForDate(effectiveFiledDate);
             const rfiNo = await getNextRfiCode(parentId);
             const imageUrls = await normalizeImagesForSubmission(normalizedImagesInput);
 
@@ -677,8 +678,8 @@ export function RFIProvider({ children }) {
                 location,
                 inspectionType,
                 filedBy,
-                filedDate,
-                originalFiledDate: filedDate,
+                filedDate: effectiveFiledDate,
+                originalFiledDate: effectiveFiledDate,
                 status: RFI_STATUS.PENDING,
                 reviewedBy: null,
                 reviewedAt: null,

@@ -3,6 +3,7 @@ import { useRFI } from '../context/RFIContext';
 import { useAuth } from '../context/AuthContext';
 import { useProject } from '../context/ProjectContext';
 import { INSPECTION_TYPES } from '../utils/constants';
+import { getToday } from '../utils/rfiLogic';
 import { X, Send, Paperclip, AlertCircle, MessageSquare, Info, MapPin, Layers, User, Trash2, Camera, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -77,7 +78,8 @@ export default function CreateRevisionModal({ parentRfi, onClose, onSuccess }) {
                 assignedTo: formData.assignedTo || null,
                 images: uploadedUrls,
                 customFields: finalCustomFields,
-                parentId: parentRfi.id
+                parentId: parentRfi.id,
+                filedDate: getToday()
             };
 
             await createRFI(payload);
