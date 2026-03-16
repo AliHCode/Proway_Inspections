@@ -128,16 +128,9 @@ export default function ContractorDashboard() {
             <Header />
             <main className="dashboard-page">
                 <header className="premium-header">
-                    <div className="premium-welcome">
-                        <div className="welcome-accent-pillar"></div>
-                        <div className="welcome-text-group">
-                            <h1>{getGreeting()}, <span className="user-name-highlight">{user?.name?.split(' ')[0] || 'Contractor'}</span></h1>
-                            <p className="welcome-subtext">
-                                <span className="company-tag">{user?.company || 'ProWay'}</span>
-                                <span className="workspace-divider"></span>
-                                <span className="workspace-label">Contractor Workspace</span>
-                            </p>
-                        </div>
+                    <div className="welcome-monochrome-container">
+                        <span className="welcome-label-mono">{getGreeting()}</span>
+                        <h1 className="welcome-user-mono">{user?.name?.split(' ')[0] || 'Contractor'}</h1>
                     </div>
                     <button className="btn-command" onClick={() => navigate('/contractor/rfi-sheet')}>
                         <Plus size={18} strokeWidth={2.5} /> File RFIs

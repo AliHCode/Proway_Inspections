@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRFI } from '../context/RFIContext';
-import { Bell, Check, X, BellDot } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { Bell, Check, X, BellDot, CheckCircle2, XCircle, MessageCircle, UserPlus, FilePlus, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { buildNotificationOpenPath } from '../utils/notificationLinks';
 
 export default function NotificationCenter({ isOpen, onToggle }) {
     const { rfis, notifications, markNotificationRead, markAllNotificationsRead, unreadCount } = useRFI();
+    const { user } = useAuth();
+    const isContractor = user?.role === 'contractor';
     const dropdownRef = useRef(null);
     const navigate = useNavigate();
 
@@ -102,7 +105,15 @@ export default function NotificationCenter({ isOpen, onToggle }) {
                                     const remarks = match[3]?.trim() || 'No remarks provided.';
 
                                     displayTitle = `RFI ${status}: ${displayRfiNo}`;
-                                    displayMessage = remarks.toLowerCase().startsWith('remarks:') ? remarks : `Remarks: ${remarks}`;
+                                    displayMessage = remarks.replace(/^remarks:\s*/i, '');
+                                    
+                                    if (isContractor) {
+                                        // Skip Remarks prefix for messages/mentions (Bell icon cases)
+                                        const isMsg = displayTitle.toLowerCase().includes('message') || displayTitle.toLowerCase().includes('mention');
+                                        if (!isMsg) {
+                                            displayMessage = `Remarks: ${displayMessage}`;
+                                        }
+                                    }
                                 } else {
                                     // Extract status if possible for the title rewrite
                                     const statusMatch = displayTitle.match(/(APPROVED|REJECTED|FILED|ASSIGNED|MESSAGE|MENTION|RESUBMITTED)/i);
@@ -112,31 +123,62 @@ export default function NotificationCenter({ isOpen, onToggle }) {
                                     }
 
                                     // Handle newer pattern or other cases to ensure "Remarks:" prefix
-                                    if (displayMessage && !displayMessage.toLowerCase().startsWith('remarks:') && 
+                                    if (isContractor && displayMessage && !displayMessage.toLowerCase().startsWith('remarks:') && 
                                         !displayMessage.toLowerCase().startsWith('location:') && 
                                         !displayMessage.toLowerCase().startsWith('message:')) {
-                                        displayMessage = `Remarks: ${displayMessage}`;
+                                        
+                                        // Skip Remarks prefix for messages/mentions (Bell icon cases)
+                                        const isMsg = displayTitle.toLowerCase().includes('message') || displayTitle.toLowerCase().includes('mention');
+                                        if (!isMsg) {
+                                            displayMessage = `Remarks: ${displayMessage}`;
+                                        }
                                     }
                                 }
 
                                 const isApproval = displayTitle.toLowerCase().includes('approved');
                                 const isRejection = displayTitle.toLowerCase().includes('rejected');
                                 const isMention = displayTitle.toLowerCase().includes('mention') || displayTitle.toLowerCase().includes('message');
+                                const isAssignment = displayTitle.toLowerCase().includes('assigned');
+                                const isFiled = displayTitle.toLowerCase().includes('filed') || displayTitle.toLowerCase().includes('submitted');
+
+                                const getIcon = () => {
+                                    if (isContractor) {
+                                        if (isApproval) return <Check size={16} />;
+                                        if (isRejection) return <X size={16} />;
+                                        if (isMention) return <Bell size={16} />;
+                                        // Use same as consultant for filing/assignment but simpler if needed, 
+                                        // following screenshot classic icons:
+                                        if (isAssignment) return <UserPlus size={16} />;
+                                        if (isFiled) return <FilePlus size={16} />;
+                                    } else {
+                                        if (isApproval) return <CheckCircle2 size={16} />;
+                                        if (isRejection) return <XCircle size={16} />;
+                                        if (isMention) return <MessageCircle size={16} />;
+                                        if (isAssignment) return <UserPlus size={16} />;
+                                        if (isFiled) return <FilePlus size={16} />;
+                                    }
+                                    return <Bell size={16} />;
+                                };
+
+                                const getIconClass = () => {
+                                    if (isApproval) return 'success';
+                                    if (isRejection) return 'danger';
+                                    if (isMention) return 'mention';
+                                    if (isAssignment) return 'assignment';
+                                    if (isFiled) return 'filed';
+                                    return 'info';
+                                };
 
                                 return (
                                     <div
                                         key={notif.id}
-                                        className={`notification-item-premium ${!notif.is_read ? 'unread' : ''}`}
+                                        className={`notification-item-premium ${isContractor ? 'contractor-view' : ''} ${!notif.is_read ? 'unread' : ''}`}
                                         onClick={() => handleNotificationClick(notif)}
                                     >
                                         <div className="notification-icon-wrapper">
-                                            {isApproval ? (
-                                                <div className="notif-icon-circle success"><Check size={14} /></div>
-                                            ) : isRejection ? (
-                                                <div className="notif-icon-circle danger"><X size={14} /></div>
-                                            ) : (
-                                                <div className="notif-icon-circle info"><Bell size={14} /></div>
-                                            )}
+                                            <div className={`notif-icon-circle ${getIconClass()}`}>
+                                                {getIcon()}
+                                            </div>
                                         </div>
                                         <div className="notification-content">
                                             <div className="notif-header-row">

@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto+Mono:wght@500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Sora:wght@700;800&display=swap');
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Roboto+Mono:wght@500&display=swap');
 
 /* ============================================
    DESIGN SYSTEM â€” CSS VARIABLES (CORPORATE LIGHT)
@@ -1299,8 +1301,7 @@ h6 {
 @media (max-width: 640px) {
   .bento-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem 0.75rem;
-    /* Reduced vertical spacing as requested */
+    gap: 0.25rem 0.5rem; /* Reduced vertical gap to 0.25rem */
   }
 
   /* Reset all children to full width by default in mobile */
@@ -1312,120 +1313,118 @@ h6 {
   .bento-span-3 {
     grid-column: span 1 !important;
   }
+
+  .premium-header {
+    margin-bottom: 0.75rem !important; /* Significantly reduced margin-bottom for mobile */
+    gap: 1rem !important;
+  }
+
+  .welcome-monochrome-container {
+    padding: 0.15rem 0 !important;
+  }
 }
 
-/* Premium Dashboard Header - Out of the Box Overhaul */
+/* Dashboard Layout Containers */
 .premium-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  /* Anchored to bottom for better alignment with accent pillar */
-  margin-bottom: 2.5rem;
-  flex-wrap: wrap;
-  gap: 1.5rem;
-  padding: 0.5rem 0;
-}
-
-.premium-welcome {
-  display: flex;
   align-items: center;
-  gap: 1.25rem;
+  margin-bottom: 1.5rem; /* Reduced from 3rem */
+  flex-wrap: wrap;
+  gap: 2rem;
+  padding: 0; /* Removed padding */
+  width: 100%;
+}
+
+/* ============================================================
+   MINIMALIST MONOCHROME GREETING (THE "OUT OF THE BOX" UPDATE)
+   ============================================================ */
+.welcome-monochrome-container {
   position: relative;
-}
-
-.welcome-accent-pillar {
-  width: 6px;
-  height: 54px;
-  background: var(--clr-brand-primary);
-  border-radius: 99px;
-  box-shadow: 0 0 20px rgba(var(--clr-brand-primary-rgb, 59, 130, 246), 0.3);
-  animation: pillarPulse 2s ease-in-out infinite;
-}
-
-@keyframes pillarPulse {
-  0% {
-    opacity: 1;
-    height: 54px;
-  }
-
-  50% {
-    opacity: 0.8;
-    height: 48px;
-  }
-
-  100% {
-    opacity: 1;
-    height: 54px;
-  }
-}
-
-.welcome-text-group {
+  padding: 0.25rem 0; /* Reduced from 1.5rem 0 */
   display: flex;
   flex-direction: column;
+  gap: 0;
 }
 
-.premium-welcome h1 {
-  font-size: 2.5rem;
-  font-weight: 900;
-  letter-spacing: -0.05em;
-  color: #0f172a;
+.welcome-label-mono {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.3em;
+  display: block;
   margin: 0;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  padding: 0;
 }
 
-.user-name-highlight {
-  color: var(--clr-brand-primary);
-  position: relative;
-  display: inline-block;
+.welcome-user-mono {
+  font-family: 'Sora', sans-serif;
+  font-size: 2.25rem !important;
+  font-weight: 800 !important;
+  color: #000000 !important;
+  margin: -0.25rem 0 !important; /* Pull up slightly to account for line-height overshoot */
+  line-height: 1.1 !important;
+  letter-spacing: -0.04em !important;
 }
 
-.welcome-subtext {
-  margin-top: 0.45rem;
+.welcome-meta-mono {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #64748b;
-  letter-spacing: 0.02em;
+  margin-top: 0; /* Removed margin-top */
 }
 
-.company-tag {
-  color: #0f172a;
-  background: #f1f5f9;
-  padding: 0.15rem 0.6rem;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  font-weight: 800;
+.welcome-meta-item {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #475569;
 }
 
-.workspace-divider {
-  width: 4px;
-  height: 4px;
+.welcome-meta-sep {
+  width: 1px;
+  height: 12px;
   background: #cbd5e1;
-  border-radius: 50%;
-}
-
-.workspace-label {
-  opacity: 0.8;
 }
 
 @media (max-width: 768px) {
-  .premium-welcome h1 {
-    font-size: 1.85rem;
+  .welcome-user-mono {
+    font-size: 1.75rem !important;
   }
+}
 
-  .welcome-accent-pillar {
-    height: 40px;
+@keyframes slideInDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 768px) {
+  .welcome-card {
+    padding: 1.5rem;
+    min-height: auto;
   }
-
-  .welcome-subtext {
-    font-size: 0.85rem;
+  
+  .welcome-user-name {
+    font-size: 2.5rem !important;
+  }
+  
+  .welcome-greeting {
+    font-size: 0.8rem;
+  }
+  
+  .welcome-badge-group {
     flex-wrap: wrap;
+    gap: 0.5rem;
   }
 }
 
@@ -6954,47 +6953,68 @@ body,
 }
 
 .notification-item-premium {
-  padding: 0.7rem 1.25rem;
+  padding: 1rem 1.25rem;
   display: flex;
-  gap: 1rem;
+  gap: 1.15rem;
   cursor: pointer;
-  transition: all 0.2s ease;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.4);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.04);
   position: relative;
+  background: #ffffff;
 }
 
 .notification-item-premium:hover {
-  background: rgba(248, 250, 252, 0.8);
+  background: rgba(15, 23, 42, 0.02);
 }
 
 .notification-item-premium.unread {
-  background: rgba(30, 41, 59, 0.02);
+  background: rgba(59, 130, 246, 0.02);
 }
 
 .notification-icon-wrapper {
   flex-shrink: 0;
+  margin-top: 0.1rem;
 }
 
 .notif-icon-circle {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px; /* Squircle style */
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  position: relative;
+  transition: transform 0.2s ease;
 }
 
 .notif-icon-circle.success {
-  background: var(--clr-success);
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
 }
 
 .notif-icon-circle.danger {
-  background: var(--clr-danger);
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.notif-icon-circle.mention {
+  background: rgba(139, 92, 246, 0.1);
+  color: #8b5cf6;
+}
+
+.notif-icon-circle.assignment {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.notif-icon-circle.filed {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
 }
 
 .notif-icon-circle.info {
-  background: var(--clr-info);
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748b;
 }
 
 .notification-content {
@@ -7005,28 +7025,78 @@ body,
 .notif-header-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.15rem;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
 }
 
 .notification-title {
-  font-size: 0.9rem;
+  font-family: 'Sora', sans-serif;
+  font-size: 0.95rem;
   font-weight: 700;
-  color: var(--clr-brand-primary);
+  color: #000000;
+  letter-spacing: -0.01em;
 }
 
 .notification-time {
-  font-size: 0.7rem;
-  color: var(--clr-text-muted);
-  font-weight: 600;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 700;
+  text-transform: uppercase;
+  flex-shrink: 0;
 }
 
 .notification-message {
   font-size: 0.85rem;
-  color: var(--clr-text-secondary);
+  color: #475569;
   line-height: 1.5;
-  margin-top: 0.15rem;
+  font-weight: 500;
 }
+
+/* Contractor-specific notification styling (Classic Revert) */
+.notification-item-premium.contractor-view {
+  padding: 0.75rem 1rem;
+  gap: 1rem;
+}
+
+.notification-item-premium.contractor-view .notif-icon-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50% !important; /* Force circle */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.notification-item-premium.contractor-view .notif-icon-circle.success {
+  background: #059669; /* Specific Green */
+  color: #ffffff;
+}
+
+.notification-item-premium.contractor-view .notif-icon-circle.danger {
+  background: #b91c1c; /* Specific Red */
+  color: #ffffff;
+}
+
+.notification-item-premium.contractor-view .notif-icon-circle.mention,
+.notification-item-premium.contractor-view .notif-icon-circle.assignment,
+.notification-item-premium.contractor-view .notif-icon-circle.filed,
+.notification-item-premium.contractor-view .notif-icon-circle.info {
+  background: #1d4ed8; /* Specific Blue */
+  color: #ffffff;
+}
+
+
+.notification-item-premium.contractor-view .notification-title {
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.notification-item-premium.contractor-view .notification-message {
+  color: #64748b;
+  font-size: 0.82rem;
+  margin-top: 0.1rem;
+}
+
 
 .unread-indicator {
   position: absolute;

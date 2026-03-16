@@ -71,16 +71,9 @@ export default function ConsultantDashboard() {
             <Header />
             <main className="dashboard-page">
                 <header className="premium-header">
-                    <div className="premium-welcome">
-                        <div className="welcome-accent-pillar"></div>
-                        <div className="welcome-text-group">
-                            <h1>{getGreeting()}, <span className="user-name-highlight">{user?.name?.split(' ')[0] || 'Consultant'}</span></h1>
-                            <p className="welcome-subtext">
-                                <span className="company-tag">{user?.company || 'ProWay'}</span>
-                                <span className="workspace-divider"></span>
-                                <span className="workspace-label">Consultant Workspace</span>
-                            </p>
-                        </div>
+                    <div className="welcome-monochrome-container">
+                        <span className="welcome-label-mono">{getGreeting()}</span>
+                        <h1 className="welcome-user-mono">{user?.name?.split(' ')[0] || 'Consultant'}</h1>
                     </div>
                     <div className="premium-actions" style={{ display: 'flex', gap: '0.75rem' }}>
                         <button className="btn-command" onClick={() => navigate('/consultant/review')}>

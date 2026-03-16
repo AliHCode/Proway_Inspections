@@ -21,14 +21,14 @@ export default function RfiTrendChart({ data }) {
 
     return (
         <div className="premium-card chart-container" style={{ width: '100%', height: '100%', minHeight: 320 }}>
-            <h3 className="chart-title" style={{ fontSize: '1rem', color: '#64748b', fontWeight: 600, marginBottom: '1.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Weekly RFI Activity</h3>
+            <h3 className="chart-title" style={{ fontSize: '1.25rem', color: '#0f172a', fontWeight: 700, marginBottom: '1.5rem' }}>Weekly RFI Activity</h3>
             <ResponsiveContainer width="100%" height={240}>
                 <AreaChart
                     data={data}
                     margin={{
                         top: 10,
                         right: 10,
-                        left: -20,
+                        left: 0,
                         bottom: 0,
                     }}
                 >
@@ -49,6 +49,7 @@ export default function RfiTrendChart({ data }) {
                         axisLine={false}
                         tickLine={false}
                         tick={{ fontSize: 12, fill: '#94a3b8' }}
+                        width={30}
                     />
                     <Tooltip
                         cursor={{ stroke: '#e2e8f0', strokeWidth: 1 }}
@@ -65,9 +66,11 @@ export default function RfiTrendChart({ data }) {
                         dataKey="value"
                         name="RFIs"
                         stroke="#0f172a"
-                        strokeWidth={2.5}
+                        strokeWidth={3}
                         fillOpacity={1}
-                        fill="url(#colorValue)"
+                        fill="#0f172a"
+                        dot={{ r: 4, fill: '#0f172a', stroke: '#fff', strokeWidth: 2, fillOpacity: 1 }}
+                        activeDot={{ r: 5, fill: '#0f172a', stroke: '#fff', strokeWidth: 2 }}
                         animationDuration={1500}
                     />
                 </AreaChart>

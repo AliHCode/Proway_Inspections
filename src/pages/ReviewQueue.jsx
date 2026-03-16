@@ -18,7 +18,7 @@ export default function ReviewQueue() {
     const [searchParams, setSearchParams] = useSearchParams();
     const location = useLocation();
     const { user } = useAuth();
-    const { approveRFI, rejectRFI, getReviewQueue, rfis, contractors, canUserEditRfi, canUserDiscussRfi } = useRFI();
+    const { approveRFI, updateRFI, rejectRFI, getReviewQueue, rfis, contractors, canUserEditRfi, canUserDiscussRfi } = useRFI();
     const { activeProject, orderedTableColumns, columnWidthMap, getTableColumnStyle, loadingFields, fieldsResolvedProjectId } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
     const [currentDate, setCurrentDate] = useState(getToday());
