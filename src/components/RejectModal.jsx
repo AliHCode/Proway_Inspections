@@ -78,7 +78,7 @@ export default function RejectModal({ rfi, onReject, onClose, contractors = [] }
                                 Reject Inspection
                             </h3>
                             <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--clr-text-secondary)' }}>
-                                RFI #{rfi.serialNo} &middot; {rfi.location}
+                                RFI #{rfi.customFields?.rfi_no || rfi.serialNo} &middot; {rfi.location}
                             </p>
                         </div>
                     </div>

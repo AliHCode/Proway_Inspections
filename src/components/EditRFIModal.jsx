@@ -439,7 +439,7 @@ export default function EditRFIModal({ rfi, projectFields = [], orderedColumns =
                                 Edit Inspection
                             </h3>
                             <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--clr-text-secondary)' }}>
-                                RFI #{rfi.serialNo} - Currently {rfi.status}
+                                RFI #{rfi.customFields?.rfi_no || rfi.serialNo} - Currently {rfi.status}
                             </p>
                         </div>
                     </div>

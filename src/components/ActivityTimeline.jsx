@@ -11,7 +11,7 @@ export default function ActivityTimeline({ rfis, limit = 5 }) {
                 events.push({
                     id: `${rfi.id}-filed`,
                     type: 'filed',
-                    title: `RFI #${rfi.serialNo} Submitted`,
+                    title: `RFI #${rfi.customFields?.rfi_no || rfi.serialNo} Submitted`,
                     desc: `${rfi.inspectionType} inspection for ${rfi.location}`,
                     date: rfi.filedDate,
                     timestamp: new Date(rfi.originalFiledDate || rfi.filedDate).getTime(),
@@ -26,7 +26,7 @@ export default function ActivityTimeline({ rfis, limit = 5 }) {
                 events.push({
                     id: `${rfi.id}-reviewed`,
                     type: rfi.status,
-                    title: `RFI #${rfi.serialNo} ${isApproved ? 'Approved' : 'Rejected'}`,
+                    title: `RFI #${rfi.customFields?.rfi_no || rfi.serialNo} ${isApproved ? 'Approved' : 'Rejected'}`,
                     desc: rfi.remarks ? `Remarks: ${rfi.remarks}` : `Reviewed on ${rfi.reviewedAt.split('T')[0]}`,
                     date: rfi.reviewedAt.split('T')[0],
                     timestamp: new Date(rfi.reviewedAt).getTime(),

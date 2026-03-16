@@ -335,8 +335,8 @@ export function RFIProvider({ children }) {
         }
     }, []);
 
-    const notifyConsultantsAboutFiledRFI = useCallback(async ({ serialNo, location, rfiId, assignedTo = null, filedBy = null }) => {
-        if (!activeProject?.id) return;
+    const notifyConsultantsAboutNewRFI = useCallback(async (rfiId, rfiNo, location, filedBy, assignedTo = null) => {
+        if (!activeProject) return;
         try {
             const { data, error } = await supabase
                 .from('project_members')
@@ -352,15 +352,15 @@ export function RFIProvider({ children }) {
                 if (assignedTo && consultantId === assignedTo) {
                     await createNotification(
                         consultantId,
-                        'RFI Assigned to You 📌',
-                        `A new RFI (#${serialNo}) at ${location} has been assigned to you.`,
+                        `RFI Assigned: #${rfiNo}`,
+                        `Location: ${location}`,
                         rfiId
                     );
                 } else {
                     await createNotification(
                         consultantId,
-                        'New RFI Filed 🆕',
-                        `New RFI #${serialNo} filed at ${location}.`,
+                        `RFI Filed: #${rfiNo}`,
+                        `Location: ${location}`,
                         rfiId
                     );
                 }
@@ -471,16 +471,9 @@ export function RFIProvider({ children }) {
                 if (activeProject?.id && payload.new?.project_id && payload.new.project_id !== activeProject.id) return;
                 console.log('Real-time RFI update:', payload);
                 if (payload.eventType === 'INSERT') {
-                    toast.success('New RFI submitted on this project!');
+                    // console.log('New RFI submitted');
                 } else if (payload.eventType === 'UPDATE') {
-                    const status = payload.new.status;
-                    if (status === 'approved') {
-                        toast.success('Inspection Approved ✅');
-                    } else if (status === 'rejected') {
-                        toast.error('Inspection Rejected ❌');
-                    } else {
-                        toast('RFI updated', { icon: '🔄' });
-                    }
+                    // console.log('RFI updated');
                 }
                 fetchAllRFIs(); // Simplest way to ensure data consistency
             })
@@ -702,14 +695,10 @@ export function RFIProvider({ children }) {
             if (error) throw error;
 
             if (insertedData?.[0]) {
-                await logAuditEvent(insertedData[0].id, 'created', { description, location });
-                await notifyConsultantsAboutFiledRFI({
-                    serialNo,
-                    location,
-                    rfiId: insertedData[0].id,
-                    assignedTo: assignedTo || null,
-                    filedBy: effectiveFiledBy,
-                });
+                const data = insertedData[0];
+                await logAuditEvent(data.id, 'created', { description, location });
+                await notifyConsultantsAboutNewRFI(data.id, data.custom_fields?.rfi_no || data.serial_no, data.location, data.filed_by, data.assigned_to);
+                showNativeNotification('RFI Submitted', `RFI #${data.custom_fields?.rfi_no || data.serial_no} submitted successfully.`, data.id);
                 if (assignedTo) {
                     await logAuditEvent(insertedData[0].id, 'assigned', { assignee: assignedTo });
                 }
@@ -738,8 +727,8 @@ export function RFIProvider({ children }) {
             if (consultantId) {
                 await createNotification(
                     consultantId,
-                    "RFI Assigned to You 📌",
-                    `RFI #${targetRfi.serialNo} at ${targetRfi.location} has been assigned to you for review.`,
+                    `RFI Assigned: #${targetRfi.customFields?.rfi_no || targetRfi.serialNo}`,
+                    `Location: ${targetRfi.location}`,
                     rfiId
                 );
             }
@@ -803,9 +792,11 @@ export function RFIProvider({ children }) {
                     const reconstructedImages = deserializeQueuedImages(payload.images || []);
                     const imageUrls = await normalizeImagesForSubmission(reconstructedImages);
                     const serialNo = await getNextSerialNoForDate(payload.filedDate);
+                    const rfiNo = await getNextRfiCode(payload.parentId);
 
                     const syncedRfi = {
                         serialNo,
+                        rfiNo,
                         description: payload.description,
                         location: payload.location,
                         inspectionType: payload.inspectionType,
@@ -820,23 +811,26 @@ export function RFIProvider({ children }) {
                         carryoverTo: null,
                         images: imageUrls,
                         assignedTo: payload.assignedTo || null,
+                        parentId: payload.parentId || null,
+                        customFields: payload.customFields || null,
                     };
 
                     const { data: insertedData, error } = await supabase.from('rfis').insert([formatForDB(syncedRfi)]).select();
                     if (error) throw error;
 
                     if (insertedData?.[0]) {
-                        await notifyConsultantsAboutFiledRFI({
-                            serialNo,
-                            location: payload.location,
-                            rfiId: insertedData[0].id,
-                            assignedTo: payload.assignedTo || null,
-                            filedBy: payload.filedBy || null,
-                        });
+                        const data = insertedData[0];
+                        await notifyConsultantsAboutNewRFI(
+                            data.id,
+                            data.custom_fields?.rfi_no || data.serial_no,
+                            data.location,
+                            data.filed_by,
+                            data.assigned_to
+                        );
                         if (payload.assignedTo) {
-                            await logAuditEvent(insertedData[0].id, 'assigned', { assignee: payload.assignedTo });
+                            await logAuditEvent(data.id, 'assigned', { assignee: payload.assignedTo });
                         }
-                        await logAuditEvent(insertedData[0].id, 'created', {
+                        await logAuditEvent(data.id, 'created', {
                             description: payload.description,
                             location: payload.location,
                             source: 'offline-sync',
@@ -860,7 +854,7 @@ export function RFIProvider({ children }) {
         } finally {
             isSyncingOfflineRef.current = false;
         }
-    }, [activeProject, fetchAllRFIs, getNextSerialNoForDate, normalizeImagesForSubmission, notifyConsultantsAboutFiledRFI, refreshPendingSyncCount]);
+    }, [activeProject, fetchAllRFIs, getNextSerialNoForDate, getNextRfiCode, normalizeImagesForSubmission, notifyConsultantsAboutNewRFI, refreshPendingSyncCount]);
 
     const syncPendingConsultantActions = useCallback(async () => {
         if (!navigator.onLine || !activeProject?.id || isSyncingOfflineRef.current) return;
@@ -1005,12 +999,11 @@ export function RFIProvider({ children }) {
             if (error) throw error;
 
             // Notify Contractor
+            const rfiNo = targetRfi.customFields?.rfi_no || targetRfi.serialNo;
             await createNotification(
                 targetRfi.filedBy,
-                "RFI Approved ✅",
-                remarks?.trim()
-                    ? `Your RFI #${targetRfi.serialNo} for ${targetRfi.location} was approved. Remarks: ${remarks.trim()}`
-                    : `Your RFI #${targetRfi.serialNo} for ${targetRfi.location} was approved.`,
+                `RFI Approved: #${rfiNo}`,
+                `Remarks: ${remarks?.trim() || 'No remarks provided.'}`,
                 rfiId
             );
 
@@ -1024,8 +1017,8 @@ export function RFIProvider({ children }) {
                 if (tagged.id !== targetRfi.filedBy) {
                     await createNotification(
                         tagged.id,
-                        'Tagged in Approval Remarks',
-                        `You were tagged on approved RFI #${targetRfi.serialNo}: ${remarks.trim()}`,
+                        `RFI Approved: #${rfiNo} (TAG)`,
+                        `Remarks: ${remarks.trim()}`,
                         rfiId
                     );
                 }
@@ -1098,10 +1091,11 @@ export function RFIProvider({ children }) {
             if (error) throw error;
 
             // Notify Contractor
+            const rfiNo = targetRfi.customFields?.rfi_no || targetRfi.serialNo;
             await createNotification(
                 targetRfi.filedBy,
-                "RFI Rejected ❌",
-                `Your RFI #${targetRfi.serialNo} was rejected. Remarks: ${remarks}`,
+                `RFI Rejected: #${rfiNo}`,
+                `Remarks: ${remarks || 'No remarks provided.'}`,
                 rfiId
             );
             const mentionMatches = remarks.match(/@([a-z0-9._-]+)/gi) || [];
@@ -1113,8 +1107,8 @@ export function RFIProvider({ children }) {
                 if (tagged.id !== targetRfi.filedBy) {
                     await createNotification(
                         tagged.id,
-                        "Tagged in Rejection Remarks",
-                        `You were tagged on RFI #${targetRfi.serialNo}: ${remarks}`,
+                        `RFI Rejected: #${rfiNo} (TAG)`,
+                        `Remarks: ${remarks}`,
                         rfiId
                     );
                 }
@@ -1150,8 +1144,8 @@ export function RFIProvider({ children }) {
             for (const rfi of targetRfis) {
                 await createNotification(
                     rfi.filedBy,
-                    "RFI Approved ✅ (Bulk)",
-                    `Your RFI #${rfi.serialNo} for ${rfi.location} was approved in a bulk operation.`,
+                    `RFI Approved: #${rfi.customFields?.rfi_no || rfi.serialNo}`,
+                    'Remarks: Approved via bulk operation.',
                     rfi.id
                 );
                 await logAuditEvent(rfi.id, 'approved', { bulk: true });
@@ -1185,8 +1179,8 @@ export function RFIProvider({ children }) {
             if (consultantId) {
                 await createNotification(
                     consultantId,
-                    "RFIs Assigned (Bulk) 📌",
-                    `${rfiIds.length} RFIs have been assigned to you for review.`,
+                    "Bulk Assignment",
+                    `${rfiIds.length} RFIs assigned to you for review.`,
                     null
                 );
             }
@@ -1224,8 +1218,8 @@ export function RFIProvider({ children }) {
             if (targetRfi.reviewedBy) {
                 await createNotification(
                     targetRfi.reviewedBy,
-                    "RFI Resubmitted 🔄",
-                    `Contractor resubmitted RFI #${targetRfi.serialNo} for review.`,
+                    `RFI Resubmitted: #${targetRfi.customFields?.rfi_no || targetRfi.serialNo}`,
+                    'Remarks: Contractor resubmitted for review.',
                     rfiId
                 );
             }
@@ -1333,12 +1327,13 @@ export function RFIProvider({ children }) {
                 const candidate = mentionCandidates.find((m) => m?.id === recipientId);
                 const isMention = candidate && mentionKeys.has(normalizeMentionKey(candidate.name || ''));
 
+                const rfiNo = targetRfi.customFields?.rfi_no || targetRfi.serialNo;
                 await createNotification(
                     recipientId,
-                    isMention ? 'You were mentioned 💬' : 'New Message 💬',
+                    isMention ? `RFI Mention: #${rfiNo}` : `RFI Message: #${rfiNo}`,
                     isMention
-                        ? `${user.name} mentioned you on RFI #${targetRfi.serialNo}.`
-                        : `New message on RFI #${targetRfi.serialNo} from ${user.name}`,
+                        ? `Message: ${user.name}: ${content.trim()}`
+                        : `Message: ${user.name}: ${content.trim()}`,
                     rfiId
                 );
             }
@@ -1645,6 +1640,17 @@ export function RFIProvider({ children }) {
     // --- Helper to trigger notifications (Used internally by approve/reject/comment) ---
     async function createNotification(userId, title, message, rfiId = null, options = {}) {
         try {
+            // 1. Mark previous status notifications for this RFI as read for this user
+            if (rfiId) {
+                await supabase
+                    .from('notifications')
+                    .update({ is_read: true })
+                    .eq('user_id', userId)
+                    .eq('rfi_id', rfiId)
+                    .is('is_read', false);
+            }
+
+            // 2. Insert new notification
             const { error: notificationError } = await supabase.from('notifications').insert([{
                 user_id: userId,
                 title,

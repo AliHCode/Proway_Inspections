@@ -76,7 +76,7 @@ export default function ApproveModal({ rfi, onApprove, onClose, contractors = []
                                 {mode === 'conditional' ? 'Conditionally Approve' : 'Approve Inspection'}
                             </h3>
                             <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--clr-text-secondary)' }}>
-                                RFI #{rfi.serialNo} · {rfi.location}
+                                RFI #{rfi.customFields?.rfi_no || rfi.serialNo} · {rfi.location}
                             </p>
                         </div>
                     </div>
