@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../utils/supabaseClient';
 import { useAuth } from '../context/AuthContext';
@@ -61,40 +62,73 @@ const ALL_TIMEZONES = Intl.supportedValuesOf('timeZone').map(tz => {
     return a.label.localeCompare(b.label);
 });
 
-// --- SearchableSelect Component ---
+// --- SearchableSelect Component (Portal-based to escape overflow clipping) ---
 function SearchableSelect({ options, value, onChange, placeholder = "Search..." }) {
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState("");
-    const containerRef = useCallback(node => {
-        if (node !== null) {
-            const handleClickOutside = (e) => {
-                if (!node.contains(e.target)) setIsOpen(false);
-            };
-            document.addEventListener("mousedown", handleClickOutside);
-            return () => document.removeEventListener("mousedown", handleClickOutside);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+    const triggerRef = useRef(null);
+    const dropdownRef = useRef(null);
+
+    // Calculate dropdown position on open
+    const handleToggle = () => {
+        if (!isOpen && triggerRef.current) {
+            const rect = triggerRef.current.getBoundingClientRect();
+            setDropdownPos({
+                top: rect.bottom + window.scrollY + 8,
+                left: rect.left + window.scrollX,
+                width: Math.max(rect.width, 340),
+            });
         }
-    }, []);
+        setIsOpen(prev => !prev);
+    };
+
+    // Close on outside click
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleClickOutside = (e) => {
+            if (
+                triggerRef.current && !triggerRef.current.contains(e.target) &&
+                dropdownRef.current && !dropdownRef.current.contains(e.target)
+            ) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [isOpen]);
 
     const selectedOption = options.find(opt => opt.value === value);
-    const filteredOptions = options.filter(opt => 
+    const filteredOptions = options.filter(opt =>
         opt.label.toLowerCase().includes(search.toLowerCase())
     );
 
     return (
-        <div className="searchable-select-container" ref={containerRef}>
-            <div className={`searchable-select-trigger ${isOpen ? 'active' : ''}`} onClick={() => setIsOpen(!isOpen)}>
+        <div className="searchable-select-container" ref={triggerRef}>
+            <div className={`searchable-select-trigger ${isOpen ? 'active' : ''}`} onClick={handleToggle}>
                 <span className="selected-value">{selectedOption ? selectedOption.label : placeholder}</span>
                 <ChevronDown size={16} className={`chevron-icon ${isOpen ? 'rotate' : ''}`} />
             </div>
-            
-            {isOpen && (
-                <div className="searchable-select-dropdown">
+
+            {isOpen && createPortal(
+                <div
+                    ref={dropdownRef}
+                    className="searchable-select-dropdown"
+                    style={{
+                        position: 'fixed',
+                        top: dropdownPos.top,
+                        left: dropdownPos.left,
+                        width: dropdownPos.width,
+                        zIndex: 99999,
+                    }}
+                    onClick={e => e.stopPropagation()}
+                >
                     <div className="search-input-wrapper">
                         <Search size={14} className="search-icon" />
-                        <input 
-                            type="text" 
-                            className="search-input" 
-                            placeholder="Type to find city..." 
+                        <input
+                            type="text"
+                            className="search-input"
+                            placeholder="Type to find city..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             autoFocus
@@ -103,8 +137,8 @@ function SearchableSelect({ options, value, onChange, placeholder = "Search..." 
                     <div className="custom-options-list">
                         {filteredOptions.length > 0 ? (
                             filteredOptions.map(opt => (
-                                <div 
-                                    key={opt.value} 
+                                <div
+                                    key={opt.value}
                                     className={`custom-option ${opt.value === value ? 'selected' : ''}`}
                                     onClick={() => {
                                         onChange(opt.value);
@@ -119,7 +153,8 @@ function SearchableSelect({ options, value, onChange, placeholder = "Search..." 
                             <div className="no-results">No cities found</div>
                         )}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
