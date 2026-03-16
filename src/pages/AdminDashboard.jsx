@@ -10,9 +10,9 @@ import { buildColumnWidthMap, getDefaultColumnWidth, sanitizeColumnWidth } from 
 import {
     Users, Shield, UserX, UserCheck, RefreshCw,
     FolderPlus, Trash2, Plus, GripVertical, ArrowUp, ArrowDown, Save,
-    Building, Columns3, UserPlus, X, AlertCircle, Clock, Globe, Briefcase
+    Building, Columns3, UserPlus, X, AlertCircle, Clock, Globe, Briefcase,
+    Search, ChevronDown
 } from 'lucide-react';
-import { COMMON_TIMEZONES } from '../utils/constants';
 
 const FIELD_TYPES = [
     { value: 'text', label: 'Text' },
@@ -21,6 +21,109 @@ const FIELD_TYPES = [
     { value: 'date', label: 'Date' },
     { value: 'textarea', label: 'Long Text' },
 ];
+
+const ALL_TIMEZONES = Intl.supportedValuesOf('timeZone').map(tz => {
+    const parts = tz.split('/');
+    const city = parts[parts.length - 1].replace(/_/g, ' ');
+    
+    // Get time offset in GMT format
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        timeZoneName: 'shortOffset'
+    });
+    
+    const parts_tz = formatter.formatToParts(now);
+    const offsetPart = parts_tz.find(p => p.type === 'timeZoneName').value;
+    
+    // Convert to standard format: (UTC+04:00)
+    let offsetLabel = 'UTC+0:00';
+    let offsetMinutes = 0;
+    
+    if (offsetPart !== 'GMT') {
+        const sign = offsetPart.includes('+') ? '+' : '-';
+        const [hours, minutes] = offsetPart.replace('GMT', '').replace(/[+-]/, '').split(':').map(Number);
+        const paddedHours = String(hours || 0).padStart(2, '0');
+        const paddedMinutes = String(minutes || 0).padStart(2, '0');
+        offsetLabel = `UTC${sign}${paddedHours}:${paddedMinutes}`;
+        offsetMinutes = (sign === '+' ? 1 : -1) * ((hours || 0) * 60 + (minutes || 0));
+    }
+    
+    return {
+        value: tz,
+        label: `(${offsetLabel}) ${city}`,
+        offsetMinutes
+    };
+}).filter((tz, index, self) => 
+    index === self.findIndex((t) => t.label === tz.label)
+).sort((a, b) => {
+    if (a.offsetMinutes !== b.offsetMinutes) return a.offsetMinutes - b.offsetMinutes;
+    return a.label.localeCompare(b.label);
+});
+
+// --- SearchableSelect Component ---
+function SearchableSelect({ options, value, onChange, placeholder = "Search..." }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState("");
+    const containerRef = useCallback(node => {
+        if (node !== null) {
+            const handleClickOutside = (e) => {
+                if (!node.contains(e.target)) setIsOpen(false);
+            };
+            document.addEventListener("mousedown", handleClickOutside);
+            return () => document.removeEventListener("mousedown", handleClickOutside);
+        }
+    }, []);
+
+    const selectedOption = options.find(opt => opt.value === value);
+    const filteredOptions = options.filter(opt => 
+        opt.label.toLowerCase().includes(search.toLowerCase())
+    );
+
+    return (
+        <div className="searchable-select-container" ref={containerRef}>
+            <div className={`searchable-select-trigger ${isOpen ? 'active' : ''}`} onClick={() => setIsOpen(!isOpen)}>
+                <span className="selected-value">{selectedOption ? selectedOption.label : placeholder}</span>
+                <ChevronDown size={16} className={`chevron-icon ${isOpen ? 'rotate' : ''}`} />
+            </div>
+            
+            {isOpen && (
+                <div className="searchable-select-dropdown">
+                    <div className="search-input-wrapper">
+                        <Search size={14} className="search-icon" />
+                        <input 
+                            type="text" 
+                            className="search-input" 
+                            placeholder="Type to find city..." 
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            autoFocus
+                        />
+                    </div>
+                    <div className="custom-options-list">
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map(opt => (
+                                <div 
+                                    key={opt.value} 
+                                    className={`custom-option ${opt.value === value ? 'selected' : ''}`}
+                                    onClick={() => {
+                                        onChange(opt.value);
+                                        setIsOpen(false);
+                                        setSearch("");
+                                    }}
+                                >
+                                    {opt.label}
+                                </div>
+                            ))
+                        ) : (
+                            <div className="no-results">No cities found</div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function AdminDashboard() {
     const { user } = useAuth();
@@ -422,35 +525,35 @@ export default function AdminDashboard() {
         <div className="page-wrapper">
             <Header />
             <main className="admin-page">
-                <div className="sheet-header">
-                    <div>
-                        <h1><Shield size={24} /> Admin Command Center</h1>
-                        <p className="subtitle" style={{ marginTop: '0.25rem' }}>Manage projects, RFI fields, users &amp; assignments</p>
+                {/* High-Density Navigation Bar */}
+                <div className="admin-nav-bar" style={{ marginTop: '0.5rem', marginBottom: '1.5rem' }}>
+                    <div className="admin-tabs">
+                        <button className={`admin-tab-btn ${activeTab === 'projects' ? 'active' : ''}`} onClick={() => setActiveTab('projects')}>
+                            <Building size={16} /> Projects
+                        </button>
+                        <button className={`admin-tab-btn ${activeTab === 'fields' ? 'active' : ''}`} onClick={() => setActiveTab('fields')}>
+                            <Columns3 size={16} /> RFI Table Fields
+                        </button>
+                        <button className={`admin-tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
+                            <Users size={16} /> Users &amp; Assignments
+                        </button>
                     </div>
-                    <button className="btn btn-ghost btn-sm" onClick={() => { fetchUsers(); fetchProjects(); }} disabled={loading}>
-                        <RefreshCw size={16} className={loading ? 'spinner' : ''} /> Refresh
-                    </button>
-                    {/* Quick stats bar */}
-                    {activeTab === 'users' && (
-                        <div className="users-stat-pills" style={{ marginLeft: 'auto', marginRight: '0.5rem' }}>
-                            {stats.pending > 0 && <span className="ustat-pill ustat-warning">⏳ {stats.pending} Pending</span>}
-                            {stats.unassigned > 0 && <span className="ustat-pill ustat-info">🔔 {stats.unassigned} Unassigned</span>}
-                        </div>
-                    )}
-                </div>
 
-                {/* Tabs */}
-                <div className="admin-tabs">
-                    <button className={`admin-tab-btn ${activeTab === 'projects' ? 'active' : ''}`} onClick={() => setActiveTab('projects')}>
-                        <Building size={16} /> Projects
-                    </button>
-                    <button className={`admin-tab-btn ${activeTab === 'fields' ? 'active' : ''}`} onClick={() => setActiveTab('fields')}>
-                        <Columns3 size={16} /> RFI Table Fields
-                    </button>
-                    <button className={`admin-tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
-                        <Users size={16} /> Users &amp; Assignments
-                        {stats.pending > 0 && <span className="admin-tab-badge">{stats.pending}</span>}
-                    </button>
+                    <div className="admin-nav-actions">
+                        {activeTab === 'users' && (
+                            <div className="users-stat-pills">
+                                {stats.pending > 0 && <span className="ustat-pill ustat-warning">⏳ {stats.pending} Pending</span>}
+                                {stats.unassigned > 0 && <span className="ustat-pill ustat-info">🔔 {stats.unassigned} Unassigned</span>}
+                            </div>
+                        )}
+                        <button className="btn btn-ghost btn-sm btn-refresh-global" 
+                            onClick={() => { activeTab === 'users' ? fetchUsers() : fetchProjects(); }} 
+                            disabled={loading}
+                            title="Refresh Data"
+                        >
+                            <RefreshCw size={16} className={loading ? 'spinner' : ''} />
+                        </button>
+                    </div>
                 </div>
 
                 {actionMessage && (
@@ -462,8 +565,7 @@ export default function AdminDashboard() {
                 {/* ═══════════ TAB: PROJECTS ═══════════ */}
                 {activeTab === 'projects' && (
                     <div className="admin-section">
-                        <div className="admin-section-header">
-                            <h2><Building size={20} /> Projects</h2>
+                        <div className="admin-section-header" style={{ justifyContent: 'flex-end', marginBottom: '1rem' }}>
                             <button className="btn btn-sm" style={{ background: 'var(--clr-brand-secondary)', color: '#fff', border: 'none' }}
                                 onClick={() => setShowNewProject(!showNewProject)}>
                                 <FolderPlus size={16} /> New Project
@@ -485,11 +587,11 @@ export default function AdminDashboard() {
                                     </div>
                                     <div className="form-group">
                                         <label>Site Timezone</label>
-                                        <select value={newProjectTimezone} onChange={e => setNewProjectTimezone(e.target.value)}>
-                                            {COMMON_TIMEZONES.map(tz => (
-                                                <option key={tz.value} value={tz.value}>{tz.label}</option>
-                                            ))}
-                                        </select>
+                                        <SearchableSelect 
+                                            options={ALL_TIMEZONES}
+                                            value={newProjectTimezone}
+                                            onChange={setNewProjectTimezone}
+                                        />
                                     </div>
                                     <div className="form-group full-width">
                                         <label>Description</label>
@@ -498,10 +600,10 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
                                 <div className="form-actions">
-                                    <button type="submit" className="btn btn-primary">
+                                    <button type="button" className="btn btn-ghost" onClick={() => setShowNewProject(false)}>Cancel</button>
+                                    <button type="submit" className="btn btn-primary" style={{ minWidth: '160px' }}>
                                         <Plus size={16} /> Create Project
                                     </button>
-                                    <button type="button" className="btn btn-ghost" onClick={() => setShowNewProject(false)}>Cancel</button>
                                 </div>
                             </form>
                         )}
@@ -511,6 +613,16 @@ export default function AdminDashboard() {
                                 <div key={p.id} className={`project-card-premium ${activeProject?.id === p.id ? 'active' : ''}`}
                                     onClick={() => changeActiveProject(p.id)}>
                                     
+                                    {p.id !== '00000000-0000-0000-0000-000000000000' && editingProject !== p.id && (
+                                        <button 
+                                            className="btn-delete-floating" 
+                                            onClick={(e) => { e.stopPropagation(); handleDeleteProject(p.id); }}
+                                            title="Delete Project"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    )}
+
                                     <div className="project-card-main">
                                         <div className="project-card-icon">
                                             <Briefcase size={22} />
@@ -541,16 +653,11 @@ export default function AdminDashboard() {
                                         <div className="detail-item">
                                             <span className="detail-label">Timezone</span>
                                             {editingProject === p.id ? (
-                                                <select 
-                                                    className="detail-select"
+                                                <SearchableSelect 
+                                                    options={ALL_TIMEZONES}
                                                     value={editTimezone}
-                                                    onChange={e => setEditTimezone(e.target.value)}
-                                                    onClick={e => e.stopPropagation()}
-                                                >
-                                                    {COMMON_TIMEZONES.map(tz => (
-                                                        <option key={tz.value} value={tz.value}>{tz.label}</option>
-                                                    ))}
-                                                </select>
+                                                    onChange={setEditTimezone}
+                                                />
                                             ) : (
                                                 <span className="detail-value" title={p.timezone}>
                                                     <Globe size={12} /> {p.timezone || 'UTC'}
@@ -562,16 +669,13 @@ export default function AdminDashboard() {
                                     <div className="project-card-actions" onClick={e => e.stopPropagation()}>
                                         {editingProject === p.id ? (
                                             <>
-                                                <button className="btn-save" onClick={() => handleUpdateProjectDetails(p.id)}><Save size={14} /> Save</button>
+                                                <button className="btn-save" onClick={() => handleUpdateProjectDetails(p.id)}><Save size={14} /> Save Changes</button>
                                                 <button className="btn-cancel" onClick={() => setEditingProject(null)}><X size={14} /></button>
                                             </>
                                         ) : (
-                                            <>
-                                                <button className="btn-edit" onClick={() => { setEditingProject(p.id); setEditCode(p.code || ''); setEditTimezone(p.timezone || 'UTC'); }}>Edit</button>
-                                                {p.id !== '00000000-0000-0000-0000-000000000000' && (
-                                                    <button className="btn-delete" onClick={() => handleDeleteProject(p.id)}><Trash2 size={14} /></button>
-                                                )}
-                                            </>
+                                            <button className="btn-edit" onClick={() => { setEditingProject(p.id); setEditCode(p.code || ''); setEditTimezone(p.timezone || 'UTC'); }}>
+                                                Edit Project Details
+                                            </button>
                                         )}
                                     </div>
                                 </div>
@@ -583,8 +687,7 @@ export default function AdminDashboard() {
                 {/* ═══════════ TAB: RFI FIELDS ═══════════ */}
                 {activeTab === 'fields' && (
                     <div className="admin-section">
-                        <div className="admin-section-header">
-                            <h2><Columns3 size={20} /> RFI Table Columns — {activeProject?.name || 'Select a project'}</h2>
+                        <div className="admin-section-header" style={{ justifyContent: 'flex-end', marginBottom: '1rem' }}>
                             <button className="btn btn-sm" style={{ background: 'var(--clr-brand-secondary)', color: '#fff', border: 'none' }}
                                 onClick={() => setShowNewField(!showNewField)}>
                                 <Plus size={16} /> Add Column

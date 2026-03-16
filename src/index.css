@@ -1279,35 +1279,104 @@ h6 {
   }
 }
 
-/* Premium Dashboard Header */
+/* Premium Dashboard Header - Out of the Box Overhaul */
 .premium-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
+  align-items: flex-end; /* Anchored to bottom for better alignment with accent pillar */
+  margin-bottom: 2.5rem;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 1.5rem;
+  padding: 0.5rem 0;
+}
+
+.premium-welcome {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  position: relative;
+}
+
+.welcome-accent-pillar {
+  width: 6px;
+  height: 54px;
+  background: var(--clr-brand-primary);
+  border-radius: 99px;
+  box-shadow: 0 0 20px rgba(var(--clr-brand-primary-rgb, 59, 130, 246), 0.3);
+  animation: pillarPulse 2s ease-in-out infinite;
+}
+
+@keyframes pillarPulse {
+  0% { opacity: 1; height: 54px; }
+  50% { opacity: 0.8; height: 48px; }
+  100% { opacity: 1; height: 54px; }
+}
+
+.welcome-text-group {
+  display: flex;
+  flex-direction: column;
 }
 
 .premium-welcome h1 {
-  font-size: 2.15rem;
-  font-weight: 700;
-  letter-spacing: -0.04em;
+  font-size: 2.5rem;
+  font-weight: 900;
+  letter-spacing: -0.05em;
   color: #0f172a;
+  margin: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.premium-welcome p {
-  font-size: 1.05rem;
+.user-name-highlight {
+  color: var(--clr-brand-primary);
+  position: relative;
+  display: inline-block;
+}
+
+.welcome-subtext {
+  margin-top: 0.45rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
   color: #64748b;
-  margin-top: 0.15rem;
+  letter-spacing: 0.02em;
 }
 
-@media (max-width: 640px) {
+.company-tag {
+  color: #0f172a;
+  background: #f1f5f9;
+  padding: 0.15rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.workspace-divider {
+  width: 4px;
+  height: 4px;
+  background: #cbd5e1;
+  border-radius: 50%;
+}
+
+.workspace-label {
+  opacity: 0.8;
+}
+
+@media (max-width: 768px) {
   .premium-welcome h1 {
-    font-size: 1.65rem;
+    font-size: 1.85rem;
   }
-  .premium-welcome p {
-    font-size: 0.95rem;
+  .welcome-accent-pillar {
+    height: 40px;
+  }
+  .welcome-subtext {
+    font-size: 0.85rem;
+    flex-wrap: wrap;
   }
 }
 
@@ -4291,13 +4360,13 @@ h6 {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.65rem 1.25rem;
+  padding: 0.65rem 1.25rem 0.4rem;
   border: none;
   background: transparent;
   color: var(--clr-text-muted);
   font-family: var(--font-main);
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 1.15rem;
+  font-weight: 700;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
@@ -4329,26 +4398,70 @@ h6 {
   margin-left: 0.25rem;
 }
 
-/* --- Admin Sections --- */
-.admin-section {
-  animation: fadeIn 0.25s ease;
-}
-
-.admin-section-header {
+/* --- Admin High-Density Navigation --- */
+.admin-nav-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 1.5rem;
+  padding-bottom: 0px;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
 }
 
-.admin-section-header h2 {
+.admin-nav-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 1.1rem;
+  gap: 1.25rem;
+}
+
+.btn-refresh-global {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--clr-bg-card);
+  border: 1px solid var(--clr-border);
+  color: var(--clr-text-muted);
+  transition: all 0.2s ease;
+}
+
+.btn-refresh-global:hover {
+  background: var(--clr-bg-secondary);
+  color: var(--clr-brand-secondary);
+  border-color: var(--clr-brand-secondary);
+  transform: rotate(30deg);
+}
+
+.ustat-pill {
+  padding: 0.35rem 0.85rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  margin: 0;
+  border-radius: 99px;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.2s ease;
+}
+
+.ustat-warning {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fef3c7;
+}
+
+.ustat-info {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #dbeafe;
+}
+
+/* --- Admin Sections --- */
+.admin-section {
+  animation: fadeIn 0.25s ease;
 }
 
 /* --- Admin Inline Form --- */
@@ -6864,7 +6977,7 @@ body,
 .project-card-actions {
   display: flex;
   gap: 0.5rem;
-  margin-top: 0.25rem;
+  margin-top: 0.5rem; /* Increased spacing for better balance */
 }
 
 .btn-edit, .btn-save {
@@ -6872,27 +6985,53 @@ body,
   background: var(--clr-brand-secondary);
   color: #ffffff;
   border: none;
-  padding: 0.5rem;
-  border-radius: 10px;
-  font-size: 0.85rem;
-  font-weight: 700;
+  padding: 0.75rem; /* Increased padding for more "luxury" feel */
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 800;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  transition: all 0.2s ease;
+  gap: 0.5rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.01em;
 }
 
 .btn-edit:hover, .btn-save:hover {
   background: var(--clr-brand-primary);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(var(--clr-brand-primary-rgb, 59, 130, 246), 0.3);
 }
 
-.btn-delete {
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
+.btn-delete-floating {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.btn-delete-floating:hover {
+  background: #fee2e2;
+  color: #ef4444;
+  border-color: #fecaca;
+  transform: rotate(8deg);
+}
+
+.btn-cancel {
+  width: 48px;
+  border-radius: 12px;
   border: 1.5px solid var(--clr-border);
   background: transparent;
   color: var(--clr-text-muted);
@@ -6903,22 +7042,9 @@ body,
   transition: all 0.2s ease;
 }
 
-.btn-delete:hover {
-  color: var(--clr-danger);
-  border-color: var(--clr-danger);
-  background: rgba(239, 68, 68, 0.05);
-}
-
-.btn-cancel {
-  width: 42px;
-  border-radius: 10px;
-  border: 1.5px solid var(--clr-border);
-  background: transparent;
-  color: var(--clr-text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
+.btn-cancel:hover {
+  background: #f1f5f9;
+  color: var(--clr-brand-secondary);
 }
 
 @media (max-width: 640px) {
@@ -6930,5 +7056,177 @@ body,
   .project-card-premium {
     padding: 1.25rem;
   }
+}
+
+/* --- Project Creation Panel Refinements --- */
+.premium-project-form {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  padding: 2rem !important; /* Increased padding for luxury feel */
+  background: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
+  gap: 2rem !important;
+}
+
+.premium-project-form .form-grid {
+  width: 100%;
+}
+
+.premium-project-form .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #f1f5f9;
+  width: 100%;
+}
+
+/* Ensure global standard for form actions in this context */
+.admin-section .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+/* --- SearchableSelect Premium Styles --- */
+.searchable-select-container {
+  position: relative;
+  width: 100%;
+}
+
+.searchable-select-trigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.65rem 1rem;
+  background: #ffffff;
+  border: 1.5px solid var(--clr-border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--clr-brand-secondary);
+}
+
+.searchable-select-trigger:hover {
+  border-color: var(--clr-brand-accent);
+  background: #f8fafc;
+}
+
+.searchable-select-trigger.active {
+  border-color: var(--clr-brand-primary);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.chevron-icon {
+  color: var(--clr-text-muted);
+  transition: transform 0.3s ease;
+}
+
+.chevron-icon.rotate {
+  transform: rotate(180deg);
+}
+
+.searchable-select-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 16px;
+  box-shadow: 
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 1000;
+  overflow: hidden;
+  animation: dropdownSlideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top;
+}
+
+@keyframes dropdownSlideDown {
+  from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.search-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+
+.search-icon {
+  color: #94a3b8;
+}
+
+.search-input {
+  flex: 1;
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  color: var(--clr-brand-secondary) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.custom-options-list {
+  max-height: 250px;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.custom-options-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-options-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-options-list::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 99px;
+}
+
+.custom-options-list::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+.custom-option {
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--clr-text-main);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.custom-option:hover {
+  background: #f1f5f9;
+  color: var(--clr-brand-primary);
+  padding-left: 1.15rem;
+}
+
+.custom-option.selected {
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--clr-brand-primary);
+  font-weight: 700;
+}
+
+.no-results {
+  padding: 1.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--clr-text-muted);
+  font-style: italic;
 }
 

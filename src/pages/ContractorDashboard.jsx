@@ -33,6 +33,13 @@ export default function ContractorDashboard() {
     const today = getToday();
     const stats = getStats(today);
 
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good Morning';
+        if (hour < 17) return 'Good Afternoon';
+        return 'Good Evening';
+    };
+
     // Get all RFIs by this contractor (latest thread version only)
     const allMyRfis = rfis
         .filter((r) => r.filedBy === user.id && !rfis.some(child => child.parentId === r.id))
@@ -122,8 +129,15 @@ export default function ContractorDashboard() {
             <main className="dashboard-page">
                 <header className="premium-header">
                     <div className="premium-welcome">
-                        <h1>Welcome, {user?.name || 'Contractor'}</h1>
-                        <p>{user?.company || 'ProWay'} — Contractor Workspace</p>
+                        <div className="welcome-accent-pillar"></div>
+                        <div className="welcome-text-group">
+                            <h1>{getGreeting()}, <span className="user-name-highlight">{user?.name?.split(' ')[0] || 'Contractor'}</span></h1>
+                            <p className="welcome-subtext">
+                                <span className="company-tag">{user?.company || 'ProWay'}</span>
+                                <span className="workspace-divider"></span>
+                                <span className="workspace-label">Contractor Workspace</span>
+                            </p>
+                        </div>
                     </div>
                     <button className="btn-command" onClick={() => navigate('/contractor/rfi-sheet')}>
                         <Plus size={18} strokeWidth={2.5} /> File RFIs

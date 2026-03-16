@@ -27,6 +27,13 @@ export default function ConsultantDashboard() {
     const today = getToday();
     const queue = getReviewQueue(today);
 
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good Morning';
+        if (hour < 17) return 'Good Afternoon';
+        return 'Good Evening';
+    };
+
     const statusBreakdown = useMemo(() => {
         const reviewedToday = rfis.filter((r) => r.reviewedAt && r.reviewedAt.startsWith(today));
         const approvedToday = reviewedToday.filter((r) => r.status === 'approved').length;
@@ -65,8 +72,15 @@ export default function ConsultantDashboard() {
             <main className="dashboard-page">
                 <header className="premium-header">
                     <div className="premium-welcome">
-                        <h1>Welcome, {user?.name || 'Consultant'}</h1>
-                        <p>{user?.company || 'ProWay'} — Consultant Workspace</p>
+                        <div className="welcome-accent-pillar"></div>
+                        <div className="welcome-text-group">
+                            <h1>{getGreeting()}, <span className="user-name-highlight">{user?.name?.split(' ')[0] || 'Consultant'}</span></h1>
+                            <p className="welcome-subtext">
+                                <span className="company-tag">{user?.company || 'ProWay'}</span>
+                                <span className="workspace-divider"></span>
+                                <span className="workspace-label">Consultant Workspace</span>
+                            </p>
+                        </div>
                     </div>
                     <div className="premium-actions" style={{ display: 'flex', gap: '0.75rem' }}>
                         <button className="btn-command" onClick={() => navigate('/consultant/review')}>
