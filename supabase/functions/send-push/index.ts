@@ -159,7 +159,8 @@ Deno.serve(async (req: Request) => {
         sender_user_id: senderUserId,
         recipient_user_id: userId,
         event_key: eventKey,
-        status: 'no-subscriptions',
+        status: 'skipped',
+        error_details: 'No active push subscriptions found for user.',
         sent_count: 0,
         removed_count: 0,
       }]);
@@ -180,6 +181,7 @@ Deno.serve(async (req: Request) => {
     });
 
     const invalidIds: string[] = [];
+    const failureDetails: string[] = [];
     let sent = 0;
 
     for (const record of dedupedSubscriptions) {
@@ -194,7 +196,9 @@ Deno.serve(async (req: Request) => {
           message?: string;
         };
         const statusCode = pushError.statusCode ?? pushError.status ?? 0;
-        console.error('Push delivery failed:', record.endpoint, statusCode, pushError.body || pushError.message || error);
+        const errorMsg = pushError.body || pushError.message || String(error);
+        console.error('Push delivery failed:', record.endpoint, statusCode, errorMsg);
+        failureDetails.push(`endpoint=${record.endpoint.slice(-20)} status=${statusCode} msg=${errorMsg}`);
 
         if (statusCode === 404 || statusCode === 410) {
           invalidIds.push(record.id);
@@ -213,11 +217,13 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    const finalStatus = sent > 0 ? 'sent' : 'failed';
     await supabase.from('push_dispatch_log').insert([{
       sender_user_id: senderUserId,
       recipient_user_id: userId,
       event_key: eventKey,
-      status: sent > 0 ? 'sent' : 'processed',
+      status: finalStatus,
+      error_details: failureDetails.length > 0 ? failureDetails.join(' | ') : null,
       sent_count: sent,
       removed_count: invalidIds.length,
     }]);

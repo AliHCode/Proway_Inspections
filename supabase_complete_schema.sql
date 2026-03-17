@@ -266,13 +266,15 @@ BEFORE UPDATE ON public.push_subscriptions
 FOR EACH ROW
 EXECUTE FUNCTION public.set_push_subscription_updated_at();
 
--- 6C. PUSH DISPATCH LOG TABLE (Rate limiting / dedupe)
+-- 6C. PUSH DISPATCH LOG TABLE (Rate limiting / dedupe / reliability)
 CREATE TABLE IF NOT EXISTS public.push_dispatch_log (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   sender_user_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
   recipient_user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   event_key text,
-  status text DEFAULT 'processed' NOT NULL,
+  status text DEFAULT 'pending' NOT NULL, -- 'pending', 'sent', 'failed'
+  error_details text,
+  retry_count integer DEFAULT 0 NOT NULL,
   sent_count integer DEFAULT 0 NOT NULL,
   removed_count integer DEFAULT 0 NOT NULL,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -306,6 +308,16 @@ CREATE TABLE IF NOT EXISTS public.security_audit_log (
   target_id UUID,        -- The ID of the project, user, or RFI affected
   metadata JSONB DEFAULT '{}'::jsonb, -- Store details like old_value, new_value
   ip_address TEXT
+);
+
+-- Table for tracking images that need to be deleted from Storage
+CREATE TABLE IF NOT EXISTS public.storage_deletion_queue (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  file_path text NOT NULL,
+  bucket_id text DEFAULT 'rfi-images' NOT NULL,
+  deleted_at timestamp with time zone DEFAULT NOW(),
+  processed boolean DEFAULT false,
+  processed_at timestamp with time zone
 );
 
 COMMENT ON TABLE security_audit_log IS 'Enterprise-grade log for tracking sensitive project and user modifications.';
@@ -346,66 +358,127 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
+-- Returns true if project is accessible (not locked) OR the user is an admin.
+CREATE OR REPLACE FUNCTION public.is_project_accessible(p_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  IF public.is_admin() THEN RETURN TRUE; END IF;
+  
+  RETURN EXISTS (
+    SELECT 1 FROM public.projects
+    WHERE id = p_id AND is_locked = false 
+    AND subscription_status != 'expired'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
 -- Profiles Policies
 -- CRITICAL: Do NOT call is_admin() here — that queries profiles and causes infinite recursion.
+DROP POLICY IF EXISTS "Authenticated can view profiles" ON public.profiles;
 CREATE POLICY "Authenticated can view profiles" ON public.profiles
     FOR SELECT USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 CREATE POLICY "Users can insert own profile" ON public.profiles
     FOR INSERT WITH CHECK (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles
     FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Admins can update any profile" ON public.profiles;
 CREATE POLICY "Admins can update any profile" ON public.profiles
     FOR UPDATE USING (public.is_admin());
 
 -- Projects Policies
+DROP POLICY IF EXISTS "Projects viewable by members" ON public.projects;
 CREATE POLICY "Projects viewable by members" ON public.projects
     FOR SELECT USING (public.is_project_member(id));
 
+DROP POLICY IF EXISTS "Admins full project control" ON public.projects;
 CREATE POLICY "Admins full project control" ON public.projects
     FOR ALL USING (public.is_admin());
 
 -- Project Members Policies
+DROP POLICY IF EXISTS "Members can view own memberships" ON public.project_members;
 CREATE POLICY "Members can view own memberships" ON public.project_members
     FOR SELECT USING (
         user_id = auth.uid() OR public.is_project_member(project_id)
     );
 
+DROP POLICY IF EXISTS "Admins manage memberships" ON public.project_members;
 CREATE POLICY "Admins manage memberships" ON public.project_members
     FOR ALL USING (public.is_admin());
 
+-- Also drop the more permissive legacy policies that may conflict
+DROP POLICY IF EXISTS "Project members viewable by authenticated" ON public.project_members;
+DROP POLICY IF EXISTS "Admins can manage project members" ON public.project_members;
+
 -- RFIs Policies
+DROP POLICY IF EXISTS "RFIs viewable by project members" ON public.rfis;
 CREATE POLICY "RFIs viewable by project members" ON public.rfis
-    FOR SELECT USING (public.is_project_member(project_id));
+    FOR SELECT USING (
+        public.is_project_member(project_id) 
+        AND public.is_project_accessible(project_id)
+    );
 
+DROP POLICY IF EXISTS "Members can create RFIs" ON public.rfis;
 CREATE POLICY "Members can create RFIs" ON public.rfis
-    FOR INSERT WITH CHECK (public.is_project_member(project_id));
+    FOR INSERT WITH CHECK (
+        public.is_project_member(project_id)
+        AND public.is_project_accessible(project_id)
+    );
 
+DROP POLICY IF EXISTS "Consultants and Admins can update RFIs" ON public.rfis;
 CREATE POLICY "Consultants and Admins can update RFIs" ON public.rfis
     FOR UPDATE USING (
         public.is_admin() OR
         (
             EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'consultant')
             AND public.is_project_member(project_id)
+            AND public.is_project_accessible(project_id)
         )
     );
 
+DROP POLICY IF EXISTS "Contractors can update own RFIs" ON public.rfis;
 CREATE POLICY "Contractors can update own RFIs" ON public.rfis
     FOR UPDATE USING (
-        filed_by = auth.uid() AND public.is_project_member(project_id)
+        filed_by = auth.uid()
+        AND public.is_project_member(project_id)
+        AND public.is_project_accessible(project_id)
     );
 
+DROP POLICY IF EXISTS "Contractors can delete own RFIs" ON public.rfis;
 CREATE POLICY "Contractors can delete own RFIs" ON public.rfis
-    FOR DELETE USING (auth.uid() = filed_by);
+    FOR DELETE USING (
+        auth.uid() = filed_by 
+        AND public.is_project_accessible(project_id)
+    );
 
 -- Security Audit Log Policies
-CREATE POLICY "Admins can view audit logs" ON security_audit_log
+DROP POLICY IF EXISTS "Admins can view audit logs" ON public.security_audit_log;
+DROP POLICY IF EXISTS "Admins can manage audit logs" ON public.security_audit_log;
+DROP POLICY IF EXISTS "Users can insert audit logs" ON public.security_audit_log;
+
+CREATE POLICY "Admins can view audit logs" ON public.security_audit_log
     FOR SELECT USING (public.is_admin());
 
-CREATE POLICY "Users can insert audit logs" ON security_audit_log
+CREATE POLICY "Admins can manage audit logs" ON public.security_audit_log
+    FOR ALL USING (public.is_admin());
+
+CREATE POLICY "Users can insert audit logs" ON public.security_audit_log
     FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+-- Storage Deletion Queue Policies
+ALTER TABLE public.storage_deletion_queue ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Only admins can view deletion queue" ON public.storage_deletion_queue;
+CREATE POLICY "Only admins can view deletion queue" ON public.storage_deletion_queue
+    FOR SELECT USING (public.is_admin());
+
+DROP POLICY IF EXISTS "Only system can insert into deletion queue" ON public.storage_deletion_queue;
+CREATE POLICY "Only system can insert into deletion queue" ON public.storage_deletion_queue
+    FOR INSERT WITH CHECK (false); -- Insertions only happen via trigger (SECURITY DEFINER)
 
 -- Comments Policies
 DROP POLICY IF EXISTS "Comments viewable by authenticated" ON public.comments;
@@ -426,6 +499,7 @@ USING (
     SELECT 1
     FROM public.rfis r
     WHERE r.id = comments.rfi_id
+      AND public.is_project_accessible(r.project_id)
       AND (
         r.assigned_to IS NULL
         OR auth.uid() = r.filed_by
@@ -443,6 +517,7 @@ WITH CHECK (
     SELECT 1
     FROM public.rfis r
     WHERE r.id = comments.rfi_id
+      AND public.is_project_accessible(r.project_id)
       AND (
         r.assigned_to IS NULL
         OR auth.uid() = r.filed_by
@@ -500,7 +575,15 @@ USING (
 
 -- Notifications Policies
 DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
-CREATE POLICY "Users can view own notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own notifications" ON public.notifications 
+    FOR SELECT USING (
+        auth.uid() = user_id
+        AND (rfi_id IS NULL OR EXISTS (
+            SELECT 1 FROM public.rfis r 
+            WHERE r.id = notifications.rfi_id 
+            AND public.is_project_accessible(r.project_id)
+        ))
+    );
 
 DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications;
 CREATE POLICY "Users can update own notifications" ON public.notifications FOR UPDATE USING (auth.uid() = user_id);
@@ -617,5 +700,95 @@ CREATE PUBLICATION supabase_realtime FOR TABLE
   public.notifications, 
   public.audit_log;
 
--- 13. REFRESH SCHEMA CACHE
+-- 13. ADDITIONAL TRIGGERS FOR SHIPPING LOGIC
+
+-- Automatically generate serial_no and rfi_no for RFIs on insert
+CREATE OR REPLACE FUNCTION public.generate_rfi_serial_no()
+RETURNS trigger AS $$
+DECLARE
+  p_code text;
+  max_val integer;
+  parent_code text;
+BEGIN
+  -- 1. Handle serial_no
+  IF NEW.serial_no IS NULL OR NEW.serial_no = 0 THEN
+    SELECT COALESCE(MAX(serial_no), 0) + 1 INTO NEW.serial_no
+    FROM public.rfis
+    WHERE project_id = NEW.project_id AND filed_date = NEW.filed_date;
+  END IF;
+
+  -- 2. Handle rfi_no in custom_fields
+  IF NEW.custom_fields IS NULL THEN NEW.custom_fields := '{}'::jsonb; END IF;
+
+  IF NEW.custom_fields ->> 'rfi_no' IS NULL THEN
+    SELECT code INTO p_code FROM public.projects WHERE id = NEW.project_id;
+    p_code := COALESCE(p_code, 'RR007');
+
+    IF NEW.parent_id IS NULL THEN
+       -- Base RFI: Prefix-001
+       SELECT COALESCE(MAX((custom_fields->>'rfi_no_num')::integer), 0) + 1 INTO max_val
+       FROM public.rfis
+       WHERE project_id = NEW.project_id AND parent_id IS NULL;
+       
+       NEW.custom_fields := jsonb_set(
+         NEW.custom_fields, 
+         '{rfi_no}', 
+         to_jsonb(p_code || '-' || LPAD(max_val::text, 3, '0'))
+       );
+       -- Store the numeric part for easier MAX() next time
+       NEW.custom_fields := jsonb_set(NEW.custom_fields, '{rfi_no_num}', to_jsonb(max_val));
+    ELSE
+       -- Revision: ParentPrefix-R1
+       SELECT custom_fields->>'rfi_no' INTO parent_code FROM public.rfis WHERE id = NEW.parent_id;
+       IF parent_code LIKE '%-R%' THEN
+         NEW.custom_fields := jsonb_set(
+           NEW.custom_fields, 
+           '{rfi_no}', 
+           to_jsonb(split_part(parent_code, '-R', 1) || '-R' || (split_part(parent_code, '-R', 2)::integer + 1))
+         );
+       ELSE
+         NEW.custom_fields := jsonb_set(NEW.custom_fields, '{rfi_no}', to_jsonb(parent_code || '-R1'));
+       END IF;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_generate_rfi_serial_no ON public.rfis;
+CREATE TRIGGER trg_generate_rfi_serial_no
+BEFORE INSERT ON public.rfis
+FOR EACH ROW
+EXECUTE FUNCTION public.generate_rfi_serial_no();
+
+-- Track images for deletion when an RFI is removed
+CREATE OR REPLACE FUNCTION public.enqueue_rfi_images_for_deletion()
+RETURNS trigger AS $$
+DECLARE
+  img_url text;
+  img_path text;
+BEGIN
+  IF OLD.images IS NOT NULL AND array_length(OLD.images, 1) > 0 THEN
+    FOREACH img_url IN ARRAY OLD.images LOOP
+      -- Extract path from public URL: https://.../storage/v1/object/public/rfi-images/PROJECTID/FILENAME
+      -- We want 'PROJECTID/FILENAME'
+      img_path := split_part(img_url, '/rfi-images/', 2);
+      IF img_path IS NOT NULL AND img_path != '' THEN
+        INSERT INTO public.storage_deletion_queue (file_path, bucket_id)
+        VALUES (img_path, 'rfi-images');
+      END IF;
+    END LOOP;
+  END IF;
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_enqueue_rfi_images_for_deletion ON public.rfis;
+CREATE TRIGGER trg_enqueue_rfi_images_for_deletion
+AFTER DELETE ON public.rfis
+FOR EACH ROW
+EXECUTE FUNCTION public.enqueue_rfi_images_for_deletion();
+
+-- 14. REFRESH SCHEMA CACHE
 NOTIFY pgrst, 'reload schema';

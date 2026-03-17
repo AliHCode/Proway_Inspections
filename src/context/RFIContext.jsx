@@ -700,13 +700,9 @@ export function RFIProvider({ children }) {
         }
 
         try {
-            const serialNo = await getNextSerialNoForDate(effectiveFiledDate);
-            const rfiNo = await getNextRfiCode(parentId);
             const imageUrls = await normalizeImagesForSubmission(normalizedImagesInput);
-
             const newRfiData = {
-                serialNo,
-                rfiNo,
+                // serialNo and rfiNo are now handled by DB triggers on insert
                 description,
                 location,
                 inspectionType,
@@ -720,9 +716,9 @@ export function RFIProvider({ children }) {
                 carryoverCount: 0,
                 carryoverTo: null,
                 images: imageUrls,
-                assignedTo: assignedTo || null,
+                assigned_to: assignedTo || null,
                 parentId,
-                customFields: customFields || null,
+                customFields: customFields || {},
             };
 
             const { data: insertedData, error } = await supabase.from('rfis').insert([formatForDB(newRfiData)]).select();
@@ -825,12 +821,8 @@ export function RFIProvider({ children }) {
                     const payload = item.payload || {};
                     const reconstructedImages = deserializeQueuedImages(payload.images || []);
                     const imageUrls = await normalizeImagesForSubmission(reconstructedImages);
-                    const serialNo = await getNextSerialNoForDate(payload.filedDate);
-                    const rfiNo = await getNextRfiCode(payload.parentId);
-
                     const syncedRfi = {
-                        serialNo,
-                        rfiNo,
+                        // DB trigger will assign correct serial_no and rfi_no
                         description: payload.description,
                         location: payload.location,
                         inspectionType: payload.inspectionType,
@@ -844,9 +836,9 @@ export function RFIProvider({ children }) {
                         carryoverCount: 0,
                         carryoverTo: null,
                         images: imageUrls,
-                        assignedTo: payload.assignedTo || null,
+                        assigned_to: payload.assignedTo || null,
                         parentId: payload.parentId || null,
-                        customFields: payload.customFields || null,
+                        customFields: payload.customFields || {},
                     };
 
                     const { data: insertedData, error } = await supabase.from('rfis').insert([formatForDB(syncedRfi)]).select();
