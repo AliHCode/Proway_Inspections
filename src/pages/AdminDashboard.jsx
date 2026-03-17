@@ -193,6 +193,10 @@ export default function AdminDashboard() {
     const [editingProject, setEditingProject] = useState(null); // { id, name, code, description, timezone }
     const [editCode, setEditCode] = useState('');
     const [editTimezone, setEditTimezone] = useState('');
+    const [editSubscriptionStatus, setEditSubscriptionStatus] = useState('trial');
+    const [editSubscriptionEnd, setEditSubscriptionEnd] = useState('');
+    const [editIsLocked, setEditIsLocked] = useState(false);
+    const [editPaymentRemarks, setEditPaymentRemarks] = useState('');
 
     // Field creation form
     const [showNewField, setShowNewField] = useState(false);
@@ -417,13 +421,21 @@ export default function AdminDashboard() {
         if (!editCode.trim()) return;
         const result = await updateProject(projectId, { 
             code: editCode.trim(),
-            timezone: editTimezone
+            timezone: editTimezone,
+            subscription_status: editSubscriptionStatus,
+            subscription_end: editSubscriptionEnd || null,
+            is_locked: editIsLocked,
+            payment_remarks: editPaymentRemarks.trim()
         });
         if (result?.success) {
             showMsg('Project details updated');
             setEditingProject(null);
             setEditCode('');
             setEditTimezone('');
+            setEditSubscriptionStatus('trial');
+            setEditSubscriptionEnd('');
+            setEditIsLocked(false);
+            setEditPaymentRemarks('');
         } else {
             showMsg('Error: ' + (result?.error || 'Update failed'));
         }
@@ -701,6 +713,92 @@ export default function AdminDashboard() {
                                         </div>
                                     </div>
 
+                                    <div className="project-card-details" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1rem', marginTop: '1rem' }}>
+                                        <div className="detail-item" style={{ flex: '1 1 100%' }}>
+                                            <span className="detail-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#475569', fontWeight: 700, marginBottom: '0.5rem' }}>
+                                                <Shield size={14} /> Subscription & Access Management
+                                            </span>
+                                        </div>
+                                        
+                                        <div className="detail-item">
+                                            <span className="detail-label">Status</span>
+                                            {editingProject === p.id ? (
+                                                <select 
+                                                    className="detail-select"
+                                                    value={editSubscriptionStatus}
+                                                    onChange={e => setEditSubscriptionStatus(e.target.value)}
+                                                    onClick={e => e.stopPropagation()}
+                                                >
+                                                    <option value="trial">Trial</option>
+                                                    <option value="active">Active</option>
+                                                    <option value="expired">Expired</option>
+                                                </select>
+                                            ) : (
+                                                <span className={`detail-value status-pill ${p.subscription_status || 'trial'}`} style={{ 
+                                                    padding: '0.2rem 0.6rem', 
+                                                    borderRadius: '999px',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 700,
+                                                    textTransform: 'uppercase',
+                                                    background: p.subscription_status === 'active' ? '#dcfce7' : p.subscription_status === 'expired' ? '#fee2e2' : '#fef9c3',
+                                                    color: p.subscription_status === 'active' ? '#166534' : p.subscription_status === 'expired' ? '#991b1b' : '#854d0e'
+                                                }}>
+                                                    {p.subscription_status || 'trial'}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="detail-item">
+                                            <span className="detail-label">Expiry Date</span>
+                                            {editingProject === p.id ? (
+                                                <input 
+                                                    type="date"
+                                                    className="detail-input"
+                                                    value={editSubscriptionEnd ? editSubscriptionEnd.split('T')[0] : ''}
+                                                    onChange={e => setEditSubscriptionEnd(e.target.value)}
+                                                    onClick={e => e.stopPropagation()}
+                                                />
+                                            ) : (
+                                                <span className="detail-value">
+                                                    <Clock size={12} /> {p.subscription_end ? new Date(p.subscription_end).toLocaleDateString() : 'No expiry'}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="detail-item">
+                                            <span className="detail-label">Manual Lock</span>
+                                            {editingProject === p.id ? (
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                                    <input 
+                                                        type="checkbox"
+                                                        checked={editIsLocked}
+                                                        onChange={e => setEditIsLocked(e.target.checked)}
+                                                        onClick={e => e.stopPropagation()}
+                                                    />
+                                                    <span style={{ fontSize: '0.85rem' }}>Restrict Access</span>
+                                                </label>
+                                            ) : (
+                                                <span className="detail-value" style={{ color: p.is_locked ? '#ef4444' : '#10b981' }}>
+                                                    {p.is_locked ? 'Locked' : 'Open'}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {editingProject === p.id && (
+                                            <div className="detail-item" style={{ flex: '1 1 100%', marginTop: '0.5rem' }}>
+                                                <span className="detail-label">Payment Remarks</span>
+                                                <textarea 
+                                                    className="detail-input"
+                                                    style={{ height: '60px', resize: 'none' }}
+                                                    placeholder="Internal notes about payment..."
+                                                    value={editPaymentRemarks}
+                                                    onChange={e => setEditPaymentRemarks(e.target.value)}
+                                                    onClick={e => e.stopPropagation()}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <div className="project-card-actions" onClick={e => e.stopPropagation()}>
                                         {editingProject === p.id ? (
                                             <>
@@ -708,7 +806,15 @@ export default function AdminDashboard() {
                                                 <button className="btn-cancel" onClick={() => setEditingProject(null)}><X size={14} /></button>
                                             </>
                                         ) : (
-                                            <button className="btn-edit" onClick={() => { setEditingProject(p.id); setEditCode(p.code || ''); setEditTimezone(p.timezone || 'UTC'); }}>
+                                            <button className="btn-edit" onClick={() => { 
+                                                setEditingProject(p.id); 
+                                                setEditCode(p.code || ''); 
+                                                setEditTimezone(p.timezone || 'UTC');
+                                                setEditSubscriptionStatus(p.subscription_status || 'trial');
+                                                setEditSubscriptionEnd(p.subscription_end || '');
+                                                setEditIsLocked(p.is_locked || false);
+                                                setEditPaymentRemarks(p.payment_remarks || '');
+                                            }}>
                                                 Edit Project Details
                                             </button>
                                         )}

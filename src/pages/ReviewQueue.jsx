@@ -9,22 +9,24 @@ import DateNavigator from '../components/DateNavigator';
 import StatusBadge from '../components/StatusBadge';
 import ApproveModal from '../components/ApproveModal';
 import RejectModal from '../components/RejectModal';
+import CancelModal from '../components/CancelModal';
 import RFIDetailModal from '../components/RFIDetailModal';
 import UserAvatar from '../components/UserAvatar';
 import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
-import { CheckCircle, XCircle, MessageSquare, X, FileDown, Table, ClipboardList, Filter } from 'lucide-react';
+import { CheckCircle, XCircle, MessageSquare, Ban, X, FileDown, Table, ClipboardList, Filter } from 'lucide-react';
 
 export default function ReviewQueue() {
     const [searchParams, setSearchParams] = useSearchParams();
     const location = useLocation();
     const { user } = useAuth();
-    const { approveRFI, updateRFI, rejectRFI, getReviewQueue, rfis, contractors, canUserEditRfi, canUserDiscussRfi } = useRFI();
+    const { approveRFI, updateRFI, rejectRFI, cancelRFI, getReviewQueue, rfis, contractors, canUserEditRfi, canUserDiscussRfi } = useRFI();
     const { activeProject, orderedTableColumns, columnWidthMap, getTableColumnStyle, loadingFields, fieldsResolvedProjectId } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
     const [currentDate, setCurrentDate] = useState(getToday());
     const [approveTarget, setApproveTarget] = useState(null);
     const [approveMode, setApproveMode] = useState('full');
     const [rejectTarget, setRejectTarget] = useState(null);
+    const [cancelTarget, setCancelTarget] = useState(null);
     const [detailTarget, setDetailTarget] = useState(null);
     const [filter, setFilter] = useState('to_review'); // to_review, approved, rejected
     const [actionMessage, setActionMessage] = useState('');
@@ -43,7 +45,7 @@ export default function ReviewQueue() {
 
     // Also get approved/rejected for today for reference
     const todayApproved = rfis.filter(
-        (r) => r.status === 'approved' && r.reviewedAt && r.reviewedAt.startsWith(currentDate)
+        (r) => (r.status === 'approved' || r.status === 'conditional_approve') && r.reviewedAt && r.reviewedAt.startsWith(currentDate)
     );
     const todayRejected = rfis.filter(
         (r) => r.status === 'rejected' && r.reviewedAt && r.reviewedAt.startsWith(currentDate)
@@ -219,13 +221,13 @@ export default function ReviewQueue() {
     async function handleApprove(rfiId, remarks, files = [], status = 'approved') {
         const updatePayload = {
             status,
-            reviewed_by: user.id,
-            reviewed_at: new Date().toISOString(),
-            carryover_to: null,
+            reviewedBy: user.id,
+            reviewedAt: new Date().toISOString(),
+            carryoverTo: null,
+            remarks: remarks?.trim() || ''
         };
-        if (remarks) updatePayload.remarks = remarks;
         
-        // Pass standard array, not inside a parent object, RFIContext handles rest
+        // updateRFI now handles status, notifications and audit internally
         await updateRFI(rfiId, { ...updatePayload, appendFiles: files });
 
         setActionMessage(status === 'conditional_approve' ? '⚠️ Inspection Conditionally Approved' : '✅ Inspection Approved');
@@ -235,6 +237,13 @@ export default function ReviewQueue() {
     async function handleReject(rfiId, remarks, files = [], assignedTo) {
         await rejectRFI(rfiId, user.id, remarks, files, assignedTo);
         setActionMessage('❌ Inspection Rejected & Assigned');
+        setTimeout(() => setActionMessage(''), 3000);
+    }
+
+    async function handleCancel(rfiId, reason) {
+        await cancelRFI(rfiId, user.id, reason);
+        setCancelTarget(null);
+        setActionMessage('🚫 RFI Cancelled (Terminal State)');
         setTimeout(() => setActionMessage(''), 3000);
     }
 
@@ -317,7 +326,7 @@ export default function ReviewQueue() {
 
     // Background Scroll Locking
     useEffect(() => {
-        const isModalOpen = !!(detailTarget || approveTarget || rejectTarget || selectedImages);
+        const isModalOpen = !!(detailTarget || approveTarget || rejectTarget || cancelTarget || selectedImages);
         if (isModalOpen) {
             document.body.classList.add('no-scroll');
         } else {
@@ -409,6 +418,26 @@ export default function ReviewQueue() {
                             {showRejectAction && (
                                 <button
                                     onClick={() => {
+                                        setCancelTarget(rfi);
+                                        setDetailTarget(null);
+                                    }}
+                                    title="Cancel RFI (Terminal)"
+                                    style={{
+                                        background: 'transparent', border: '1.5px solid #d1d5db',
+                                        borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', gap: '3px',
+                                        color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
+                                        fontFamily: 'inherit', transition: 'all 0.15s',
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#4b5563'; e.currentTarget.style.color = '#4b5563'; e.currentTarget.style.background = '#f3f4f6'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.background = 'transparent'; }}
+                                >
+                                    <Ban size={15} />
+                                </button>
+                            )}
+                            {showRejectAction && (
+                                <button
+                                    onClick={() => {
                                         setRejectTarget(rfi);
                                         setDetailTarget(null);
                                     }}
@@ -483,6 +512,9 @@ export default function ReviewQueue() {
 
     function isEscalated(rfi) {
         if (rfi.status !== 'pending' && rfi.status !== 'info_requested') return false;
+        // Conditional approvals are acted upon, so they shouldn't show as escalated
+        if (rfi.status === 'conditional_approve') return false; 
+
         const filingDate = new Date(rfi.originalFiledDate || rfi.filedDate);
         const now = new Date();
         const diffDays = (now - filingDate) / (1000 * 60 * 60 * 24);
@@ -848,6 +880,15 @@ export default function ReviewQueue() {
                         onReject={handleReject}
                         contractors={contractors}
                         onClose={() => setRejectTarget(null)}
+                    />
+                )}
+                {cancelTarget && (
+                    <CancelModal
+                        key={cancelTarget.id}
+                        isOpen={!!cancelTarget}
+                        rfi={cancelTarget}
+                        onConfirm={(reason) => handleCancel(cancelTarget.id, reason)}
+                        onClose={() => setCancelTarget(null)}
                     />
                 )}
 

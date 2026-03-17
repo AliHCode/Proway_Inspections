@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { X, Calendar, MapPin, Tag, User, MessageSquare, History, List, Upload, CheckCircle } from 'lucide-react';
+import { X, Calendar, MapPin, Tag, User, MessageSquare, History, List, Upload, CheckCircle, Ban } from 'lucide-react';
 import ThreadedComments from './ThreadedComments';
 import AuditLog from './AuditLog';
 import StatusBadge from './StatusBadge';
@@ -156,7 +156,18 @@ export default function RFIDetailModal({ rfi, onClose, externalScrollTrigger }) 
                             </div>
                         )}
 
-                        {rfi.remarks && (
+                        {rfi.status === RFI_STATUS.CANCELLED && (
+                            <div className="alert-box danger-light mb-4" style={{ borderRadius: '12px', padding: '1rem', background: '#fef2f2', border: '1px solid #fecaca', marginBottom: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#991b1b', fontWeight: 700, marginBottom: '4px' }}>
+                                    <Ban size={18} /> RFI CANCELLED
+                                </div>
+                                <p style={{ fontSize: '0.85rem', color: '#7f1d1d', margin: 0 }}>
+                                    <strong>Cancellation Reason:</strong> {rfi.remarks || 'No reason provided.'}
+                                </p>
+                            </div>
+                        )}
+
+                        {rfi.remarks && rfi.status !== RFI_STATUS.CANCELLED && (
                             <div className="rfi-latest-remarks">
                                 <div className="rfi-detail-label">Latest Remarks</div>
                                 <div>"{rfi.remarks}"</div>

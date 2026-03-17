@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { USER_ROLES } from '../utils/constants';
-import { Eye, EyeOff, HardHat, UserCheck, ArrowRight, Shield } from 'lucide-react';
+import { Eye, EyeOff, HardHat, UserCheck, ArrowRight, Shield, Lock } from 'lucide-react';
+import MFALoginChallenge from '../components/MFALoginChallenge';
+import { supabase } from '../utils/supabaseClient';
 
 export default function LoginPage() {
     const { user, login, register, logout } = useAuth();
@@ -13,6 +15,7 @@ export default function LoginPage() {
     const [successMessage, setSuccessMessage] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [mfaChallengeFactor, setMfaChallengeFactor] = useState(null);
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -42,6 +45,19 @@ export default function LoginPage() {
                 }
                 const result = await login(form.email, form.password);
                 if (result.success) {
+                    // Check if MFA is required
+                    const { data: { next, current }, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+                    
+                    if (!aalError && next === 'aal2' && current !== 'aal2') {
+                        // User has MFA enabled, need to challenge
+                        const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+                        if (!factorsError && factors.all.length > 0) {
+                            setMfaChallengeFactor(factors.all[0]);
+                            setLoading(false);
+                            return;
+                        }
+                    }
+
                     setTimeout(() => {
                         navigate('/');
                     }, 500);
@@ -147,87 +163,95 @@ export default function LoginPage() {
                     </div>
 
 
-                    {/* Form */}
-                    <form onSubmit={handleSubmit} className="auth-form">
-                        {isRegister && (
-                            <div className="auth-form-row">
-                                <div className="auth-field">
-                                    <label htmlFor="name">Full Name</label>
-                                    <input
-                                        id="name"
-                                        type="text"
-                                        value={form.name}
-                                        onChange={(e) => handleChange('name', e.target.value)}
-                                        placeholder="John Doe"
-                                        autoComplete="name"
-                                    />
+                    {/* MFA Challenge View */}
+                    {mfaChallengeFactor ? (
+                        <MFALoginChallenge 
+                            factor={mfaChallengeFactor} 
+                            onVerify={() => navigate('/')} 
+                            onCancel={() => setMfaChallengeFactor(null)} 
+                        />
+                    ) : (
+                        <form onSubmit={handleSubmit} className="auth-form">
+                            {isRegister && (
+                                <div className="auth-form-row">
+                                    <div className="auth-field">
+                                        <label htmlFor="name">Full Name</label>
+                                        <input
+                                            id="name"
+                                            type="text"
+                                            value={form.name}
+                                            onChange={(e) => handleChange('name', e.target.value)}
+                                            placeholder="John Doe"
+                                            autoComplete="name"
+                                        />
+                                    </div>
+                                    <div className="auth-field">
+                                        <label htmlFor="company">Company</label>
+                                        <input
+                                            id="company"
+                                            type="text"
+                                            value={form.company}
+                                            onChange={(e) => handleChange('company', e.target.value)}
+                                            placeholder="ACME Construction"
+                                            autoComplete="organization"
+                                        />
+                                    </div>
                                 </div>
-                                <div className="auth-field">
-                                    <label htmlFor="company">Company</label>
-                                    <input
-                                        id="company"
-                                        type="text"
-                                        value={form.company}
-                                        onChange={(e) => handleChange('company', e.target.value)}
-                                        placeholder="ACME Construction"
-                                        autoComplete="organization"
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="auth-field">
-                            <label htmlFor="email">Email Address</label>
-                            <input
-                                id="email"
-                                type="email"
-                                value={form.email}
-                                onChange={(e) => handleChange('email', e.target.value)}
-                                placeholder="you@company.com"
-                                autoComplete="email"
-                            />
-                        </div>
-
-                        <div className="auth-field">
-                            <label htmlFor="password">Password</label>
-                            <div className="auth-password-wrapper">
-                                <input
-                                    id="password"
-                                    type={showPassword ? 'text' : 'password'}
-                                    value={form.password}
-                                    onChange={(e) => handleChange('password', e.target.value)}
-                                    placeholder="••••••••"
-                                    autoComplete={isRegister ? 'new-password' : 'current-password'}
-                                />
-                                <button
-                                    type="button"
-                                    className="auth-password-toggle"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    tabIndex={-1}
-                                >
-                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                </button>
-                            </div>
-                        </div>
-
-                        {successMessage && !isRegister && <div className="auth-success">{successMessage}</div>}
-                        {error && <div className="auth-error">{error}</div>}
-
-                        <button
-                            type="submit"
-                            className="auth-submit"
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <span className="auth-submit-loading">Processing...</span>
-                            ) : (
-                                <>
-                                    {isRegister ? 'Create Account' : 'Sign In'}
-                                    <ArrowRight size={18} />
-                                </>
                             )}
-                        </button>
-                    </form>
+
+                            <div className="auth-field">
+                                <label htmlFor="email">Email Address</label>
+                                <input
+                                    id="email"
+                                    type="email"
+                                    value={form.email}
+                                    onChange={(e) => handleChange('email', e.target.value)}
+                                    placeholder="you@company.com"
+                                    autoComplete="email"
+                                />
+                            </div>
+
+                            <div className="auth-field">
+                                <label htmlFor="password">Password</label>
+                                <div className="auth-password-wrapper">
+                                    <input
+                                        id="password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={form.password}
+                                        onChange={(e) => handleChange('password', e.target.value)}
+                                        placeholder="••••••••"
+                                        autoComplete={isRegister ? 'new-password' : 'current-password'}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="auth-password-toggle"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        tabIndex={-1}
+                                    >
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {successMessage && !isRegister && <div className="auth-success">{successMessage}</div>}
+                            {error && <div className="auth-error">{error}</div>}
+
+                            <button
+                                type="submit"
+                                className="auth-submit"
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <span className="auth-submit-loading">Processing...</span>
+                                ) : (
+                                    <>
+                                        {isRegister ? 'Create Account' : 'Sign In'}
+                                        <ArrowRight size={18} />
+                                    </>
+                                )}
+                            </button>
+                        </form>
+                    )}
                 </div>
 
                 {/* Footer */}

@@ -135,9 +135,16 @@ export function ProjectProvider({ children }) {
             return;
         }
 
+        // Reset states when user changes to avoid leakage from previous session
+        setLoadingProjects(true);
+        setProjectsResolved(false);
+
         const restored = restoreProjectCache(user.id);
         if (restored) {
             setLoadingProjects(false);
+            // We can consider it "resolved" if we have valid cache to prevent excessive flickering
+            // The fetchProjects will refresh it soon anyway.
+            setProjectsResolved(true);
         }
         fetchProjects();
     }, [user, fetchProjects, restoreProjectCache]);
@@ -251,6 +258,31 @@ export function ProjectProvider({ children }) {
         return getColumnWidthStyle(fieldKey, columnWidthMap);
     }
 
+    // ─── Project Accessibility ───
+    const checkProjectAccess = useCallback((project = activeProject) => {
+        if (!project) return { allowed: false, reason: 'no_project' };
+        
+        // Admins always have access to everything
+        if (user?.role === 'admin') return { allowed: true };
+
+        if (project.is_locked) {
+            return { allowed: false, reason: 'locked', message: 'This project has been manually locked by the administrator.' };
+        }
+
+        if (project.subscription_status === 'expired') {
+            return { allowed: false, reason: 'expired', message: 'The subscription for this project has expired.' };
+        }
+
+        if (project.subscription_end) {
+            const end = new Date(project.subscription_end);
+            if (end < new Date()) {
+                return { allowed: false, reason: 'expired', message: 'The subscription for this project has expired.' };
+            }
+        }
+
+        return { allowed: true };
+    }, [activeProject, user?.role]);
+
     // ─── Change active project ───
     async function changeActiveProject(projectId) {
         const selected = projects.find(p => p.id === projectId);
@@ -291,7 +323,9 @@ export function ProjectProvider({ children }) {
                 .select();
             if (error) throw error;
             if (data?.[0]) {
-                setProjects(prev => prev.map(p => p.id === projectId ? data[0] : p));
+                const updatedProjects = projects.map(p => p.id === projectId ? data[0] : p);
+                setProjects(updatedProjects);
+                if (user?.id) persistProjectCache(user.id, updatedProjects, activeProject?.id);
                 if (activeProject?.id === projectId) setActiveProject(data[0]);
                 return { success: true, project: data[0] };
             }
@@ -449,7 +483,7 @@ export function ProjectProvider({ children }) {
             fetchProjects, changeActiveProject, createProject, deleteProject, updateProject,
             addProjectField, updateProjectField, deleteProjectField,
             assignUserToProject, removeUserFromProject, fetchProjectMembers,
-            saveProjectExportTemplate,
+            saveProjectExportTemplate, checkProjectAccess,
         }}>
             {children}
         </ProjectContext.Provider>

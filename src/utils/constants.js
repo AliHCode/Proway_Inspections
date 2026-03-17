@@ -17,6 +17,7 @@ export const RFI_STATUS = {
   REJECTED: 'rejected',
   INFO_REQUESTED: 'info_requested',
   CONDITIONAL_APPROVE: 'conditional_approve',
+  CANCELLED: 'cancelled',
 };
 
 export const USER_ROLES = {
@@ -33,6 +34,7 @@ export const STATUS_COLORS = {
   rejected: { bg: '#fee2e2', text: '#991b1b', border: '#f87171' },
   info_requested: { bg: '#e0e7ff', text: '#3730a3', border: '#818cf8' },
   conditional_approve: { bg: '#fffbeb', text: '#b45309', border: '#fcd34d' },
+  cancelled: { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' },
 };
 
 export const COMMON_TIMEZONES = [

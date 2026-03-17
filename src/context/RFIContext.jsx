@@ -83,7 +83,20 @@ export function RFIProvider({ children }) {
     const [rfis, setRfis] = useState([]);
     const [loadingRfis, setLoadingRfis] = useState(true);
     const [pendingSyncCount, setPendingSyncCount] = useState(0);
-    const isSyncingOfflineRef = useRef(false);
+    const [isOffline, setIsOffline] = useState(!navigator.onLine);
+    const [lastSyncTime, setLastSyncTime] = useState(null);
+
+    // Monitoring network status
+    useEffect(() => {
+        const handleOnline = () => setIsOffline(false);
+        const handleOffline = () => setIsOffline(true);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);    const isSyncingOfflineRef = useRef(false);
     const notificationPromptShownRef = useRef(false);
 
     // Consultants list for Direct Assign
@@ -206,81 +219,92 @@ export function RFIProvider({ children }) {
         }
 
         const restored = restoreRfiCache(activeProject.id);
-        setLoadingRfis(!restored);
 
-        if (!navigator.onLine && restored) {
+        if (restored) {
             setLoadingRfis(false);
-            return;
+            if (!navigator.onLine) return;
         }
 
-        try {
-            const { data, error } = await supabase
-                .from('rfis')
-                .select('*')
-                .eq('project_id', activeProject.id);
+        async function performFetch(retryCount = 0) {
+            try {
+                const { data, error } = await supabase
+                    .from('rfis')
+                    .select('*')
+                    .eq('project_id', activeProject.id)
+                    .order('serial_no', { ascending: false });
 
-            if (error) throw error;
+                if (error) throw error;
 
-            // Collect all unique user IDs to fetch their profiles
-            const userIds = new Set();
-            data.forEach(r => {
-                if (r.filed_by) userIds.add(r.filed_by);
-                if (r.reviewed_by) userIds.add(r.reviewed_by);
-                if (r.assigned_to) userIds.add(r.assigned_to);
-            });
+                // Build a user map for faster lookup
+                const userIds = new Set();
+                data.forEach(r => {
+                    if (r.filed_by) userIds.add(r.filed_by);
+                    if (r.reviewed_by) userIds.add(r.reviewed_by);
+                    if (r.assigned_to) userIds.add(r.assigned_to);
+                });
 
-            // Fetch names for these users
-            let userMap = {};
-            if (userIds.size > 0) {
-                const { data: profilesData } = await supabase
-                    .from('profiles')
-                    .select('id, name, company')
-                    .in('id', Array.from(userIds));
+                let userMap = {};
+                if (userIds.size > 0) {
+                    const { data: profilesData } = await supabase
+                        .from('profiles')
+                        .select('id, name, company')
+                        .in('id', Array.from(userIds));
 
-                if (profilesData) {
-                    profilesData.forEach(p => {
-                        userMap[p.id] = p;
-                    });
+                    if (profilesData) {
+                        profilesData.forEach(p => {
+                            userMap[p.id] = p;
+                        });
+                    }
                 }
-            }
 
-            // Convert snake_case from PG to camelCase for the frontend
-            const formatted = data.map(r => ({
-                id: r.id,
-                serialNo: r.serial_no,
-                description: r.description,
-                location: r.location,
-                inspectionType: r.inspection_type,
-                filedBy: r.filed_by,
-                filerName: userMap[r.filed_by]?.name || 'Unknown',
-                filerCompany: userMap[r.filed_by]?.company || '',
-                filedDate: r.filed_date,
-                originalFiledDate: r.original_filed_date,
-                status: r.status,
-                reviewedBy: r.reviewed_by,
-                reviewerName: userMap[r.reviewed_by]?.name || '',
-                reviewedAt: r.reviewed_at,
-                remarks: r.remarks,
-                carryoverCount: r.carryover_count,
-                carryoverTo: r.carryover_to,
-                images: r.images || [],
-                assignedTo: r.assigned_to,
-                assigneeName: userMap[r.assigned_to]?.name || '',
-                parentId: r.parent_id,
-                createdAt: r.created_at,
-                customFields: r.custom_fields || {},
-            }));
-            const normalized = normalizeRfisArray(formatted || []);
-            setRfis(normalized);
-            persistRfiCache(activeProject.id, normalized);
-        } catch (error) {
-            console.error('Error fetching RFIs:', error);
-            if (!restored) {
-                setRfis([]);
+                const formatted = data.map((r) => ({
+                    id: r.id,
+                    serialNo: r.serial_no,
+                    projectId: r.project_id,
+                    description: r.description,
+                    location: r.location,
+                    inspectionType: r.inspection_type,
+                    filedBy: r.filed_by,
+                    filerName: userMap[r.filed_by]?.name || '—',
+                    filerCompany: userMap[r.filed_by]?.company || '',
+                    filedDate: r.filed_date,
+                    status: r.status,
+                    reviewedBy: r.reviewed_by,
+                    reviewerName: userMap[r.reviewed_by]?.name || '',
+                    reviewedAt: r.reviewed_at,
+                    remarks: r.remarks,
+                    carryoverCount: r.carryover_count,
+                    carryoverTo: r.carryover_to,
+                    images: r.images || [],
+                    assignedTo: r.assigned_to,
+                    assigneeName: userMap[r.assigned_to]?.name || '',
+                    parentId: r.parent_id,
+                    createdAt: r.created_at,
+                    customFields: r.custom_fields || {},
+                }));
+                const normalized = normalizeRfisArray(formatted || []);
+                setRfis(normalized);
+                persistRfiCache(activeProject.id, normalized);
+                setLastSyncTime(new Date());
+                setIsOffline(false);
+            } catch (error) {
+                console.error('Error fetching RFIs:', error);
+
+                // Retry logic for connection errors
+                const isConnectionError = error.message?.includes('fetch') || error.code === 'PGRST301' || !navigator.onLine;
+                if (isConnectionError && retryCount < 2) {
+                    await new Promise(r => setTimeout(r, 1000 * (retryCount + 1)));
+                    return performFetch(retryCount + 1);
+                }
+
+                if (isConnectionError) setIsOffline(true);
+                if (!restored) setRfis([]);
+            } finally {
+                setLoadingRfis(false);
             }
-        } finally {
-            setLoadingRfis(false);
         }
+
+        performFetch();
     }, [activeProject, persistRfiCache, restoreRfiCache]);
 
     const fetchNotifications = useCallback(async () => {
@@ -289,19 +313,29 @@ export function RFIProvider({ children }) {
             return;
         }
 
-        try {
-            const { data, error } = await supabase
-                .from('notifications')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false })
-                .limit(50); // Keep it recent
+        async function performFetch(retryCount = 0) {
+            try {
+                const { data, error } = await supabase
+                    .from('notifications')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(50);
 
-            if (error) throw error;
-            setNotifications(data || []);
-        } catch (error) {
-            console.error('Error fetching notifications:', error);
+                if (error) throw error;
+                setNotifications(data || []);
+                setIsOffline(false);
+            } catch (error) {
+                console.error('Error fetching notifications:', error);
+                if (!navigator.onLine || retryCount < 1) {
+                    if (retryCount < 1) {
+                        await new Promise(r => setTimeout(r, 1500));
+                        return performFetch(retryCount + 1);
+                    }
+                }
+            }
         }
+        performFetch();
     }, [user]);
 
     // Fetch consultants/contractors scoped to the active project's members only
@@ -1121,6 +1155,74 @@ export function RFIProvider({ children }) {
         }
     }
 
+    /** Cancel an RFI with mandatory reason */
+    async function cancelRFI(rfiId, reviewedBy, reason) {
+        const targetRfi = rfis.find(r => r.id === rfiId);
+        if (!targetRfi) return;
+
+        if (!canUserEditRfiRecord(targetRfi, user)) {
+            toast.error('This RFI is assigned to another reviewer. You can only view it.');
+            return;
+        }
+
+        if (!navigator.onLine) {
+            await enqueuePendingAction({
+                projectId: activeProject?.id,
+                type: 'update_rfi',
+                payload: {
+                    rfiId,
+                    dbUpdates: {
+                        status: RFI_STATUS.CANCELLED,
+                        reviewed_by: reviewedBy,
+                        reviewed_at: new Date().toISOString(),
+                        remarks: reason,
+                        assigned_to: targetRfi.assignedTo,
+                    }
+                },
+            });
+
+            setRfis((prev) => prev.map((r) => (
+                r.id === rfiId
+                    ? {
+                        ...r,
+                        status: RFI_STATUS.CANCELLED,
+                        reviewedBy,
+                        reviewedAt: new Date().toISOString(),
+                        remarks: reason,
+                      }
+                    : r
+            )));
+            toast('Saved offline. Cancellation will sync when online.', { icon: '📡' });
+            return;
+        }
+
+        try {
+            const { error } = await supabase.from('rfis').update({
+                status: RFI_STATUS.CANCELLED,
+                reviewed_by: reviewedBy,
+                reviewed_at: new Date().toISOString(),
+                remarks: reason
+            }).eq('id', rfiId);
+            
+            if (error) throw error;
+
+            // Notify Contractor
+            const rfiNo = targetRfi.customFields?.rfi_no || targetRfi.serialNo;
+            await createNotification(
+                targetRfi.filedBy,
+                `RFI Cancelled: #${rfiNo}`,
+                `Reason: ${reason}`,
+                rfiId
+            );
+
+            await logAuditEvent(rfiId, 'cancelled', { reason });
+            await fetchAllRFIs();
+        } catch (error) {
+            console.error("Error cancelling RFI:", error);
+            throw error;
+        }
+    }
+
     /** Bulk Approve RFIs */
     async function bulkApproveRFI(rfiIds, reviewedBy) {
         if (!rfiIds || rfiIds.length === 0) return;
@@ -1452,6 +1554,12 @@ export function RFIProvider({ children }) {
             if (updates.inspectionType !== undefined) dbUpdates.inspection_type = updates.inspectionType;
             if (updates.remarks !== undefined) dbUpdates.remarks = updates.remarks;
             if (updates.customFields !== undefined) dbUpdates.custom_fields = updates.customFields;
+            if (updates.status !== undefined) dbUpdates.status = updates.status;
+            if (updates.reviewedBy !== undefined) dbUpdates.reviewed_by = updates.reviewedBy;
+            if (updates.reviewedAt !== undefined) dbUpdates.reviewed_at = updates.reviewedAt;
+            if (updates.carryoverTo !== undefined || updates.carryover_to !== undefined) {
+                dbUpdates.carryover_to = updates.carryoverTo !== undefined ? updates.carryoverTo : updates.carryover_to;
+            }
 
             const appendFiles = updates.appendFiles || [];
 
@@ -1492,6 +1600,10 @@ export function RFIProvider({ children }) {
                             ? updates.images
                             : [...(r.images || []), ...appendedPreviewUrls],
                         customFields: updates.customFields !== undefined ? updates.customFields : r.customFields,
+                        status: updates.status !== undefined ? updates.status : r.status,
+                        reviewedBy: updates.reviewedBy !== undefined ? updates.reviewedBy : r.reviewedBy,
+                        reviewedAt: updates.reviewedAt !== undefined ? updates.reviewedAt : r.reviewedAt,
+                        carryoverTo: (updates.carryoverTo !== undefined) ? updates.carryoverTo : (updates.carryover_to !== undefined ? updates.carryover_to : r.carryoverTo),
                     };
                 }));
 
@@ -1511,9 +1623,63 @@ export function RFIProvider({ children }) {
 
             const { error } = await supabase.from('rfis').update(dbUpdates).eq('id', rfiId);
             if (error) throw error;
+
+            // --- Notification Trigger Logic (if status changed to approved/conditional) ---
+            const statusChanged = updates.status && updates.status !== current?.status;
+            if (statusChanged && (updates.status === RFI_STATUS.APPROVED || updates.status === RFI_STATUS.CONDITIONAL_APPROVE)) {
+                const rfiNo = current.customFields?.rfi_no || current.serialNo;
+                const displayStatus = updates.status === RFI_STATUS.CONDITIONAL_APPROVE ? 'Cond. Approved' : 'Approved';
+                
+                // If resolving conditions (Conditional -> Approved), notify the original reviewer
+                // Otherwise (Pending -> Approved/Conditional), notify the filer
+                const targetUserId = (current.status === RFI_STATUS.CONDITIONAL_APPROVE && updates.status === RFI_STATUS.APPROVED)
+                    ? current.reviewedBy 
+                    : current.filedBy;
+
+                if (targetUserId) {
+                    await createNotification(
+                        targetUserId,
+                        `Status: ${displayStatus} (#${rfiNo})`,
+                        `Remarks: ${updates.remarks?.trim() || 'Conditions resolved'}.`,
+                        rfiId
+                    );
+                }
+
+                // Handle Tags in remarks
+                const mentionMatches = (updates.remarks || '').match(/@([a-z0-9._-]+)/gi) || [];
+                const mentionKeys = new Set(mentionMatches.map((m) => m.slice(1).toLowerCase()));
+                if (mentionKeys.size > 0) {
+                    const taggedContractors = contractors.filter((c) =>
+                        mentionKeys.has(c.name.toLowerCase().replace(/\s+/g, ''))
+                    );
+                    const taggedConsultants = consultants.filter((c) =>
+                        mentionKeys.has(c.name.toLowerCase().replace(/\s+/g, ''))
+                    );
+                    const allTagged = [...taggedContractors, ...taggedConsultants];
+
+                    for (const tagged of allTagged) {
+                        if (tagged.id !== targetUserId && tagged.id !== user?.id) {
+                            await createNotification(
+                                tagged.id,
+                                `Status: ${displayStatus} (#${rfiNo}) (TAG)`,
+                                `Remarks: ${updates.remarks.trim()}`,
+                                rfiId
+                            );
+                        }
+                    }
+                }
+            }
+
+            await logAuditEvent(rfiId, 'updated', { 
+                updates: Object.keys(dbUpdates),
+                statusChanged: statusChanged ? updates.status : null 
+            });
+
             await fetchAllRFIs();
         } catch (error) {
             console.error("Error updating RFI:", error);
+            const msg = error.message || error.details || "Unknown error";
+            toast.error(`Failed to update RFI: ${msg}`);
         }
     }
 
@@ -1549,9 +1715,9 @@ export function RFIProvider({ children }) {
         const sortedCarried = [...carriedOver].sort(sortRFIs);
 
         return {
-            carriedOver: [],
+            carriedOver: sortedCarried,
             newRfis: sortedTodays,
-            all: sortedTodays,
+            all: [...sortedCarried, ...sortedTodays],
         };
     }
 
@@ -1592,19 +1758,21 @@ export function RFIProvider({ children }) {
         return {
             todayTotal: activeTodayAll.length,
             todayPending: activeTodayAll.filter((r) => r.status === RFI_STATUS.PENDING).length,
-            todayApproved: activeTodayAll.filter((r) => r.status === RFI_STATUS.APPROVED).length,
+            todayApproved: activeTodayAll.filter((r) => r.status === RFI_STATUS.APPROVED || r.status === RFI_STATUS.CONDITIONAL_APPROVE).length,
             todayRejected: activeTodayAll.filter((r) => r.status === RFI_STATUS.REJECTED).length,
             todayInfoRequested: activeTodayAll.filter((r) => r.status === RFI_STATUS.INFO_REQUESTED).length,
+            todayCancelled: activeTodayAll.filter((r) => r.status === RFI_STATUS.CANCELLED).length,
 
-            queueTotal: queue.length, // Queue inherently handles this if we want all pending, but review queue already filters pending, which are rarely superseded
-            reviewedApprovedToday: reviewedToday.filter(r => r.status === RFI_STATUS.APPROVED).length,
+            queueTotal: queue.length, 
+            reviewedApprovedToday: reviewedToday.filter(r => r.status === RFI_STATUS.APPROVED || r.status === RFI_STATUS.CONDITIONAL_APPROVE).length,
             reviewedRejectedToday: reviewedToday.filter(r => r.status === RFI_STATUS.REJECTED).length,
 
             overallTotal: activeRfis.length,
             overallPending: activeRfis.filter((r) => r.status === RFI_STATUS.PENDING).length,
-            overallApproved: activeRfis.filter((r) => r.status === RFI_STATUS.APPROVED).length,
+            overallApproved: activeRfis.filter((r) => r.status === RFI_STATUS.APPROVED || r.status === RFI_STATUS.CONDITIONAL_APPROVE).length,
             overallRejected: activeRfis.filter((r) => r.status === RFI_STATUS.REJECTED).length,
             overallInfoRequested: activeRfis.filter((r) => r.status === RFI_STATUS.INFO_REQUESTED).length,
+            overallCancelled: activeRfis.filter((r) => r.status === RFI_STATUS.CANCELLED).length,
         };
     }
 
@@ -1663,7 +1831,10 @@ export function RFIProvider({ children }) {
             const accessToken = sessionData?.session?.access_token;
             const eventKey = options.eventKey || `${userId}|${rfiId || 'none'}|${title}|${message}`;
 
-            const { error: pushError } = await supabase.functions.invoke('send-push', {
+            // Fire-and-forget: push failures must never block the in-app notification.
+            // CORS/VAPID misconfigurations in the Edge Function should not surface
+            // as uncaught errors for the end user.
+            supabase.functions.invoke('send-push', {
                 body: {
                     userId,
                     title,
@@ -1673,11 +1844,13 @@ export function RFIProvider({ children }) {
                     eventKey,
                 },
                 headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+            }).then(({ error: pushError }) => {
+                if (pushError) {
+                    console.warn('Push notification failed (non-critical):', pushError?.message || pushError);
+                }
+            }).catch((pushErr) => {
+                console.warn('Push notification request error (non-critical):', pushErr?.message || pushErr);
             });
-
-            if (pushError) {
-                console.error('Error sending push notification:', pushError);
-            }
         } catch (error) {
             console.error("Error creating notification:", error);
         }
@@ -1715,6 +1888,7 @@ export function RFIProvider({ children }) {
                 bulkApproveRFI,
                 bulkAssignRFI,
                 rejectRFI,
+                cancelRFI,
                 resubmitRFI,
                 deleteRFI,
                 updateRFI,
@@ -1729,7 +1903,9 @@ export function RFIProvider({ children }) {
                 canUserDiscussRfi: (rfi) => canUserDiscussRfiRecord(rfi, user?.id),
                 markNotificationRead,
                 markAllNotificationsRead,
-                createNotification
+                createNotification,
+                isOffline,
+                lastSyncTime
             }}
         >
             {children}

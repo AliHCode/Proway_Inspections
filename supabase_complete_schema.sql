@@ -17,8 +17,16 @@ CREATE TABLE IF NOT EXISTS public.projects (
   column_order jsonb DEFAULT NULL,
   column_widths jsonb DEFAULT '{}'::jsonb,
   export_template jsonb DEFAULT '{}'::jsonb,
+  subscription_status TEXT DEFAULT 'trial' CHECK (subscription_status IN ('active', 'expired', 'trial')),
+  is_locked BOOLEAN DEFAULT false,
+  subscription_end TIMESTAMPTZ,
+  payment_remarks TEXT,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+COMMENT ON COLUMN projects.subscription_status IS 'Current status of the project subscription (active, expired, trial)';
+COMMENT ON COLUMN projects.is_locked IS 'Manual override by admin to block project access regardless of expiry';
+COMMENT ON COLUMN projects.subscription_end IS 'When the current subscription or trial ends';
 
 -- Insert Default Project
 INSERT INTO public.projects (id, name, description) 
@@ -76,7 +84,7 @@ CREATE TABLE IF NOT EXISTS public.rfis (
   filed_by uuid REFERENCES public.profiles(id) NOT NULL,
   filed_date date NOT NULL,
   original_filed_date date NOT NULL,
-  status text CHECK (status IN ('pending', 'approved', 'rejected', 'info_requested', 'conditional_approve')) DEFAULT 'pending',
+  status text CHECK (status IN ('pending', 'approved', 'rejected', 'info_requested', 'conditional_approve', 'cancelled')) DEFAULT 'pending',
   assigned_to uuid REFERENCES public.profiles(id),
   reviewed_by uuid REFERENCES public.profiles(id),
   reviewed_at timestamp with time zone,
@@ -98,7 +106,7 @@ DECLARE
   actor_id uuid := auth.uid();
   actor_role text;
 BEGIN
-  -- Allow service-role/background operations that do not have an auth.uid context.
+  -- Allow service-role/background operations with no auth context.
   IF actor_id IS NULL THEN
     RETURN NEW;
   END IF;
@@ -107,11 +115,12 @@ BEGIN
   FROM public.profiles p
   WHERE p.id = actor_id;
 
+  -- Only enforce for consultants; all other roles pass through.
   IF actor_role IS DISTINCT FROM 'consultant' THEN
     RETURN NEW;
   END IF;
 
-  -- Consultants may NOT alter core inspection content fields directly.
+  -- Consultants may NOT alter core inspection content fields.
   IF NEW.serial_no IS DISTINCT FROM OLD.serial_no
     OR NEW.project_id IS DISTINCT FROM OLD.project_id
     OR NEW.description IS DISTINCT FROM OLD.description
@@ -126,9 +135,10 @@ BEGIN
     RAISE EXCEPTION 'Consultants can only update remarks, attachments, and decision metadata.';
   END IF;
 
-  -- Consultant decision changes are limited to approved/rejected/conditional transitions.
-  IF NEW.status IS DISTINCT FROM OLD.status AND NEW.status NOT IN ('approved', 'rejected', 'conditional_approve') THEN
-    RAISE EXCEPTION 'Consultants can only set status to approved, rejected, or conditional_approve.';
+  -- Consultants may set any of these decision statuses.
+  IF NEW.status IS DISTINCT FROM OLD.status
+    AND NEW.status NOT IN ('approved', 'rejected', 'conditional_approve', 'cancelled', 'pending') THEN
+    RAISE EXCEPTION 'Consultants can only set status to approved, rejected, conditional_approve, or cancelled.';
   END IF;
 
   -- reviewed_by must be the acting consultant when it is changed.
@@ -277,7 +287,7 @@ CREATE INDEX IF NOT EXISTS push_dispatch_log_recipient_created_idx
 CREATE INDEX IF NOT EXISTS push_dispatch_log_event_key_created_idx
   ON public.push_dispatch_log (recipient_user_id, event_key, created_at DESC);
 
--- 7. AUDIT LOG TABLE
+-- 7. AUDIT LOG TABLES
 CREATE TABLE IF NOT EXISTS public.audit_log (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   rfi_id uuid REFERENCES public.rfis(id) ON DELETE CASCADE,
@@ -286,6 +296,19 @@ CREATE TABLE IF NOT EXISTS public.audit_log (
   details jsonb,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Enterprise-grade log for tracking sensitive project and user modifications.
+CREATE TABLE IF NOT EXISTS public.security_audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  user_id UUID REFERENCES public.profiles(id),
+  action TEXT NOT NULL, -- e.g., 'DELETE_PROJECT', 'LOCK_PROJECT', 'CHANGE_ROLE'
+  target_id UUID,        -- The ID of the project, user, or RFI affected
+  metadata JSONB DEFAULT '{}'::jsonb, -- Store details like old_value, new_value
+  ip_address TEXT
+);
+
+COMMENT ON TABLE security_audit_log IS 'Enterprise-grade log for tracking sensitive project and user modifications.';
 
 -- 8. ROW LEVEL SECURITY (RLS) POLICIES
 
@@ -297,96 +320,92 @@ ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.security_audit_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_fields ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_members ENABLE ROW LEVEL SECURITY;
 
--- Projects Policies
-DROP POLICY IF EXISTS "Projects viewable by authenticated" ON public.projects;
-CREATE POLICY "Projects viewable by authenticated" ON public.projects FOR SELECT USING (auth.role() = 'authenticated');
+-- STEP 3: HELPER FUNCTIONS
+-- SECURITY DEFINER + search_path = bypass RLS inside the function body
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
-DROP POLICY IF EXISTS "Authenticated can insert Projects" ON public.projects;
-CREATE POLICY "Authenticated can insert Projects" ON public.projects FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-
-DROP POLICY IF EXISTS "Admins can manage projects" ON public.projects;
-CREATE POLICY "Admins can manage projects" ON public.projects
-FOR ALL USING (
-  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-);
+CREATE OR REPLACE FUNCTION public.is_project_member(p_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.project_members
+    WHERE project_id = p_id AND user_id = auth.uid()
+  ) OR public.is_admin();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Profiles Policies
-DROP POLICY IF EXISTS "Profiles viewable by everyone" ON public.profiles;
-CREATE POLICY "Profiles viewable by everyone" ON public.profiles FOR SELECT USING (true);
+-- CRITICAL: Do NOT call is_admin() here — that queries profiles and causes infinite recursion.
+CREATE POLICY "Authenticated can view profiles" ON public.profiles
+    FOR SELECT USING (auth.role() = 'authenticated');
 
-DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
-CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can insert own profile" ON public.profiles
+    FOR INSERT WITH CHECK (auth.uid() = id);
 
-DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON public.profiles
+    FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Admins can update any profile" ON public.profiles
+    FOR UPDATE USING (public.is_admin());
+
+-- Projects Policies
+CREATE POLICY "Projects viewable by members" ON public.projects
+    FOR SELECT USING (public.is_project_member(id));
+
+CREATE POLICY "Admins full project control" ON public.projects
+    FOR ALL USING (public.is_admin());
+
+-- Project Members Policies
+CREATE POLICY "Members can view own memberships" ON public.project_members
+    FOR SELECT USING (
+        user_id = auth.uid() OR public.is_project_member(project_id)
+    );
+
+CREATE POLICY "Admins manage memberships" ON public.project_members
+    FOR ALL USING (public.is_admin());
 
 -- RFIs Policies
-DROP POLICY IF EXISTS "RFIs viewable by authenticated" ON public.rfis;
-CREATE POLICY "RFIs viewable by authenticated" ON public.rfis FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "RFIs viewable by project members" ON public.rfis
+    FOR SELECT USING (public.is_project_member(project_id));
 
-DROP POLICY IF EXISTS "Contractors can insert RFIs" ON public.rfis;
-CREATE POLICY "Contractors can insert RFIs" ON public.rfis FOR INSERT WITH CHECK (auth.uid() = filed_by);
+CREATE POLICY "Members can create RFIs" ON public.rfis
+    FOR INSERT WITH CHECK (public.is_project_member(project_id));
 
-DROP POLICY IF EXISTS "Authenticated users can update RFIs" ON public.rfis;
-DROP POLICY IF EXISTS "Users can update editable RFIs" ON public.rfis;
-CREATE POLICY "Users can update editable RFIs" ON public.rfis
-FOR UPDATE
-USING (
-  auth.role() = 'authenticated'
-  AND (
-    EXISTS (
-      SELECT 1
-      FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'
-    )
-    OR (
-      assigned_to IS NOT NULL
-      AND auth.uid() = assigned_to
-    )
-    OR (
-      assigned_to IS NULL
-      AND (
-        auth.uid() = filed_by
-        OR EXISTS (
-          SELECT 1
-          FROM public.profiles p
-          WHERE p.id = auth.uid() AND p.role = 'consultant'
+CREATE POLICY "Consultants and Admins can update RFIs" ON public.rfis
+    FOR UPDATE USING (
+        public.is_admin() OR
+        (
+            EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'consultant')
+            AND public.is_project_member(project_id)
         )
-      )
-    )
-  )
-)
-WITH CHECK (
-  auth.role() = 'authenticated'
-  AND (
-    EXISTS (
-      SELECT 1
-      FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'admin'
-    )
-    OR (
-      assigned_to IS NOT NULL
-      AND auth.uid() = assigned_to
-    )
-    OR (
-      assigned_to IS NULL
-      AND (
-        auth.uid() = filed_by
-        OR EXISTS (
-          SELECT 1
-          FROM public.profiles p
-          WHERE p.id = auth.uid() AND p.role = 'consultant'
-        )
-      )
-    )
-  )
-);
+    );
 
-DROP POLICY IF EXISTS "Contractors can delete own RFIs" ON public.rfis;
-CREATE POLICY "Contractors can delete own RFIs" ON public.rfis FOR DELETE USING (auth.uid() = filed_by);
+CREATE POLICY "Contractors can update own RFIs" ON public.rfis
+    FOR UPDATE USING (
+        filed_by = auth.uid() AND public.is_project_member(project_id)
+    );
+
+CREATE POLICY "Contractors can delete own RFIs" ON public.rfis
+    FOR DELETE USING (auth.uid() = filed_by);
+
+-- Security Audit Log Policies
+CREATE POLICY "Admins can view audit logs" ON security_audit_log
+    FOR SELECT USING (public.is_admin());
+
+CREATE POLICY "Users can insert audit logs" ON security_audit_log
+    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 
 -- Comments Policies
 DROP POLICY IF EXISTS "Comments viewable by authenticated" ON public.comments;

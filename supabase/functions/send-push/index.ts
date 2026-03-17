@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import webpush from 'https://esm.sh/web-push@3.6.7';
+import webpush from 'npm:web-push@3.6.7';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -37,15 +37,17 @@ function isoNowMinusSeconds(seconds: number) {
 }
 
 Deno.serve(async (req: Request) => {
+  // CORS preflight must succeed BEFORE any configuration checks.
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { status: 200, headers: corsHeaders });
   }
 
   try {
+    // Return a clear 503 when VAPID keys are not set up instead of crashing.
     if (!supabaseUrl || !serviceRoleKey || !webpushConfigured) {
       console.error("send-push edge function is missing environment variables for initialization.");
       return new Response(JSON.stringify({ error: 'Server misconfiguration: missing push setup' }), {
-        status: 500,
+        status: 503,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

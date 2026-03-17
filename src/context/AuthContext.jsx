@@ -24,6 +24,7 @@ function setManualLogoutFlag(value) {
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [mfaFactors, setMfaFactors] = useState([]);
     const initialized = useRef(false);
 
     useEffect(() => {
@@ -36,9 +37,6 @@ export function AuthProvider({ children }) {
             if (session?.user) {
                 setManualLogoutFlag(false);
                 const restored = restoreCachedProfile(session.user.id);
-                if (restored) {
-                    setLoading(false);
-                }
                 fetchProfile(session.user.id, { allowRetry: true });
             } else {
                 const restored = restoreCachedProfile();
@@ -54,9 +52,6 @@ export function AuthProvider({ children }) {
             if (session?.user) {
                 setManualLogoutFlag(false);
                 const restored = restoreCachedProfile(session.user.id);
-                if (restored) {
-                    setLoading(false);
-                }
                 fetchProfile(session.user.id, { allowRetry: true });
             } else {
                 if (event === 'SIGNED_OUT' || wasManualLogout()) {
@@ -209,6 +204,13 @@ export function AuthProvider({ children }) {
             }
         } finally {
             setLoading(false);
+            if (userId) {
+                supabase.auth.mfa.listFactors().then(({ data, error }) => {
+                    if (!error && data) {
+                        setMfaFactors(data.all || []);
+                    }
+                });
+            }
         }
     }
 
@@ -302,11 +304,79 @@ export function AuthProvider({ children }) {
             }
         }
         await supabase.auth.signOut();
+        setMfaFactors([]);
         // Listener sets loading false and user null automatically
     }
 
+    // --- MFA HELPERS ---
+
+    async function enrollMFA() {
+        const { data, error } = await supabase.auth.mfa.enroll({
+            factorType: 'totp'
+        });
+        if (error) throw error;
+        return data; // { id, type, totp: { qr_code, secret, uri } }
+    }
+
+    async function verifyMFAEnrollment(factorId, code) {
+        const { data, error } = await supabase.auth.mfa.challengeAndVerify({
+            factorId,
+            code
+        });
+        if (error) throw error;
+        
+        // Refresh factors
+        const { data: listData } = await supabase.auth.mfa.listFactors();
+        setMfaFactors(listData?.all || []);
+        
+        return data;
+    }
+
+    async function unenrollMFA(factorId) {
+        const { data, error } = await supabase.auth.mfa.unenroll({
+            factorId
+        });
+        if (error) throw error;
+        
+        // Refresh factors
+        const { data: listData } = await supabase.auth.mfa.listFactors();
+        setMfaFactors(listData?.all || []);
+        
+        return data;
+    }
+
+    async function challengeMFA(factorId) {
+        const { data, error } = await supabase.auth.mfa.challenge({
+            factorId
+        });
+        if (error) throw error;
+        return data; // { id, type, challenge }
+    }
+
+    async function verifyMFAChallenge(factorId, challengeId, code) {
+        const { data, error } = await supabase.auth.mfa.verify({
+            factorId,
+            challengeId,
+            code
+        });
+        if (error) throw error;
+        return data;
+    }
+
     return (
-        <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+        <AuthContext.Provider value={{ 
+            user, 
+            loading, 
+            login, 
+            register, 
+            logout,
+            mfaFactors,
+            enrollMFA,
+            verifyMFAEnrollment,
+            unenrollMFA,
+            challengeMFA,
+            verifyMFAChallenge
+        }}>
             {children}
         </AuthContext.Provider>
     );

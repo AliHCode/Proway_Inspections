@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { ProjectProvider } from './context/ProjectContext';
+import { ProjectProvider, useProject } from './context/ProjectContext';
 import { RFIProvider } from './context/RFIContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoadingSpinner from './components/LoadingSpinner';
@@ -20,7 +20,8 @@ import PendingApproval from './pages/PendingApproval';
 import SummaryPage from './pages/SummaryPage';
 import RegisteredDevicesPage from './pages/RegisteredDevicesPage';
 import NotificationRedirect from './pages/NotificationRedirect';
-import { useProject } from './context/ProjectContext';
+import SubscriptionBlocked from './pages/SubscriptionBlocked';
+import SubscriptionGuard from './components/SubscriptionGuard';
 
 function ProtectedRoute({ children, allowedRoles }) {
     const { user, loading } = useAuth();
@@ -66,7 +67,9 @@ function AppRoutes() {
                 path="/contractor"
                 element={
                     <ProtectedRoute allowedRoles={['contractor']}>
-                        <ContractorDashboard />
+                        <SubscriptionGuard>
+                            <ContractorDashboard />
+                        </SubscriptionGuard>
                     </ProtectedRoute>
                 }
             />
@@ -74,7 +77,9 @@ function AppRoutes() {
                 path="/contractor/rfi-sheet"
                 element={
                     <ProtectedRoute allowedRoles={['contractor']}>
-                        <DailyRFISheet />
+                        <SubscriptionGuard>
+                            <DailyRFISheet />
+                        </SubscriptionGuard>
                     </ProtectedRoute>
                 }
             />
@@ -83,7 +88,9 @@ function AppRoutes() {
                     path="/contractor/summary"
                     element={
                         <ProtectedRoute allowedRoles={['contractor']}>
-                            <SummaryPage />
+                            <SubscriptionGuard>
+                                <SummaryPage />
+                            </SubscriptionGuard>
                         </ProtectedRoute>
                     }
                 />
@@ -91,7 +98,9 @@ function AppRoutes() {
                 path="/consultant"
                 element={
                     <ProtectedRoute allowedRoles={['consultant']}>
-                        <ConsultantDashboard />
+                        <SubscriptionGuard>
+                            <ConsultantDashboard />
+                        </SubscriptionGuard>
                     </ProtectedRoute>
                 }
             />
@@ -99,7 +108,9 @@ function AppRoutes() {
                 path="/consultant/review"
                 element={
                     <ProtectedRoute allowedRoles={['consultant']}>
-                        <ReviewQueue />
+                        <SubscriptionGuard>
+                            <ReviewQueue />
+                        </SubscriptionGuard>
                     </ProtectedRoute>
                 }
             />
@@ -107,7 +118,9 @@ function AppRoutes() {
                 path="/consultant/rejection-journey"
                 element={
                     <ProtectedRoute allowedRoles={['consultant']}>
-                        <RejectionJourneyBoard />
+                        <SubscriptionGuard>
+                            <RejectionJourneyBoard />
+                        </SubscriptionGuard>
                     </ProtectedRoute>
                 }
             />
@@ -115,7 +128,9 @@ function AppRoutes() {
                     path="/consultant/summary"
                     element={
                         <ProtectedRoute allowedRoles={['consultant']}>
-                            <SummaryPage />
+                            <SubscriptionGuard>
+                                <SummaryPage />
+                            </SubscriptionGuard>
                         </ProtectedRoute>
                     }
                 />
@@ -151,6 +166,7 @@ function AppRoutes() {
                     </ProtectedRoute>
                 }
             />
+            <Route path="/project-blocked" element={<SubscriptionBlocked />} />
             <Route path="/notification-open" element={<NotificationRedirect />} />
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

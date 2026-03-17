@@ -7,7 +7,7 @@ import Header from '../components/Header';
 import StatusBadge from '../components/StatusBadge';
 import {
     ChevronLeft, ChevronRight, FileText, Table,
-    CheckCircle, XCircle, Clock, AlertTriangle, BarChart2,
+    CheckCircle, XCircle, Clock, AlertTriangle, BarChart2, Ban
 } from 'lucide-react';
 
 // ─── Date Utilities ────────────────────────────────────────────────────────────
@@ -271,16 +271,21 @@ export default function SummaryPage() {
     }, [rfis, fromDate, toDate]);
 
     const filtered = useMemo(() =>
-        dateFiltered.filter(r => statusFilter === 'all' || r.status === statusFilter),
+        dateFiltered.filter(r => {
+            if (statusFilter === 'all') return true;
+            if (statusFilter === 'approved') return r.status === 'approved' || r.status === 'conditional_approve';
+            return r.status === statusFilter;
+        }),
         [dateFiltered, statusFilter]
     );
 
     const stats = useMemo(() => ({
         total:    dateFiltered.length,
-        approved: dateFiltered.filter(r => r.status === 'approved').length,
+        approved: dateFiltered.filter(r => r.status === 'approved' || r.status === 'conditional_approve').length,
         rejected: dateFiltered.filter(r => r.status === 'rejected').length,
         pending:  dateFiltered.filter(r => r.status === 'pending').length,
         info:     dateFiltered.filter(r => r.status === 'info_requested').length,
+        cancelled: dateFiltered.filter(r => r.status === 'cancelled').length,
     }), [dateFiltered]);
 
     const defaultCols = [
@@ -383,6 +388,15 @@ export default function SummaryPage() {
                                 style={{ cursor: 'pointer', border: 'none', transition: 'transform 0.11s' }}
                             >
                                 <AlertTriangle size={13} /> {stats.info} Info Req.
+                            </button>
+                        )}
+                        {stats.cancelled > 0 && (
+                            <button 
+                                className={`summ-pill cancelled ${statusFilter === 'cancelled' ? 'active-pill' : ''}`}
+                                onClick={() => setStatusFilter(prev => prev === 'cancelled' ? 'all' : 'cancelled')}
+                                style={{ cursor: 'pointer', border: 'none', transition: 'transform 0.11s', background: statusFilter === 'cancelled' ? '#475569' : '#f1f5f9', color: statusFilter === 'cancelled' ? 'white' : '#475569' }}
+                            >
+                                <Ban size={13} /> {stats.cancelled} Cancelled
                             </button>
                         )}
                     </div>

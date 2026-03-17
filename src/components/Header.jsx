@@ -1,10 +1,11 @@
 import { useAuth } from '../context/AuthContext';
 import { useProject } from '../context/ProjectContext';
-import { LogOut, Menu, X, Building, Shield, User, Briefcase, UserCircle, LayoutDashboard, FileText, ClipboardList, Bell, Smartphone, GitBranch, ListChecks, ChevronDown } from 'lucide-react';
-import { BarChart2 } from 'lucide-react';
+import { LogOut, Menu, X, Building, Shield, User, Briefcase, UserCircle, LayoutDashboard, FileText, ClipboardList, Bell, Smartphone, GitBranch, ListChecks, ChevronDown, Wifi, WifiOff, BarChart2 } from 'lucide-react';
+import { useRFI } from '../context/RFIContext';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import NotificationCenter from './NotificationCenter';
+import MFAEnrollmentModal from './MFAEnrollmentModal';
 import { syncPushSubscriptionForUser } from '../utils/pushNotifications';
 
 export default function Header() {
@@ -15,7 +16,11 @@ export default function Header() {
     const [menuOpen, setMenuOpen] = useState(false);
     const [projectMenuOpen, setProjectMenuOpen] = useState(false);
     const [notifMenuOpen, setNotifMenuOpen] = useState(false);
+    const [mfaModalOpen, setMfaModalOpen] = useState(false);
+    const { mfaFactors } = useAuth();
+    const isMFAEnabled = mfaFactors.some(f => f.status === 'verified');
     const [notifPermission, setNotifPermission] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported');
+    const { isOffline, lastSyncTime } = useRFI() || { isOffline: false, lastSyncTime: null };
     const [pushBadge, setPushBadge] = useState({ state: 'checking', label: 'Push: Checking' });
     
     // Refs for click-away detection
@@ -153,193 +158,228 @@ export default function Header() {
     };
 
     return (
-        <header className="app-header">
-            <div className="header-left" onClick={() => navigate(dashPath)} style={{ padding: '0.25rem 0' }}>
-                <img src="/dashboardlogo.png" alt="ProWay Logo" className="header-logo-img" style={{ height: '38px', objectFit: 'contain' }} />
-            </div>
+        <>
+            <header className="app-header">
+                <div className="header-left" onClick={() => navigate(dashPath)} style={{ padding: '0.25rem 0', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <img src="/dashboardlogo.png" alt="ProWay Logo" className="header-logo-img" style={{ height: '38px', objectFit: 'contain' }} />
+                    
+                    {/* Connection Status Indicator */}
+                    <div className={`network-status-indicator ${isOffline ? 'offline' : 'online'}`} title={isOffline ? 'Sync issue: Supabase unreachable' : `Connected. Last sync: ${lastSyncTime ? lastSyncTime.toLocaleTimeString() : 'Just now'}`}>
+                        {isOffline ? (
+                            <>
+                                <WifiOff size={16} color="var(--clr-error)" />
+                                <span style={{ fontSize: '0.7rem', color: 'var(--clr-error)', fontWeight: 600 }}>Sync Issue</span>
+                            </>
+                        ) : (
+                            <Wifi size={16} color="var(--clr-success)" style={{ opacity: 0.6 }} />
+                        )}
+                    </div>
+                </div>
 
-            {/* Project Selector */}
-            {activeProject && (
-                <div className="header-project-area" ref={projectRef}>
-                    <button 
-                        className="header-project-selector-pill"
-                        onClick={() => {
-                            setProjectMenuOpen(!projectMenuOpen);
-                            setMenuOpen(false);
-                            setNotifMenuOpen(false);
-                        }}
-                    >
-                        <Building size={16} className="project-icon" />
-                        <span className="project-name">{activeProject.name}</span>
-                        <ChevronDown size={14} className={`chevron-icon ${projectMenuOpen ? 'open' : ''}`} />
+                {/* Project Selector */}
+                {activeProject && (
+                    <div className="header-project-area" ref={projectRef}>
+                        <button 
+                            className="header-project-selector-pill"
+                            onClick={() => {
+                                setProjectMenuOpen(!projectMenuOpen);
+                                setMenuOpen(false);
+                                setNotifMenuOpen(false);
+                            }}
+                        >
+                            <Building size={16} className="project-icon" />
+                            <span className="project-name">{activeProject.name}</span>
+                            <ChevronDown size={14} className={`chevron-icon ${projectMenuOpen ? 'open' : ''}`} />
+                        </button>
+
+                        {projectMenuOpen && (
+                            <div className="header-project-dropdown">
+                                <div className="header-project-dropdown-title">Select Project</div>
+                                {projects.map((p) => (
+                                    <button
+                                        key={p.id}
+                                        className={`header-dropdown-item ${p.id === activeProject.id ? 'active' : ''}`}
+                                        onClick={() => {
+                                            changeActiveProject(p.id);
+                                            setProjectMenuOpen(false);
+                                        }}
+                                    >
+                                        <Building size={16} />
+                                        {p.name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <div className="header-user-info" ref={notifRef}>
+                    <NotificationCenter 
+                        isOpen={notifMenuOpen} 
+                        onToggle={(val) => {
+                            setNotifMenuOpen(val);
+                            if (val) {
+                                setMenuOpen(false);
+                                setProjectMenuOpen(false);
+                            }
+                        }} 
+                    />
+                </div>
+
+                <div className="header-divider"></div>
+
+                <div className="header-menu-wrap" ref={menuRef}>
+                    <button className="header-menu-btn" onClick={() => { 
+                        const newState = !menuOpen;
+                        setMenuOpen(newState); 
+                        setProjectMenuOpen(false); 
+                        setNotifMenuOpen(false);
+                    }}>
+                        {menuOpen ? <X size={20} /> : <Menu size={20} />}
                     </button>
 
-                    {projectMenuOpen && (
-                        <div className="header-project-dropdown">
-                            <div className="header-project-dropdown-title">Select Project</div>
-                            {projects.map((p) => (
-                                <button
-                                    key={p.id}
-                                    className={`header-dropdown-item ${p.id === activeProject.id ? 'active' : ''}`}
-                                    onClick={() => {
-                                        changeActiveProject(p.id);
-                                        setProjectMenuOpen(false);
-                                    }}
-                                >
-                                    <Building size={16} />
-                                    {p.name}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            <div className="header-user-info" ref={notifRef}>
-                <NotificationCenter 
-                    isOpen={notifMenuOpen} 
-                    onToggle={(val) => {
-                        setNotifMenuOpen(val);
-                        if (val) {
-                            setMenuOpen(false);
-                            setProjectMenuOpen(false);
-                        }
-                    }} 
-                />
-            </div>
-
-            <div className="header-divider"></div>
-
-            <div className="header-menu-wrap" ref={menuRef}>
-                <button className="header-menu-btn" onClick={() => { 
-                    const newState = !menuOpen;
-                    setMenuOpen(newState); 
-                    setProjectMenuOpen(false); 
-                    setNotifMenuOpen(false);
-                }}>
-                    {menuOpen ? <X size={20} /> : <Menu size={20} />}
-                </button>
-
-                {menuOpen && (
-                    <div className="header-dropdown">
-                        <div className="header-dropdown-info">
-                            <div className="header-identity-card">
-                                <div className="header-identity-avatar" aria-hidden="true">
-                                    {nameInitials}
-                                </div>
-                                <div className="header-identity-meta">
-                                    <div className="header-identity-name">{user.name}</div>
-                                    <div className="header-identity-details">
-                                        <div className="header-identity-detail">
-                                            <Briefcase size={12} />
-                                            <span>{user.company || 'ClearLine Inc.'}</span>
-                                        </div>
-                                        <div className="header-identity-detail">
-                                            <User size={12} />
-                                            <span className="header-identity-designation">{roleLabel}</span>
+                    {menuOpen && (
+                        <div className="header-dropdown">
+                            <div className="header-dropdown-info">
+                                <div className="header-identity-card">
+                                    <div className="header-identity-avatar" aria-hidden="true">
+                                        {nameInitials}
+                                    </div>
+                                    <div className="header-identity-meta">
+                                        <div className="header-identity-name">{user.name}</div>
+                                        <div className="header-identity-details">
+                                            <div className="header-identity-detail">
+                                                <Briefcase size={12} />
+                                                <span>{user.company || 'ClearLine Inc.'}</span>
+                                            </div>
+                                            <div className="header-identity-detail">
+                                                <User size={12} />
+                                                <span className="header-identity-designation">{roleLabel}</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    <button
-                        onClick={() => { navigate(dashPath); setMenuOpen(false); }}
-                        className={`header-dropdown-item ${location.pathname === dashPath ? 'active' : ''}`}
-                    >
-                        <LayoutDashboard size={16} /> Dashboard
-                    </button>
-                    {isContractor && (
                         <button
-                            onClick={() => { navigate('/contractor/rfi-sheet'); setMenuOpen(false); }}
-                            className={`header-dropdown-item ${location.pathname.includes('rfi-sheet') ? 'active' : ''}`}
+                            onClick={() => { navigate(dashPath); setMenuOpen(false); }}
+                            className={`header-dropdown-item ${location.pathname === dashPath ? 'active' : ''}`}
                         >
-                            <FileText size={16} /> Daily RFI Sheet
+                            <LayoutDashboard size={16} /> Dashboard
                         </button>
-                    )}
-
                         {isContractor && (
                             <button
-                                onClick={() => { navigate('/contractor/summary'); setMenuOpen(false); }}
-                                className={`header-dropdown-item ${location.pathname.includes('/contractor/summary') ? 'active' : ''}`}
+                                onClick={() => { navigate('/contractor/rfi-sheet'); setMenuOpen(false); }}
+                                className={`header-dropdown-item ${location.pathname.includes('rfi-sheet') ? 'active' : ''}`}
                             >
-                                <BarChart2 size={16} /> Summary
+                                <FileText size={16} /> Daily RFI Sheet
                             </button>
                         )}
-                    {user.role === 'consultant' && (
-                        <>
-                            <button
-                                onClick={() => { navigate('/consultant/review'); setMenuOpen(false); }}
-                                className={`header-dropdown-item ${location.pathname.includes('review') ? 'active' : ''}`}
-                            >
-                                <ClipboardList size={16} /> Review Queue
-                            </button>
-                            <button
-                                onClick={() => { navigate('/consultant/rejection-journey'); setMenuOpen(false); }}
-                                className={`header-dropdown-item ${location.pathname.includes('/consultant/rejection-journey') ? 'active' : ''}`}
-                            >
-                                <GitBranch size={16} /> Rejection Journey
-                            </button>
+
+                            {isContractor && (
                                 <button
-                                    onClick={() => { navigate('/consultant/summary'); setMenuOpen(false); }}
-                                    className={`header-dropdown-item ${location.pathname.includes('/consultant/summary') ? 'active' : ''}`}
+                                    onClick={() => { navigate('/contractor/summary'); setMenuOpen(false); }}
+                                    className={`header-dropdown-item ${location.pathname.includes('/contractor/summary') ? 'active' : ''}`}
                                 >
                                     <BarChart2 size={16} /> Summary
                                 </button>
-                        </>
-                    )}
-                    {isAdmin && (
-                        <>
-                            <button
-                                onClick={() => { navigate('/admin/users'); setMenuOpen(false); }}
-                                className={`header-dropdown-item ${location.pathname === '/admin/users' ? 'active' : ''}`}
-                            >
-                                <UserCircle size={16} /> Users
-                            </button>
-                            <button
-                                onClick={() => { navigate('/admin/export-format'); setMenuOpen(false); }}
-                                className={`header-dropdown-item ${location.pathname === '/admin/export-format' ? 'active' : ''}`}
-                            >
-                                <Shield size={16} /> Project Export Format
-                            </button>
-                            <button
-                                onClick={() => { navigate('/admin/registered-devices'); setMenuOpen(false); }}
-                                className={`header-dropdown-item ${location.pathname === '/admin/registered-devices' ? 'active' : ''}`}
-                            >
-                                <Smartphone size={16} /> Registered Devices
-                            </button>
-                        </>
-                    )}
-                    {canManageNotifications && (
-                        <div className="menu-alert-section">
-                             <div 
-                                className={`menu-alert-row ${pushBadge.state === 'blocked' ? 'blocked' : ''}`} 
-                                onClick={handleEnableNotifications}
-                            >
-                                <div className="menu-alert-info">
-                                    <Bell size={18} />
-                                    <span>{pushBadge.state === 'blocked' ? 'Notifications Blocked' : 'Real-time Alerts'}</span>
+                            )}
+                        {user.role === 'consultant' && (
+                            <>
+                                <button
+                                    onClick={() => { navigate('/consultant/review'); setMenuOpen(false); }}
+                                    className={`header-dropdown-item ${location.pathname.includes('review') ? 'active' : ''}`}
+                                >
+                                    <ClipboardList size={16} /> Review Queue
+                                </button>
+                                <button
+                                    onClick={() => { navigate('/consultant/rejection-journey'); setMenuOpen(false); }}
+                                    className={`header-dropdown-item ${location.pathname.includes('/consultant/rejection-journey') ? 'active' : ''}`}
+                                >
+                                    <GitBranch size={16} /> Rejection Journey
+                                </button>
+                                    <button
+                                        onClick={() => { navigate('/consultant/summary'); setMenuOpen(false); }}
+                                        className={`header-dropdown-item ${location.pathname.includes('/consultant/summary') ? 'active' : ''}`}
+                                    >
+                                        <BarChart2 size={16} /> Summary
+                                    </button>
+                            </>
+                        )}
+                        {isAdmin && (
+                            <>
+                                <button
+                                    onClick={() => { navigate('/admin/users'); setMenuOpen(false); }}
+                                    className={`header-dropdown-item ${location.pathname === '/admin/users' ? 'active' : ''}`}
+                                >
+                                    <UserCircle size={16} /> Users
+                                </button>
+                                <button
+                                    onClick={() => { navigate('/admin/export-format'); setMenuOpen(false); }}
+                                    className={`header-dropdown-item ${location.pathname === '/admin/export-format' ? 'active' : ''}`}
+                                >
+                                    <Shield size={16} /> Project Export Format
+                                </button>
+                                <button
+                                    onClick={() => { navigate('/admin/registered-devices'); setMenuOpen(false); }}
+                                    className={`header-dropdown-item ${location.pathname === '/admin/registered-devices' ? 'active' : ''}`}
+                                >
+                                    <Smartphone size={16} /> Registered Devices
+                                </button>
+                            </>
+                        )}
+                        <div className="header-dropdown-divider" style={{ height: '1px', background: 'var(--clr-border)', margin: '0.25rem 0' }}></div>
+                        <button
+                            onClick={() => { setMfaModalOpen(true); setMenuOpen(false); }}
+                            className="header-dropdown-item"
+                        >
+                            <Shield size={16} /> 
+                            <span>Security & MFA</span>
+                            {isMFAEnabled && (
+                                <span style={{ 
+                                    marginLeft: 'auto', 
+                                    background: 'var(--clr-success)', 
+                                    color: '#fff', 
+                                    fontSize: '0.65rem', 
+                                    padding: '2px 6px', 
+                                    borderRadius: '10px',
+                                    fontWeight: 700
+                                }}>ON</span>
+                            )}
+                        </button>
+
+                        {canManageNotifications && (
+                            <div className="menu-alert-section">
+                                <div 
+                                    className={`menu-alert-row ${pushBadge.state === 'blocked' ? 'blocked' : ''}`} 
+                                    onClick={handleEnableNotifications}
+                                >
+                                    <div className="menu-alert-info">
+                                        <Bell size={18} />
+                                        <span>{pushBadge.state === 'blocked' ? 'Notifications Blocked' : 'Real-time Alerts'}</span>
+                                    </div>
+                                    {pushBadge.state === 'blocked' ? (
+                                        <span className="menu-fix-link">Fix</span>
+                                    ) : (
+                                        <div className={`menu-alert-toggle ${pushBadge.state === 'subscribed' ? 'subscribed' : ''}`}>
+                                            <div className="toggle-handle"></div>
+                                        </div>
+                                    )}
                                 </div>
-                                {pushBadge.state === 'blocked' ? (
-                                    <span className="menu-fix-link">Fix</span>
-                                ) : (
-                                    <div className={`menu-alert-toggle ${pushBadge.state === 'subscribed' ? 'subscribed' : ''}`}>
-                                        <div className="toggle-handle"></div>
+                                {pushBadge.state === 'blocked' && (
+                                    <div className="notif-blocked-hint">
+                                        To re-enable: click the <strong>lock icon</strong> in your address bar → <em>Notifications</em> → Allow.
                                     </div>
                                 )}
                             </div>
-                            {pushBadge.state === 'blocked' && (
-                                <div className="notif-blocked-hint">
-                                    To re-enable: click the <strong>lock icon</strong> in your address bar → <em>Notifications</em> → Allow.
-                                </div>
-                            )}
-                        </div>
-                    )}
-                    <button onClick={() => { logout(); navigate('/'); }} className="header-dropdown-item logout">
-                        <LogOut size={16} /> Sign Out
-                    </button>
+                        )}
+                        <button onClick={() => { logout(); navigate('/'); }} className="header-dropdown-item logout">
+                            <LogOut size={16} /> Sign Out
+                        </button>
+                    </div>
+                )}
                 </div>
-            )}
-            </div>
-        </header>
+            </header>
+            <MFAEnrollmentModal isOpen={mfaModalOpen} onClose={() => setMfaModalOpen(false)} />
+        </>
     );
 }

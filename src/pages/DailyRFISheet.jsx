@@ -39,15 +39,19 @@ export default function DailyRFISheet() {
 
     const { newRfis } = getRFIsForDate(currentDate);
 
-    // Gather all actionable rejected RFIs (rejected and no child revision)
-    const allRejectedRfis = (rfis || []).filter(r => r.filedBy === user.id && r.status === RFI_STATUS.REJECTED);
-    const activeRejectedRfis = allRejectedRfis.filter(
-        rejected => !rfis.some(r => r.parentId === rejected.id)
+    // Gather all actionable rejected or conditionally approved RFIs (no child revision/resolution)
+    const actionableRfis = (rfis || []).filter(r => 
+        r.filedBy === user.id && 
+        (r.status === RFI_STATUS.REJECTED || r.status === RFI_STATUS.CONDITIONAL_APPROVE)
+    );
+    const activeRejectedRfis = actionableRfis.filter(
+        item => !rfis.some(r => r.parentId === item.id)
     ).sort((a, b) => new Date(a.filedDate) - new Date(b.filedDate)); // Oldest first
 
     // Current date's new RFIs (exclude superseded/revised ones)
     const dailyRfis = newRfis.filter(r => 
         r.filedBy === user.id && 
+        r.status !== RFI_STATUS.CANCELLED &&
         !rfis.some(child => child.parentId === r.id)
     ).sort((a,b) => a.serialNo - b.serialNo);
 
@@ -56,7 +60,7 @@ export default function DailyRFISheet() {
 
     const reportRfis = rfis ? rfis.filter(r =>
         r.filedBy === user.id &&
-        (r.status === 'approved' || r.status === 'rejected') &&
+        (r.status === 'approved' || r.status === 'rejected' || r.status === 'conditional_approve') &&
         ((r.reviewedAt && r.reviewedAt.startsWith(currentDate)) || r.filedDate === currentDate)
     ) : [];
 
@@ -309,22 +313,30 @@ export default function DailyRFISheet() {
     const NEW_ENTRY_SKIP_COLS = ['status', 'remarks'];
     const newEntryColumns = orderedTableColumns.filter(col => !NEW_ENTRY_SKIP_COLS.includes(col.field_key));
 
-    const displayTableColumns = activeTab === 'rejected' ? (() => {
-        const cols = [...orderedTableColumns];
-        const actionsIdx = cols.findIndex(c => c.field_key === 'actions');
-        if (actionsIdx !== -1) {
-            cols.splice(actionsIdx, 0,
-                { field_key: 'filed_date', field_name: 'Filed Date' },
-                { field_key: 'review_date', field_name: 'Review Date' }
-            );
-        } else {
-            cols.push(
-                { field_key: 'filed_date', field_name: 'Filed Date' },
-                { field_key: 'review_date', field_name: 'Review Date' }
-            );
+    const displayTableColumns = (() => {
+        const cols = activeTab === 'rejected' ? (() => {
+            const list = [...orderedTableColumns];
+            const actionsIdx = list.findIndex(c => c.field_key === 'actions');
+            if (actionsIdx !== -1) {
+                list.splice(actionsIdx, 0,
+                    { field_key: 'filed_date', field_name: 'Filed Date' },
+                    { field_key: 'review_date', field_name: 'Review Date' }
+                );
+            } else {
+                list.push(
+                    { field_key: 'filed_date', field_name: 'Filed Date' },
+                    { field_key: 'review_date', field_name: 'Review Date' }
+                );
+            }
+            return list;
+        })() : [...orderedTableColumns];
+
+        // Add "Assigned To" at the very end if not already present
+        if (!cols.find(c => c.field_key === 'assigned_to')) {
+            cols.push({ field_key: 'assigned_to', field_name: 'Assigned To' });
         }
         return cols;
-    })() : orderedTableColumns;
+    })();
 
     function renderDisplayCell(rfi, col, idx, isCarryover) {
         const style = getTableColumnStyle(col.field_key);
@@ -375,6 +387,23 @@ export default function DailyRFISheet() {
                 return <td key={col.field_key} style={style} data-label="Filed Date">{formatDateDisplay(rfi.originalFiledDate || rfi.filedDate)}</td>;
             case 'review_date':
                 return <td key={col.field_key} style={style} data-label="Review Date">{rfi.reviewedAt ? formatDateDisplay(rfi.reviewedAt.split('T')[0]) : '—'}</td>;
+            case 'assigned_to':
+                return (
+                    <td key={col.field_key} style={style} data-label="Assigned To">
+                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ 
+                                background: rfi.assigneeName ? 'var(--clr-bg-secondary)' : 'transparent',
+                                padding: rfi.assigneeName ? '4px 8px' : '0',
+                                borderRadius: '6px',
+                                fontSize: '0.85rem',
+                                color: 'var(--clr-text-main)',
+                                fontWeight: 500
+                            }}>
+                                {rfi.assigneeName || 'Auto'}
+                            </span>
+                        </div>
+                    </td>
+                );
             case 'actions':
                 const canEditThisRfi = canUserEditRfi(rfi);
                 if (isCarryover) {
