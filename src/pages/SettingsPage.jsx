@@ -1,11 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { useRFI } from '../context/RFIContext';
 import { ChevronLeft, Shield, Bell, Check, Smartphone, Info, Wifi, WifiOff } from 'lucide-react';
 import { syncPushSubscriptionForUser } from '../utils/pushNotifications';
 import MFAEnrollmentModal from '../components/MFAEnrollmentModal';
 import Header from '../components/Header';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useRFI } from '../context/RFIContext';
 
 export default function SettingsPage() {
     const { user, mfaFactors } = useAuth();
@@ -118,6 +118,7 @@ export default function SettingsPage() {
                     </div>
                 </section>
 
+
                 {/* Notifications Section */}
                 <section className="settings-section-enterprise">
                     <h2 className="settings-section-title">Notification Settings</h2>
@@ -127,7 +128,7 @@ export default function SettingsPage() {
                                 <p>Real-time Push Alerts</p>
                                 <p className="item-desc">Receive instant notifications for RFI approvals, rejections, and assignments.</p>
                                 {pushBadge.state === 'blocked' && (
-                                    <div className="settings-hint" style={{ marginTop: '0.5rem', background: '#fff1f2', color: '#e11d48' }}>
+                                    <div className="settings-hint" style={{ marginTop: '0.5rem', background: 'var(--clr-danger-bg)', color: 'var(--clr-danger)' }}>
                                         Notifications are blocked by your browser. Please allow them in your browser settings.
                                     </div>
                                 )}
@@ -186,7 +187,7 @@ export default function SettingsPage() {
                             <div className="settings-item-info">
                                 <p>Cloud Sync</p>
                                 <p className="item-desc">{isOffline ? 'Offline - Changes saved locally' : `Last synced: ${lastSyncTime ? lastSyncTime.toLocaleTimeString() : 'Just now'}`}</p>
-                                <div className={`security-status-badge ${isOffline ? 'off' : ''}`} style={{ color: isOffline ? '#e11d48' : '#059669', background: isOffline ? '#fff1f2' : '#ecfdf5' }}>
+                                <div className={`security-status-badge ${isOffline ? 'off' : ''}`} style={{ color: isOffline ? 'var(--clr-danger)' : 'var(--clr-success)', background: isOffline ? 'var(--clr-danger-bg)' : 'var(--clr-success-bg)' }}>
                                     {isOffline ? <WifiOff size={12} /> : <Wifi size={12} />}
                                     <span>{isOffline ? 'Connection Issue' : 'Active & Secure'}</span>
                                 </div>

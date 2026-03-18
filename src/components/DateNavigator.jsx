@@ -57,7 +57,7 @@ export default function DateNavigator({ currentDate, onDateChange, showArrows = 
                 style={{ cursor: 'pointer' }}
                 title="Open calendar"
             >
-                <Calendar size={16} style={{ color: '#64748b' }} />
+                <Calendar size={16} style={{ color: 'var(--clr-text-muted)' }} />
                 <span className="date-nav-label">{formatDateDisplay(currentDate)}</span>
                 {isToday && <span className="today-badge">Today</span>}
             </div>

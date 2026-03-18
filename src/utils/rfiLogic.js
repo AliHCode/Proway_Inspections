@@ -40,6 +40,16 @@ export function getToday() {
 }
 
 /**
+ * Get current time as a local ISO-like string (YYYY-MM-DDTHH:mm:ss.sss)
+ * This avoids UTC date-shifting in GMT+ formats.
+ */
+export function getNowLocalISO() {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offset).toISOString().slice(0, -1);
+}
+
+/**
  * Get the previous day
  */
 export function getPreviousDay(dateStr) {

@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
-import { X, Pencil, Upload, Brush, Save, MapPin, Tag, FileText } from 'lucide-react';
+import { X, Upload, Brush, Save, MapPin, Tag, FileText } from 'lucide-react';
 import { INSPECTION_TYPES } from '../utils/constants';
-import ImageMarkupModal from './ImageMarkupModal';
+import FieldMarkupStudio from './FieldMarkupStudio';
 
 export default function EditRFIModal({ rfi, projectFields = [], orderedColumns = [], onSave, onClose }) {
     const [description, setDescription] = useState(rfi.description || '');
@@ -86,8 +86,16 @@ export default function EditRFIModal({ rfi, projectFields = [], orderedColumns =
     const markupImage = markupTarget
         ? markupTarget.source === 'existing'
             ? existingImages[markupTarget.index]
-            : newFiles[markupTarget.index]
+            : markupTarget.source === 'new'
+                ? newFiles[markupTarget.index]
+                : markupTarget.file
         : null;
+
+    function isMarked(fileOrUrl) {
+        if (!fileOrUrl) return false;
+        const name = typeof fileOrUrl === 'string' ? fileOrUrl : fileOrUrl.name;
+        return name && name.includes('-marked');
+    }
 
     const labelStyle = {
         display: 'block',
@@ -102,10 +110,11 @@ export default function EditRFIModal({ rfi, projectFields = [], orderedColumns =
         padding: '0.75rem 1rem',
         borderRadius: '10px',
         border: '1px solid var(--clr-border)',
-        background: '#fff',
+        background: 'var(--clr-bg-elevated)',
         fontSize: '0.95rem',
         fontFamily: 'inherit',
         outline: 'none',
+        color: 'var(--clr-text-main)',
         boxSizing: 'border-box',
     };
 
@@ -121,10 +130,12 @@ export default function EditRFIModal({ rfi, projectFields = [], orderedColumns =
                     style={{ display: 'none' }}
                     onChange={(e) => {
                         const files = Array.from(e.target.files || []);
-                        if (files.length > 0) {
+                        if (files.length === 1) {
+                            setMarkupTarget({ source: 'direct', file: files[0] });
+                        } else if (files.length > 1) {
                             setNewFiles((prev) => [...prev, ...files]);
-                            e.target.value = '';
                         }
+                        e.target.value = '';
                     }}
                 />
 
@@ -151,12 +162,15 @@ export default function EditRFIModal({ rfi, projectFields = [], orderedColumns =
                                         height: '26px',
                                         borderRadius: '6px',
                                         border: 'none',
-                                        background: '#fff',
+                                        background: 'var(--clr-bg-elevated)',
+                                        color: isMarked(img) ? 'var(--clr-success)' : 'var(--clr-text-main)',
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
+                                        boxShadow: isMarked(img) ? '0 0 8px rgba(16, 185, 129, 0.4)' : 'none'
                                     }}
+                                    title={isMarked(img) ? "Edit markup" : "Add markup"}
                                 >
                                     <Brush size={13} />
                                 </button>
@@ -168,7 +182,7 @@ export default function EditRFIModal({ rfi, projectFields = [], orderedColumns =
                                         height: '26px',
                                         borderRadius: '6px',
                                         border: 'none',
-                                        background: '#fff',
+                                        background: 'var(--clr-bg-elevated)',
                                         color: 'var(--clr-danger)',
                                         cursor: 'pointer',
                                         display: 'flex',
@@ -204,12 +218,15 @@ export default function EditRFIModal({ rfi, projectFields = [], orderedColumns =
                                         height: '26px',
                                         borderRadius: '6px',
                                         border: 'none',
-                                        background: '#fff',
+                                        background: 'var(--clr-bg-elevated)',
+                                        color: isMarked(file) ? 'var(--clr-success)' : 'var(--clr-text-main)',
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
+                                        boxShadow: isMarked(file) ? '0 0 8px rgba(16, 185, 129, 0.4)' : 'none'
                                     }}
+                                    title={isMarked(file) ? "Edit markup" : "Add markup"}
                                 >
                                     <Brush size={13} />
                                 </button>
@@ -247,7 +264,7 @@ export default function EditRFIModal({ rfi, projectFields = [], orderedColumns =
                             alignItems: 'center',
                             justifyContent: 'center',
                             cursor: 'pointer',
-                            background: 'rgba(248, 250, 252, 0.5)',
+                            background: 'var(--clr-bg-hover)',
                         }}
                         title="Add photos"
                     >
@@ -414,7 +431,7 @@ export default function EditRFIModal({ rfi, projectFields = [], orderedColumns =
                     style={{
                         padding: '1.25rem 1.5rem',
                         borderBottom: '1px solid var(--clr-border)',
-                        background: 'linear-gradient(180deg, #ffffff, #f8fafc)',
+                        background: 'var(--clr-bg-elevated)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
@@ -426,13 +443,14 @@ export default function EditRFIModal({ rfi, projectFields = [], orderedColumns =
                                 width: '40px',
                                 height: '40px',
                                 borderRadius: '10px',
-                                background: 'var(--clr-info-bg)',
+                                background: 'var(--clr-bg-elevated)',
+                                color: 'var(--clr-text-main)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                             }}
                         >
-                            <Pencil size={20} color="var(--clr-info)" />
+                            <Brush size={20} color="var(--clr-info)" />
                         </div>
                         <div>
                             <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--clr-text-main)' }}>
@@ -453,7 +471,7 @@ export default function EditRFIModal({ rfi, projectFields = [], orderedColumns =
                         padding: '1.5rem',
                         overflowY: 'auto',
                         flex: 1,
-                        background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)',
+                        background: 'var(--clr-bg)',
                     }}
                 >
                     <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1.5rem' }}>
@@ -511,14 +529,16 @@ export default function EditRFIModal({ rfi, projectFields = [], orderedColumns =
             </div>
 
             {markupTarget && markupImage && (
-                <ImageMarkupModal
+                <FieldMarkupStudio
                     image={markupImage}
                     onClose={() => setMarkupTarget(null)}
                     onSave={(annotatedFile) => {
                         if (markupTarget.source === 'existing') {
                             replaceExistingImage(markupTarget.index, annotatedFile);
-                        } else {
+                        } else if (markupTarget.source === 'new') {
                             replaceNewFile(markupTarget.index, annotatedFile);
+                        } else if (markupTarget.source === 'direct') {
+                            setNewFiles((prev) => [...prev, annotatedFile]);
                         }
                         setMarkupTarget(null);
                     }}

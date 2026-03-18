@@ -10,9 +10,9 @@ import DateNavigator from '../components/DateNavigator';
 import StatusBadge from '../components/StatusBadge';
 import RFIDetailModal from '../components/RFIDetailModal';
 import EditRFIModal from '../components/EditRFIModal';
-import ImageMarkupModal from '../components/ImageMarkupModal';
+import FieldMarkupStudio from '../components/FieldMarkupStudio';
 import CreateRevisionModal from '../components/CreateRevisionModal';
-import { Plus, Trash2, Send, RefreshCw, X, MessageSquare, Pencil, FileDown, Table, ClipboardList, Brush } from 'lucide-react';
+import { Plus, Trash2, Send, RefreshCw, X, MessageSquare, FileDown, Table, ClipboardList, Brush } from 'lucide-react';
 import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
 import { useProject } from '../context/ProjectContext';
 
@@ -440,7 +440,7 @@ export default function DailyRFISheet() {
                             {rfi.status === RFI_STATUS.PENDING && canEditThisRfi && (
                                 <>
                                     <button className="btn btn-sm btn-ghost" onClick={() => { setEditTarget(rfi); setDetailTarget(null); }} title="Edit RFI">
-                                        <Pencil size={14} />
+                                        <Brush size={14} />
                                     </button>
                                     <button className="btn btn-sm btn-action btn-delete" onClick={() => { if (window.confirm('Are you sure you want to delete this RFI?')) { deleteRFI(rfi.id); } }} title="Delete RFI">
                                         <Trash2 size={14} />
@@ -471,7 +471,9 @@ export default function DailyRFISheet() {
                         if (c && c.startsWith(prefix)) {
                             const pts = c.split('-');
                             if (pts.length >= 2) {
-                                const n = parseInt(pts[1], 10);
+                                // Take the LAST part as the sequence number
+                                const lastPart = pts[pts.length - 1];
+                                const n = parseInt(lastPart, 10);
                                 if (!isNaN(n)) maxB = Math.max(maxB, n);
                             }
                         }
@@ -773,7 +775,7 @@ export default function DailyRFISheet() {
                 )}
 
                 {markupTarget && markupImage && (
-                    <ImageMarkupModal
+                    <FieldMarkupStudio
                         image={markupImage}
                         onClose={() => setMarkupTarget(null)}
                         onSave={(annotatedFile) => {

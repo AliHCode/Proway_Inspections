@@ -41,10 +41,10 @@ function statusIcon(s) {
 function TimelineStep({ label, date, actor, color, isLast, active }) {
     return (
         <div className={`rj-step ${active ? 'active' : ''}`}>
-            <div className="rj-step-node" style={{ borderColor: color, background: active ? color : '#fff' }}>
+            <div className="rj-step-node" style={{ borderColor: color, background: active ? color : 'var(--clr-bg-elevated)' }}>
                 <div className="rj-step-dot" style={{ background: color }} />
             </div>
-            {!isLast && <div className="rj-step-line" style={{ background: `linear-gradient(to bottom, ${color}, #e2e8f0)` }} />}
+            {!isLast && <div className="rj-step-line" style={{ background: `linear-gradient(to bottom, ${color}, var(--clr-border))` }} />}
             <div className="rj-step-content">
                 <span className="rj-step-label" style={{ color }}>{label}</span>
                 {date && <span className="rj-step-date">{formatDateDisplay(date)}</span>}
@@ -331,7 +331,7 @@ export default function RejectionJourneyBoard() {
             <style>{`
                 .rj-workspace {
                     padding: 1.5rem 2rem;
-                    background: #f8f9fc;
+                    background: var(--clr-bg);
                     min-height: calc(100vh - 80px);
                 }
                 .rj-page-header {
@@ -351,31 +351,31 @@ export default function RejectionJourneyBoard() {
                 .rj-search-icon {
                     position: absolute;
                     left: 0.6rem;
-                    color: #94a3b8;
+                    color: var(--clr-text-muted);
                     pointer-events: none;
                 }
                 .rj-search-input {
                     padding: 0.4rem 0.75rem 0.4rem 2rem;
-                    border: 1px solid #e2e8f0;
+                    border: 1px solid var(--clr-border);
                     border-radius: 0.6rem;
                     font-size: 0.8rem;
                     font-weight: 500;
-                    color: #1e293b;
-                    background: #f8fafc;
+                    color: var(--clr-text-main);
+                    background: var(--clr-bg-elevated);
                     width: 200px;
                     outline: none;
                     transition: border-color 0.2s;
                 }
                 .rj-search-input:focus {
-                    border-color: #6366f1;
+                    border-color: var(--clr-brand-primary);
                 }
                 .rj-search-input::placeholder {
-                    color: #94a3b8;
+                    color: var(--clr-text-muted);
                 }
                 .rj-all-btn {
-                    background: #f8fafc;
-                    color: #1e293b;
-                    border: 1px solid #e2e8f0;
+                    background: var(--clr-bg-elevated);
+                    color: var(--clr-text-main);
+                    border: 1px solid var(--clr-border);
                     border-radius: 0.6rem;
                     font-weight: 600;
                     font-size: 0.85rem;
@@ -385,23 +385,17 @@ export default function RejectionJourneyBoard() {
                     line-height: 1.5;
                 }
                 .rj-all-btn.active {
-                    background: var(--clr-brand-primary, #6366f1);
+                    background: var(--clr-brand-primary);
                     color: #fff;
-                    border-color: var(--clr-brand-primary, #6366f1);
+                    border-color: var(--clr-brand-primary);
                 }
                 .rj-export-btns {
                     display: flex;
                     gap: 0.5rem;
                 }
-                .rj-controls {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.75rem;
-                    flex-wrap: wrap;
-                }
                 .rj-subtitle {
                     font-size: 0.85rem;
-                    color: #64748b;
+                    color: var(--clr-text-secondary);
                     margin: 0 0 1.5rem;
                     font-weight: 500;
                 }
@@ -418,8 +412,8 @@ export default function RejectionJourneyBoard() {
 
                 /* Card */
                 .rj-card {
-                    background: #fff;
-                    border: 1px solid #e8ecf1;
+                    background: var(--clr-bg-elevated);
+                    border: 1px solid var(--clr-border);
                     border-radius: 16px;
                     padding: 1.25rem 1.5rem;
                     transition: all 0.2s ease;
@@ -428,10 +422,11 @@ export default function RejectionJourneyBoard() {
                     margin-bottom: 1rem;
                     display: inline-block;
                     width: 100%;
+                    color: var(--clr-text-main);
                 }
                 .rj-card:hover {
-                    border-color: #c7d2fe;
-                    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.08);
+                    border-color: var(--clr-brand-primary);
+                    box-shadow: var(--shadow-md);
                 }
 
                 .rj-card-top {
@@ -446,7 +441,7 @@ export default function RejectionJourneyBoard() {
                     gap: 0.3rem;
                     font-weight: 800;
                     font-size: 0.9rem;
-                    color: #1e293b;
+                    color: var(--clr-text-main);
                 }
                 .rj-pill {
                     display: flex;
@@ -462,7 +457,7 @@ export default function RejectionJourneyBoard() {
 
                 .rj-desc {
                     font-size: 0.85rem;
-                    color: #334155;
+                    color: var(--clr-text-secondary);
                     margin: 0 0 0.75rem;
                     line-height: 1.5;
                     font-weight: 500;
@@ -484,7 +479,7 @@ export default function RejectionJourneyBoard() {
                     gap: 0.35rem;
                     font-size: 0.75rem;
                     font-weight: 600;
-                    color: #64748b;
+                    color: var(--clr-text-muted);
                 }
 
                 /* Mini Progress */
@@ -503,7 +498,7 @@ export default function RejectionJourneyBoard() {
                     left: 6px;
                     right: 6px;
                     height: 2px;
-                    background: #e2e8f0;
+                    background: var(--clr-border);
                     z-index: 0;
                     transform: translateY(-50%);
                 }
@@ -513,7 +508,7 @@ export default function RejectionJourneyBoard() {
                     width: 12px;
                     height: 12px;
                     border-radius: 50%;
-                    border: 2px solid #fff;
+                    border: 2px solid var(--clr-bg-elevated);
                     box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
                     transition: transform 0.2s ease;
                     cursor: default;
@@ -530,8 +525,8 @@ export default function RejectionJourneyBoard() {
                     bottom: calc(100% + 4px);
                     left: 50%;
                     transform: translateX(-50%) translateY(2px);
-                    background: #1e293b;
-                    color: #fff;
+                    background: var(--clr-text-main);
+                    color: var(--clr-bg);
                     font-size: 0.6rem;
                     font-weight: 700;
                     padding: 0.2rem 0.45rem;
@@ -547,7 +542,7 @@ export default function RejectionJourneyBoard() {
                     display: flex;
                     align-items: center;
                     gap: 0.35rem;
-                    color: #6366f1;
+                    color: var(--clr-brand-primary);
                     font-size: 0.8rem;
                     font-weight: 700;
                     margin-top: 1rem;
@@ -555,20 +550,18 @@ export default function RejectionJourneyBoard() {
                     width: fit-content;
                     padding: 0.3rem 0.6rem;
                     border-radius: 8px;
-                    background: #6366f108;
+                    background: var(--clr-bg-hover);
                     transition: all 0.2s;
                 }
                 .rj-expand-hint:hover {
-                    background: #6366f115;
-                    color: #4f46e5;
+                    background: var(--clr-border);
                 }
                 .rj-expand-hint.expanded {
-                    color: #64748b;
-                    background: #f1f5f9;
+                    color: var(--clr-text-secondary);
+                    background: var(--clr-bg-hover);
                 }
                 .rj-expand-hint.expanded:hover {
-                    background: #e2e8f0;
-                    color: #475569;
+                    background: var(--clr-border);
                 }
                 .rj-expand-hint svg { transition: transform 0.2s; }
                 .rj-expand-hint svg.rotated { transform: rotate(90deg); }
@@ -577,7 +570,7 @@ export default function RejectionJourneyBoard() {
                 .rj-timeline {
                     margin-top: 1.25rem;
                     padding-top: 1.25rem;
-                    border-top: 1px dashed #e2e8f0;
+                    border-top: 1px dashed var(--clr-border);
                     animation: rjSlide 0.25s ease-out;
                 }
                 @keyframes rjSlide {
@@ -607,7 +600,7 @@ export default function RejectionJourneyBoard() {
                     transition: all 0.2s;
                 }
                 .rj-step.active .rj-step-node {
-                    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+                    box-shadow: 0 0 0 4px var(--clr-bg-hover);
                 }
                 .rj-step-dot {
                     width: 6px;
@@ -633,7 +626,7 @@ export default function RejectionJourneyBoard() {
                 }
                 .rj-step-date {
                     font-size: 0.7rem;
-                    color: #64748b;
+                    color: var(--clr-text-secondary);
                     font-weight: 600;
                 }
                 .rj-step-actor {
@@ -641,7 +634,7 @@ export default function RejectionJourneyBoard() {
                     align-items: center;
                     gap: 0.25rem;
                     font-size: 0.65rem;
-                    color: #94a3b8;
+                    color: var(--clr-text-muted);
                     font-weight: 600;
                 }
 
@@ -653,7 +646,7 @@ export default function RejectionJourneyBoard() {
                     margin-left: 2rem;
                     background: none;
                     border: none;
-                    color: #6366f1;
+                    color: var(--clr-brand-primary);
                     font-size: 0.8rem;
                     font-weight: 700;
                     cursor: pointer;
@@ -666,9 +659,9 @@ export default function RejectionJourneyBoard() {
                 .rj-empty {
                     text-align: center;
                     padding: 6rem 2rem;
-                    color: #94a3b8;
+                    color: var(--clr-text-muted);
                 }
-                .rj-empty h3 { color: #475569; margin: 1rem 0 0.25rem; }
+                .rj-empty h3 { color: var(--clr-text-main); margin: 1rem 0 0.25rem; }
                 .rj-empty p { font-size: 0.85rem; }
 
                 /* Responsive */

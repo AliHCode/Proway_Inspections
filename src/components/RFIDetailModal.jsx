@@ -157,11 +157,11 @@ export default function RFIDetailModal({ rfi, onClose, externalScrollTrigger }) 
                         )}
 
                         {rfi.status === RFI_STATUS.CANCELLED && (
-                            <div className="alert-box danger-light mb-4" style={{ borderRadius: '12px', padding: '1rem', background: '#fef2f2', border: '1px solid #fecaca', marginBottom: '1.5rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#991b1b', fontWeight: 700, marginBottom: '4px' }}>
+                            <div className="alert-box danger-light mb-4" style={{ borderRadius: '12px', padding: '1rem', background: 'var(--clr-danger-bg)', border: '1px solid var(--clr-danger-border)', marginBottom: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--clr-danger)', fontWeight: 700, marginBottom: '4px' }}>
                                     <Ban size={18} /> RFI CANCELLED
                                 </div>
-                                <p style={{ fontSize: '0.85rem', color: '#7f1d1d', margin: 0 }}>
+                                <p style={{ fontSize: '0.85rem', color: 'var(--clr-text-secondary)', margin: 0 }}>
                                     <strong>Cancellation Reason:</strong> {rfi.remarks || 'No reason provided.'}
                                 </p>
                             </div>
@@ -212,14 +212,14 @@ export default function RFIDetailModal({ rfi, onClose, externalScrollTrigger }) 
                                     <button 
                                         onClick={() => fileInputRef.current?.click()}
                                         className="btn"
-                                        style={{ width: '100%', background: '#fff', border: '1px dashed var(--clr-warning)', color: 'var(--clr-warning)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0.65rem' }}
+                                        style={{ width: '100%', background: 'var(--clr-bg-elevated)', border: '1px dashed var(--clr-warning)', color: 'var(--clr-warning)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0.65rem' }}
                                     >
                                         <Upload size={16} /> Select Final Photo
                                     </button>
                                 ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--clr-border)', fontSize: '0.85rem' }}>
-                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{resolveFile.name}</span>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--clr-bg-elevated)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--clr-border)', fontSize: '0.85rem' }}>
+                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--clr-text-main)' }}>{resolveFile.name}</span>
                                             <button onClick={() => setResolveFile(null)} style={{ background: 'transparent', border: 'none', color: 'var(--clr-danger)', cursor: 'pointer' }}><X size={14}/></button>
                                         </div>
                                         <button 

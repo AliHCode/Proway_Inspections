@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useProject } from './ProjectContext';
 import { useAuth } from './AuthContext';
 import { RFI_STATUS } from '../utils/constants';
+import { getNowLocalISO } from '../utils/rfiLogic';
 import {
     enqueuePendingRFI,
     listPendingRFIs,
@@ -645,7 +646,9 @@ export function RFIProvider({ children }) {
                     if (c && c.startsWith(prefix)) {
                         const pts = c.split('-');
                         if (pts.length >= 2) {
-                            const n = parseInt(pts[1], 10);
+                            // Take the LAST part as the sequence number
+                            const lastPart = pts[pts.length - 1];
+                            const n = parseInt(lastPart, 10);
                             if (!isNaN(n)) maxB = Math.max(maxB, n);
                         }
                     }
@@ -716,7 +719,7 @@ export function RFIProvider({ children }) {
                 carryoverCount: 0,
                 carryoverTo: null,
                 images: imageUrls,
-                assigned_to: assignedTo || null,
+                assignedTo: assignedTo || null,   // camelCase so formatForDB maps it correctly
                 parentId,
                 customFields: customFields || {},
             };
@@ -929,7 +932,7 @@ export function RFIProvider({ children }) {
                         const { error } = await supabase.from('rfis').update({
                             status: RFI_STATUS.APPROVED,
                             reviewed_by: payload.reviewedBy,
-                            reviewed_at: new Date().toISOString(),
+                            reviewed_at: getNowLocalISO(),
                             remarks: payload.remarks?.trim() ? payload.remarks.trim() : null,
                             carryover_to: null,
                             images: mergedImages,
@@ -949,7 +952,7 @@ export function RFIProvider({ children }) {
                         const { error } = await supabase.from('rfis').update({
                             status: RFI_STATUS.REJECTED,
                             reviewed_by: payload.reviewedBy,
-                            reviewed_at: new Date().toISOString(),
+                            reviewed_at: getNowLocalISO(),
                             remarks: payload.remarks || null,
                             images: mergedImages,
                             assigned_to: payload.assignedTo || targetRfi?.assignedTo
@@ -999,7 +1002,7 @@ export function RFIProvider({ children }) {
                         ...r,
                         status: RFI_STATUS.APPROVED,
                         reviewedBy,
-                        reviewedAt: new Date().toISOString(),
+                        reviewedAt: getNowLocalISO(),
                         remarks: remarks?.trim() ? remarks.trim() : null,
                       }
                     : r
@@ -1017,7 +1020,7 @@ export function RFIProvider({ children }) {
             const { error } = await supabase.from('rfis').update({
                 status: RFI_STATUS.APPROVED,
                 reviewed_by: reviewedBy,
-                reviewed_at: new Date().toISOString(),
+                reviewed_at: getNowLocalISO(),
                 remarks: remarks?.trim() ? remarks.trim() : null,
                 carryover_to: null,
                 images: mergedImages,
@@ -1090,7 +1093,7 @@ export function RFIProvider({ children }) {
                         ...r,
                         status: RFI_STATUS.REJECTED,
                         reviewedBy,
-                        reviewedAt: new Date().toISOString(),
+                        reviewedAt: getNowLocalISO(),
                         remarks: remarks || null,
                         assignedTo: assignedTo || r.assignedTo
                       }
@@ -1109,7 +1112,7 @@ export function RFIProvider({ children }) {
             const { error } = await supabase.from('rfis').update({
                 status: RFI_STATUS.REJECTED,
                 reviewed_by: reviewedBy,
-                reviewed_at: new Date().toISOString(),
+                reviewed_at: getNowLocalISO(),
                 remarks: remarks,
                 images: mergedImages,
                 assigned_to: assignedTo || targetRfi.assignedTo
@@ -1166,7 +1169,7 @@ export function RFIProvider({ children }) {
                     dbUpdates: {
                         status: RFI_STATUS.CANCELLED,
                         reviewed_by: reviewedBy,
-                        reviewed_at: new Date().toISOString(),
+                        reviewed_at: getNowLocalISO(),
                         remarks: reason,
                         assigned_to: targetRfi.assignedTo,
                     }
@@ -1179,7 +1182,7 @@ export function RFIProvider({ children }) {
                         ...r,
                         status: RFI_STATUS.CANCELLED,
                         reviewedBy,
-                        reviewedAt: new Date().toISOString(),
+                        reviewedAt: getNowLocalISO(),
                         remarks: reason,
                       }
                     : r
@@ -1192,7 +1195,7 @@ export function RFIProvider({ children }) {
             const { error } = await supabase.from('rfis').update({
                 status: RFI_STATUS.CANCELLED,
                 reviewed_by: reviewedBy,
-                reviewed_at: new Date().toISOString(),
+                reviewed_at: getNowLocalISO(),
                 remarks: reason
             }).eq('id', rfiId);
             
@@ -1225,7 +1228,7 @@ export function RFIProvider({ children }) {
                 .update({
                     status: RFI_STATUS.APPROVED,
                     reviewed_by: reviewedBy,
-                    reviewed_at: new Date().toISOString(),
+                    reviewed_at: getNowLocalISO(),
                     remarks: null,
                     carryover_to: null,
                 })

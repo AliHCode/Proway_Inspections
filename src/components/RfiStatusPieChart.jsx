@@ -20,7 +20,7 @@ export default function RfiStatusPieChart({ data }) {
 
     return (
         <div className="premium-card chart-container" style={{ width: '100%', height: '100%', minHeight: 320 }}>
-            <h3 className="chart-title" style={{ fontSize: '1rem', color: '#64748b', fontWeight: 600, marginBottom: '1.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Inspection Status</h3>
+            <h3 className="chart-title" style={{ fontSize: '1rem', color: 'var(--clr-text-secondary)', fontWeight: 600, marginBottom: '1.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Inspection Status</h3>
             <ResponsiveContainer width="100%" height={200}>
                 <PieChart key={pieRenderKey}>
                     <Pie
@@ -42,10 +42,13 @@ export default function RfiStatusPieChart({ data }) {
                     <Tooltip
                         contentStyle={{
                             borderRadius: '12px',
-                            border: '1px solid #e2e8f0',
-                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                            border: '1px solid var(--clr-border)',
+                            background: 'var(--clr-bg-elevated)',
+                            color: 'var(--clr-text-main)',
+                            boxShadow: 'var(--shadow-lg)',
                             fontSize: '14px'
                         }}
+                        itemStyle={{ color: 'var(--clr-text-main)' }}
                     />
                 </PieChart>
             </ResponsiveContainer>
@@ -53,8 +56,8 @@ export default function RfiStatusPieChart({ data }) {
                 {data.map((item, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: item.color }}></div>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 500, color: '#475569' }}>{item.name}</span>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#0f172a' }}>{item.value}</span>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--clr-text-secondary)' }}>{item.name}</span>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--clr-text-main)' }}>{item.value}</span>
                     </div>
                 ))}
             </div>

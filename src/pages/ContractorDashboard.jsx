@@ -105,8 +105,8 @@ export default function ContractorDashboard() {
                     #{rfi.serialNo}
                     {escalated && (
                         <span style={{
-                            backgroundColor: '#fef2f2', color: '#dc2626', fontSize: '0.65rem',
-                            fontWeight: 700, padding: '2px 6px', borderRadius: '4px', border: '1px solid #fecaca'
+                            backgroundColor: 'var(--clr-danger-bg)', color: 'var(--clr-danger)', fontSize: '0.65rem',
+                            fontWeight: 700, padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--clr-danger-border)'
                         }}>
                             ESCALATED
                         </span>
@@ -138,12 +138,12 @@ export default function ContractorDashboard() {
                 </header>
 
                 {actionRequiredRfis.length > 0 && (
-                    <div style={{ marginBottom: '2rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#dc2626' }}>
+                    <div style={{ marginBottom: '2rem', background: 'var(--clr-danger-bg)', border: '1px solid var(--clr-danger-border)', borderRadius: '12px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--clr-danger)' }}>
                             <AlertTriangle size={24} />
                             <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>Action Required</h2>
                         </div>
-                        <p style={{ margin: 0, color: '#991b1b', fontWeight: 500, fontSize: '0.95rem' }}>
+                        <p style={{ margin: 0, color: 'var(--clr-text-secondary)', fontWeight: 500, fontSize: '0.95rem' }}>
                             You have {actionRequiredRfis.length} inspection{actionRequiredRfis.length > 1 ? 's' : ''} assigned directly to you that require corrective action.
                         </p>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -152,10 +152,10 @@ export default function ContractorDashboard() {
                                     key={rfi.id}
                                     onClick={() => navigate(`/contractor/summary?rfi=${rfi.id}`)}
                                     style={{
-                                        background: '#fff', border: '1px solid #f87171', borderRadius: '8px', padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 600, color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s', boxShadow: 'var(--shadow-sm)'
+                                        background: 'var(--clr-bg-elevated)', border: '1px solid var(--clr-danger-border)', borderRadius: '8px', padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--clr-danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s', boxShadow: 'var(--shadow-sm)'
                                     }}
-                                    onMouseEnter={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.borderColor = '#dc2626'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#f87171'; }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--clr-danger-bg)'; e.currentTarget.style.borderColor = 'var(--clr-danger)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--clr-bg-elevated)'; e.currentTarget.style.borderColor = 'var(--clr-danger-border)'; }}
                                 >
                                     RFI #{rfi.customFields?.rfi_no || rfi.serialNo} &rarr;
                                 </button>
@@ -163,7 +163,7 @@ export default function ContractorDashboard() {
                             {actionRequiredRfis.length > 5 && (
                                 <button
                                     onClick={() => navigate('/contractor/summary')}
-                                    style={{ background: 'transparent', border: 'none', color: '#b91c1c', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                                    style={{ background: 'transparent', border: 'none', color: 'var(--clr-danger)', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
                                 >
                                     View all {actionRequiredRfis.length}
                                 </button>
@@ -246,20 +246,20 @@ export default function ContractorDashboard() {
                                     <thead>
                                         <tr>
                                             {contractorVisibleColumns.slice(0, 4).map((col) => (
-                                                <th key={col.field_key} style={{ fontSize: '0.85rem', color: '#94a3b8' }}>{col.field_name}</th>
+                                                <th key={col.field_key} style={{ fontSize: '0.85rem', color: 'var(--clr-text-muted)' }}>{col.field_name}</th>
                                             ))}
-                                            <th style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Date</th>
+                                            <th style={{ fontSize: '0.85rem', color: 'var(--clr-text-muted)' }}>Date</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {myRfis.slice(0, 5).map((rfi) => (
-                                            <tr key={rfi.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                            <tr key={rfi.id} style={{ borderBottom: '1px solid var(--clr-border)' }}>
                                                 {contractorVisibleColumns.slice(0, 4).map((col) => (
                                                     <td key={`${rfi.id}_${col.field_key}`} style={{ fontSize: '0.9rem', padding: '0.75rem 0.5rem' }}>
                                                         {renderContractorCell(rfi, col)}
                                                     </td>
                                                 ))}
-                                                <td style={{ fontSize: '0.9rem', padding: '0.75rem 0.5rem', color: '#64748b' }}>{rfi.filedDate}</td>
+                                                <td style={{ fontSize: '0.9rem', padding: '0.75rem 0.5rem', color: 'var(--clr-text-secondary)' }}>{rfi.filedDate}</td>
                                             </tr>
                                         ))}
                                     </tbody>

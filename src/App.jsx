@@ -9,7 +9,6 @@ import { Toaster } from 'react-hot-toast';
 import LoginPage from './pages/LoginPage';
 import ContractorDashboard from './pages/ContractorDashboard';
 import DailyRFISheet from './pages/DailyRFISheet';
-
 import ConsultantDashboard from './pages/ConsultantDashboard';
 import ReviewQueue from './pages/ReviewQueue';
 import RejectionJourneyBoard from './pages/RejectionJourneyBoard';
@@ -38,143 +37,26 @@ function ProtectedRoute({ children, allowedRoles }) {
 function AppRoutes() {
     const { user, loading } = useAuth();
     const { projects, loadingProjects } = useProject();
-
-    if (loading || (loadingProjects && projects.length === 0)) {
-        return (
-            <LoadingSpinner />
-        );
-    }
+    if (loading || (loadingProjects && projects.length === 0)) return <LoadingSpinner />;
 
     return (
         <Routes>
-            <Route
-                path="/"
-                element={
-                    user ? (
-                        user.role === 'pending' || user.role === 'rejected' ? (
-                            <PendingApproval />
-                        ) : (
-                            <Navigate to={
-                                user.role === 'admin' ? '/admin' :
-                                    user.role === 'contractor' ? '/contractor' : user.role === 'consultant' ? '/consultant' : '/admin'
-                            } replace />
-                        )
-                    ) : (
-                        <LoginPage />
-                    )
-                }
-            />
-            <Route
-                path="/contractor"
-                element={
-                    <ProtectedRoute allowedRoles={['contractor']}>
-                        <SubscriptionGuard>
-                            <ContractorDashboard />
-                        </SubscriptionGuard>
-                    </ProtectedRoute>
-                }
-            />
-            <Route
-                path="/contractor/rfi-sheet"
-                element={
-                    <ProtectedRoute allowedRoles={['contractor']}>
-                        <SubscriptionGuard>
-                            <DailyRFISheet />
-                        </SubscriptionGuard>
-                    </ProtectedRoute>
-                }
-            />
-
-                <Route
-                    path="/contractor/summary"
-                    element={
-                        <ProtectedRoute allowedRoles={['contractor']}>
-                            <SubscriptionGuard>
-                                <SummaryPage />
-                            </SubscriptionGuard>
-                        </ProtectedRoute>
-                    }
-                />
-            <Route
-                path="/consultant"
-                element={
-                    <ProtectedRoute allowedRoles={['consultant']}>
-                        <SubscriptionGuard>
-                            <ConsultantDashboard />
-                        </SubscriptionGuard>
-                    </ProtectedRoute>
-                }
-            />
-            <Route
-                path="/consultant/review"
-                element={
-                    <ProtectedRoute allowedRoles={['consultant']}>
-                        <SubscriptionGuard>
-                            <ReviewQueue />
-                        </SubscriptionGuard>
-                    </ProtectedRoute>
-                }
-            />
-            <Route
-                path="/consultant/rejection-journey"
-                element={
-                    <ProtectedRoute allowedRoles={['consultant']}>
-                        <SubscriptionGuard>
-                            <RejectionJourneyBoard />
-                        </SubscriptionGuard>
-                    </ProtectedRoute>
-                }
-            />
-                <Route
-                    path="/consultant/summary"
-                    element={
-                        <ProtectedRoute allowedRoles={['consultant']}>
-                            <SubscriptionGuard>
-                                <SummaryPage />
-                            </SubscriptionGuard>
-                        </ProtectedRoute>
-                    }
-                />
-            <Route
-                path="/admin"
-                element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                        <AdminDashboard />
-                    </ProtectedRoute>
-                }
-            />
-            <Route
-                path="/admin/users"
-                element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                        <UsersPage />
-                    </ProtectedRoute>
-                }
-            />
-            <Route
-                path="/admin/export-format"
-                element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                        <AdminFormatDesigner />
-                    </ProtectedRoute>
-                }
-            />
-            <Route
-                path="/admin/registered-devices"
-                element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                        <RegisteredDevicesPage />
-                    </ProtectedRoute>
-                }
-            />
-            <Route
-                path="/settings"
-                element={
-                    <ProtectedRoute>
-                        <SettingsPage />
-                    </ProtectedRoute>
-                }
-            />
+            <Route path="/" element={user ? (
+                user.role === 'pending' || user.role === 'rejected' ? <PendingApproval /> :
+                <Navigate to={user.role === 'admin' ? '/admin' : user.role === 'contractor' ? '/contractor' : '/consultant'} replace />
+            ) : <LoginPage />} />
+            <Route path="/contractor" element={<ProtectedRoute allowedRoles={['contractor']}><SubscriptionGuard><ContractorDashboard /></SubscriptionGuard></ProtectedRoute>} />
+            <Route path="/contractor/rfi-sheet" element={<ProtectedRoute allowedRoles={['contractor']}><SubscriptionGuard><DailyRFISheet /></SubscriptionGuard></ProtectedRoute>} />
+            <Route path="/contractor/summary" element={<ProtectedRoute allowedRoles={['contractor']}><SubscriptionGuard><SummaryPage /></SubscriptionGuard></ProtectedRoute>} />
+            <Route path="/consultant" element={<ProtectedRoute allowedRoles={['consultant']}><SubscriptionGuard><ConsultantDashboard /></SubscriptionGuard></ProtectedRoute>} />
+            <Route path="/consultant/review" element={<ProtectedRoute allowedRoles={['consultant']}><SubscriptionGuard><ReviewQueue /></SubscriptionGuard></ProtectedRoute>} />
+            <Route path="/consultant/rejection-journey" element={<ProtectedRoute allowedRoles={['consultant']}><SubscriptionGuard><RejectionJourneyBoard /></SubscriptionGuard></ProtectedRoute>} />
+            <Route path="/consultant/summary" element={<ProtectedRoute allowedRoles={['consultant']}><SubscriptionGuard><SummaryPage /></SubscriptionGuard></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><UsersPage /></ProtectedRoute>} />
+            <Route path="/admin/export-format" element={<ProtectedRoute allowedRoles={['admin']}><AdminFormatDesigner /></ProtectedRoute>} />
+            <Route path="/admin/registered-devices" element={<ProtectedRoute allowedRoles={['admin']}><RegisteredDevicesPage /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/project-blocked" element={<SubscriptionBlocked />} />
             <Route path="/notification-open" element={<NotificationRedirect />} />
             <Route path="*" element={<Navigate to="/" replace />} />

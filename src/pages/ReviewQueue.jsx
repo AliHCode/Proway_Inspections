@@ -3,7 +3,7 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRFI } from '../context/RFIContext';
 import { useProject } from '../context/ProjectContext';
-import { getToday, formatDateDisplay } from '../utils/rfiLogic';
+import { getToday, formatDateDisplay, getNowLocalISO } from '../utils/rfiLogic';
 import Header from '../components/Header';
 import DateNavigator from '../components/DateNavigator';
 import StatusBadge from '../components/StatusBadge';
@@ -222,7 +222,7 @@ export default function ReviewQueue() {
         const updatePayload = {
             status,
             reviewedBy: user.id,
-            reviewedAt: new Date().toISOString(),
+            reviewedAt: getNowLocalISO(),
             carryoverTo: null,
             remarks: remarks?.trim() || ''
         };
@@ -387,8 +387,8 @@ export default function ReviewQueue() {
                                             color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
                                             fontFamily: 'inherit', transition: 'all 0.15s',
                                         }}
-                                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-success)'; e.currentTarget.style.color = 'var(--clr-success)'; e.currentTarget.style.background = '#f0fdf4'; }}
-                                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.background = 'transparent'; }}
+                                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-success)'; e.currentTarget.style.color = 'var(--clr-success)'; e.currentTarget.style.background = 'var(--clr-success-bg)'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
                                     >
                                         <CheckCircle size={15} />
                                     </button>
@@ -407,8 +407,8 @@ export default function ReviewQueue() {
                                             color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
                                             fontFamily: 'inherit', transition: 'all 0.15s',
                                         }}
-                                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-warning)'; e.currentTarget.style.color = 'var(--clr-warning)'; e.currentTarget.style.background = '#fffbeb'; }}
-                                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.background = 'transparent'; }}
+                                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-warning)'; e.currentTarget.style.color = 'var(--clr-warning)'; e.currentTarget.style.background = 'var(--clr-warning-bg)'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
                                     >
                                         <CheckCircle size={15} />
                                         <span style={{ fontSize: '10px', fontWeight: 700 }}>COND.</span>
@@ -449,8 +449,8 @@ export default function ReviewQueue() {
                                         color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
                                         fontFamily: 'inherit', transition: 'all 0.15s',
                                     }}
-                                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#9ca3af'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = '#f9fafb'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.background = 'transparent'; }}
+                                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-main)'; e.currentTarget.style.background = 'var(--clr-bg-hover)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
                                 >
                                     <XCircle size={15} />
                                 </button>
@@ -532,8 +532,8 @@ export default function ReviewQueue() {
                             <span style={{ fontWeight: 600 }}>#{rfi.serialNo}</span>
                             {escalated && (
                                 <span style={{
-                                    backgroundColor: '#fef2f2', color: '#dc2626', fontSize: '0.65rem',
-                                    fontWeight: 700, padding: '2px 6px', borderRadius: '4px', border: '1px solid #fecaca'
+                                    backgroundColor: 'var(--clr-danger-bg)', color: 'var(--clr-danger)', fontSize: '0.65rem',
+                                    fontWeight: 700, padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--clr-danger-border)'
                                 }}>
                                     ESCALATED
                                 </span>
@@ -626,7 +626,7 @@ export default function ReviewQueue() {
                         <div className="export-actions review-export-actions" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                             <button
                                 className="btn btn-sm"
-                                style={{ backgroundColor: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
+                                style={{ backgroundColor: 'var(--clr-bg-elevated)', color: 'var(--clr-text-main)', border: '1px solid var(--clr-border)', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
                                 onClick={() => exportToPDF(filteredItems, `ProWay_Inspections_${currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template)}
                                 title="Export to PDF"
                                 aria-label="Export to PDF"
@@ -635,7 +635,7 @@ export default function ReviewQueue() {
                             </button>
                             <button
                                 className="btn btn-sm"
-                                style={{ backgroundColor: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
+                                style={{ backgroundColor: 'var(--clr-bg-elevated)', color: 'var(--clr-text-main)', border: '1px solid var(--clr-border)', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
                                 onClick={() => exportToExcel(filteredItems, `ProWay_Inspections_${currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template)}
                                 title="Export to Excel"
                                 aria-label="Export to Excel"
@@ -654,7 +654,7 @@ export default function ReviewQueue() {
                                 <button
                                     type="button"
                                     className="btn btn-sm review-filter-btn"
-                                    style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #cbd5e1' }}
+                                    style={{ backgroundColor: 'var(--clr-bg-elevated)', color: 'var(--clr-text-main)', border: '1px solid var(--clr-border)' }}
                                     onClick={() => setFilterPopoverOpen((prev) => !prev)}
                                     title="Filter table"
                                 >
@@ -949,9 +949,9 @@ export default function ReviewQueue() {
                 }
 
                 .rq-all-btn {
-                    background: #f8fafc;
-                    color: #1e293b;
-                    border: 1px solid #e2e8f0;
+                    background: 'var(--clr-bg-elevated)';
+                    color: 'var(--clr-text-main)';
+                    border: 1px solid var(--clr-border);
                     border-radius: 0.6rem;
                     font-weight: 600;
                     font-size: 0.85rem;

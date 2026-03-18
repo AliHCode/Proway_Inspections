@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useRFI } from '../context/RFIContext';
 import UserAvatar from './UserAvatar';
-import { Send, Loader2, Paperclip, Brush, X, RotateCcw, Move, Pencil, Trash2 } from 'lucide-react';
+import { Send, Loader2, Paperclip, Brush, X, RotateCcw, Move, Trash2 } from 'lucide-react';
 
 export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger }) {
     const { user } = useAuth();
@@ -543,7 +543,13 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
             <div className="comments-list">
                 {comments.length === 0 ? (
                     <div className="empty-comments">
-                        <p>No comments yet. Start the discussion!</p>
+                        <div className="empty-comments-icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                            </svg>
+                        </div>
+                        <p className="empty-comments-title">No comments yet</p>
+                        <p className="empty-comments-sub">Be the first to start the discussion by<br />sending a message below.</p>
                     </div>
                 ) : (
                     comments.map(c => {
@@ -609,7 +615,7 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
                                                         title="Edit message"
                                                         disabled={submitting}
                                                     >
-                                                        <Pencil size={13} />
+                                                        <Brush size={13} />
                                                     </button>
                                                     <button
                                                         type="button"

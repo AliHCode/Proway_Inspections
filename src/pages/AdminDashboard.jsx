@@ -740,8 +740,8 @@ export default function AdminDashboard() {
                                                     fontSize: '0.75rem',
                                                     fontWeight: 700,
                                                     textTransform: 'uppercase',
-                                                    background: p.subscription_status === 'active' ? '#dcfce7' : p.subscription_status === 'expired' ? '#fee2e2' : '#fef9c3',
-                                                    color: p.subscription_status === 'active' ? '#166534' : p.subscription_status === 'expired' ? '#991b1b' : '#854d0e'
+                                                    background: p.subscription_status === 'active' ? 'var(--clr-success-bg)' : p.subscription_status === 'expired' ? 'var(--clr-danger-bg)' : 'var(--clr-warning-bg)',
+                                                    color: p.subscription_status === 'active' ? 'var(--clr-success)' : p.subscription_status === 'expired' ? 'var(--clr-danger)' : 'var(--clr-warning)'
                                                 }}>
                                                     {p.subscription_status || 'trial'}
                                                 </span>
@@ -865,8 +865,8 @@ export default function AdminDashboard() {
                         )}
 
                         {isReordering && (
-                            <div style={{ padding: '0.75rem 1rem', backgroundColor: '#fffbeb', border: '1px solid #fef3c7', borderRadius: '8px', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: '0.9rem', color: '#b45309', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--clr-warning-bg)', border: '1px solid var(--clr-warning-border)', borderRadius: '8px', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.9rem', color: 'var(--clr-warning)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <AlertCircle size={16} /> <strong>Unsaved layout changes:</strong> Order and width settings are pending save.
                                 </span>
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -880,11 +880,11 @@ export default function AdminDashboard() {
                                             setIsReordering(true);
                                         }}
                                         className="btn btn-sm btn-ghost"
-                                        style={{ border: '1px solid #f59e0b', color: '#b45309' }}
+                                        style={{ border: '1px solid var(--clr-warning-border)', color: 'var(--clr-warning)' }}
                                     >
                                         Reset Widths
                                     </button>
-                                    <button onClick={saveFieldOrder} className="btn btn-sm" style={{ backgroundColor: '#d97706', color: 'white', border: 'none', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                    <button onClick={saveFieldOrder} className="btn btn-sm" style={{ backgroundColor: 'var(--clr-warning)', color: 'white', border: 'none', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                                         <Save size={14} /> Save Layout
                                     </button>
                                 </div>
@@ -999,7 +999,7 @@ export default function AdminDashboard() {
                                         <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>No columns configured yet.</td></tr>
                                     ) : (
                                         orderedFields.map((f, i) => (
-                                            <tr key={f.id || f.field_key} style={{ backgroundColor: f.is_builtin ? '#f8fafc' : '#fff' }}>
+                                            <tr key={f.id || f.field_key} style={{ backgroundColor: f.is_builtin ? 'var(--clr-bg-secondary)' : 'var(--clr-bg-main)' }}>
                                                 <td style={{ display: 'flex', gap: '2px', justifyContent: 'center' }}>
                                                     <button type="button" className="btn btn-sm btn-ghost" disabled={i === 0} onClick={() => moveField(i, 'up')} style={{ padding: '0.2rem', color: i === 0 ? '#cbd5e1' : '#64748b' }}>
                                                         <ArrowUp size={16} />
@@ -1008,8 +1008,8 @@ export default function AdminDashboard() {
                                                         <ArrowDown size={16} />
                                                     </button>
                                                 </td>
-                                                <td style={{ fontWeight: 600, color: f.is_builtin ? '#64748b' : 'var(--clr-brand-primary)' }}>{f.field_name}</td>
-                                                <td><code style={{ fontSize: '0.8rem', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>{f.field_key}</code></td>
+                                                <td style={{ fontWeight: 600, color: f.is_builtin ? 'var(--clr-text-secondary)' : 'var(--clr-brand-primary)' }}>{f.field_name}</td>
+                                                <td><code style={{ fontSize: '0.8rem', background: 'var(--clr-bg-secondary)', padding: '2px 6px', borderRadius: '4px' }}>{f.field_key}</code></td>
                                                 <td>{f.is_builtin ? 'Built-in' : (FIELD_TYPES.find(t => t.value === f.field_type)?.label || f.field_type)}</td>
                                                 <td style={{ textAlign: 'center' }}>
                                                     <input
@@ -1029,7 +1029,7 @@ export default function AdminDashboard() {
                                                     {!f.is_builtin && f.field_type === 'select' && Array.isArray(f.options) ? (
                                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
                                                             {f.options.map((o, idx) => (
-                                                                <span key={idx} style={{ background: '#e2e8f0', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem' }}>{o}</span>
+                                                                <span key={idx} style={{ background: 'var(--clr-bg-secondary)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem' }}>{o}</span>
                                                             ))}
                                                         </div>
                                                     ) : '—'}

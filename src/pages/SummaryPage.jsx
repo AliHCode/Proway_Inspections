@@ -394,7 +394,13 @@ export default function SummaryPage() {
                             <button 
                                 className={`summ-pill cancelled ${statusFilter === 'cancelled' ? 'active-pill' : ''}`}
                                 onClick={() => setStatusFilter(prev => prev === 'cancelled' ? 'all' : 'cancelled')}
-                                style={{ cursor: 'pointer', border: 'none', transition: 'transform 0.11s', background: statusFilter === 'cancelled' ? '#475569' : '#f1f5f9', color: statusFilter === 'cancelled' ? 'white' : '#475569' }}
+                                style={{ 
+                                    cursor: 'pointer', 
+                                    border: 'none', 
+                                    transition: 'transform 0.11s', 
+                                    background: statusFilter === 'cancelled' ? 'var(--clr-text-main)' : 'var(--clr-bg-hover)', 
+                                    color: statusFilter === 'cancelled' ? 'var(--clr-bg)' : 'var(--clr-text-main)' 
+                                }}
                             >
                                 <Ban size={13} /> {stats.cancelled} Cancelled
                             </button>

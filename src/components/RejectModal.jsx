@@ -1,371 +1,188 @@
-import { useState, useRef, useEffect } from 'react';
-import { X, AlertTriangle, Upload, Brush, Send, MapPin, Tag, User, Camera } from 'lucide-react';
-import ImageMarkupModal from './ImageMarkupModal';
+import { useState, useRef } from 'react';
+import { X, Upload, Brush, Send, Camera, MapPin } from 'lucide-react';
+import FieldMarkupStudio from './FieldMarkupStudio';
+
+function SectionLabel({ children, right }) {
+    return (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+                {children}
+            </label>
+            {right && <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{right}</span>}
+        </div>
+    );
+}
+
+function PillTag({ children }) {
+    return (
+        <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+            padding: '0.3rem 0.75rem', borderRadius: '8px',
+            background: 'var(--clr-bg-hover)', border: '1px solid var(--clr-border)',
+            fontSize: '0.78rem', color: 'var(--clr-text-main)', fontWeight: 600,
+        }}>
+            {children}
+        </span>
+    );
+}
 
 export default function RejectModal({ rfi, onReject, onClose, contractors = [] }) {
     const [remarks, setRemarks] = useState('');
     const [files, setFiles] = useState([]);
     const [assignedTo, setAssignedTo] = useState(rfi.filedBy || '');
     const [markupIndex, setMarkupIndex] = useState(null);
+    const [isDragOver, setIsDragOver] = useState(false);
     const fileInputRef = useRef(null);
 
-    function toMentionKey(name) {
-        return name.toLowerCase().replace(/\s+/g, '');
-    }
-
+    function toMentionKey(name) { return name.toLowerCase().replace(/\s+/g, ''); }
     function appendMention(name) {
         const mention = `@${toMentionKey(name)}`;
-        setRemarks((prev) => (prev.trim().length ? `${prev} ${mention}` : mention));
+        setRemarks(prev => (prev.trim().length ? `${prev} ${mention}` : mention));
     }
-
-    function handleSubmit(e) {
-        e.preventDefault();
+    function handleSubmit() {
         if (!remarks.trim() || !assignedTo) return;
-        const confirmed = window.confirm('Confirm rejection for this inspection?');
-        if (!confirmed) return;
         onReject(rfi.id, remarks.trim(), files, assignedTo);
         onClose();
     }
-
-    function getPreviewUrl(file) {
-        if (typeof file === 'string') return file;
-        return URL.createObjectURL(file);
-    }
-
-    function removeFile(index) {
-        setFiles(prev => prev.filter((_, i) => i !== index));
-    }
-
-    function replaceFile(index, newFile) {
-        setFiles(prev => prev.map((f, i) => i === index ? newFile : f));
-    }
+    function getPreviewUrl(file) { return typeof file === 'string' ? file : URL.createObjectURL(file); }
+    function removeFile(index) { setFiles(prev => prev.filter((_, i) => i !== index)); }
+    function replaceFile(index, newFile) { setFiles(prev => prev.map((f, i) => i === index ? newFile : f)); }
+    function addFiles(incoming) { setFiles(prev => [...prev, ...Array.from(incoming)]); }
 
     const markupImage = markupIndex !== null ? files[markupIndex] : null;
+    const canSubmit = remarks.trim() && assignedTo;
 
     return (
         <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
-            <div 
-                className="modal-content" 
-                onClick={(e) => e.stopPropagation()}
-                style={{ 
-                    maxWidth: '600px', 
-                    width: '95%',
-                    borderRadius: '16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    maxHeight: '85vh',
-                    boxShadow: 'var(--shadow-float)'
-                }}
-            >
-                {/* Header - Matching RFIDetailModal style */}
-                <div style={{
-                    padding: '1.25rem 1.5rem',
-                    borderBottom: '1px solid var(--clr-border)',
-                    background: 'linear-gradient(180deg, #ffffff, #f8fafc)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{
-                            width: '40px', height: '40px', borderRadius: '10px',
-                            background: 'var(--clr-danger-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                            <AlertTriangle size={20} color="var(--clr-danger)" />
+            <div className="modal-content review-action-modal" onClick={e => e.stopPropagation()}>
+
+                {/* ── Header ─────────────────────────────────────────────── */}
+                <div className="ram-header">
+                    <div>
+                        <div className="ram-title-row">
+                            <h3 className="ram-title">Reject Inspection</h3>
+                            <div style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                                padding: '0.35rem 0.75rem', borderRadius: '999px',
+                                background: '#fef2f2', border: '1px solid #fca5a522',
+                                fontSize: '0.7rem', fontWeight: 700, color: '#b91c1c', letterSpacing: '0.04em'
+                            }}>
+                                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
+                                REJECTION REQUIRED
+                            </div>
                         </div>
-                        <div>
-                            <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--clr-text-main)' }}>
-                                Reject Inspection
-                            </h3>
-                            <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--clr-text-secondary)' }}>
-                                RFI #{rfi.customFields?.rfi_no || rfi.serialNo} &middot; {rfi.location}
-                            </p>
+                        <div className="ram-subtitle">
+                            <strong>RFI #{rfi.customFields?.rfi_no || rfi.serialNo}</strong>
+                            {rfi.location && <><span className="ram-dot">·</span><MapPin size={12} />{rfi.location}</>}
                         </div>
                     </div>
-                    <button className="btn-close" onClick={onClose}>
-                        <X size={20} color="var(--clr-text-secondary)" />
-                    </button>
+                    <button className="ram-close" onClick={onClose}><X size={18} /></button>
                 </div>
 
-                {/* Body - Clean & Spacious */}
-                <div style={{ 
-                    padding: '1.5rem', 
-                    overflowY: 'auto', 
-                    flex: 1,
-                    background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)' 
-                }}>
-                    {/* RFI Context Chips */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.5rem' }}>
-                        <span style={{ 
-                            display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-                            padding: '0.4rem 0.75rem', borderRadius: '8px',
-                            background: '#fff', border: '1px solid var(--clr-border)',
-                            fontSize: '0.8rem', color: 'var(--clr-text-main)', fontWeight: 500,
-                        }}>
-                            <Tag size={14} color="var(--clr-text-muted)" /> {rfi.inspectionType}
-                        </span>
-                        <span style={{ 
-                            display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-                            padding: '0.4rem 0.75rem', borderRadius: '8px',
-                            background: '#fff', border: '1px solid var(--clr-border)',
-                            fontSize: '0.8rem', color: 'var(--clr-text-main)', fontWeight: 500,
-                        }}>
-                            <User size={14} color="var(--clr-text-muted)" /> {rfi.filerName}
-                        </span>
+                {/* ── Body ───────────────────────────────────────────────── */}
+                <div className="ram-body">
+                    {/* Pills */}
+                    <div className="ram-pills">
+                        <PillTag><span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>TYPE</span> {rfi.inspectionType}</PillTag>
+                        <PillTag><span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>FILED BY</span> <span style={{ width:20, height:20, borderRadius:'50%', background:'#3b82f6', display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:'0.65rem', color:'#fff', fontWeight:700 }}>{(rfi.filerName||'?')[0].toUpperCase()}</span>{rfi.filerName}</PillTag>
                     </div>
 
-                    {/* Assignment Dropdown */}
-                    <div style={{ marginBottom: '1.5rem' }}>
-                        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--clr-text-main)', marginBottom: '0.5rem' }}>
-                            Action Assigned To <span style={{ color: 'var(--clr-danger)' }}>*</span>
-                        </label>
+                    {/* Assign To */}
+                    <div className="ram-field">
+                        <SectionLabel>Action Assigned To <span style={{ color: '#ef4444' }}>*</span></SectionLabel>
                         <select
+                            className="ram-select"
                             value={assignedTo}
-                            onChange={(e) => setAssignedTo(e.target.value)}
-                            style={{
-                                width: '100%', padding: '0.75rem 1rem', borderRadius: '10px',
-                                border: '1px solid var(--clr-border)', background: '#fff',
-                                fontSize: '0.95rem', color: 'var(--clr-text-main)',
-                                outline: 'none', cursor: 'pointer', fontFamily: 'inherit'
-                            }}
+                            onChange={e => setAssignedTo(e.target.value)}
+                            onFocus={e => { e.target.style.borderColor = 'var(--clr-danger)'; e.target.style.boxShadow = '0 0 0 3px rgba(239,68,68,0.1)'; }}
+                            onBlur={e => { e.target.style.borderColor = 'var(--clr-border)'; e.target.style.boxShadow = 'none'; }}
                         >
-                            <option value="" disabled>Select a Contractor</option>
+                            <option value="" disabled>Select Contractor to Action</option>
                             {contractors.map(c => (
                                 <option key={c.id} value={c.id}>{c.name} ({c.company})</option>
                             ))}
                         </select>
                     </div>
 
-                    {/* Remarks Input Area */}
-                    <div style={{ marginBottom: '1.5rem' }}>
-                        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--clr-text-main)', marginBottom: '0.5rem' }}>
-                            Corrective Actions Needed
-                        </label>
+                    {/* Corrective Actions */}
+                    <div className="ram-field">
+                        <SectionLabel right="Markdown supported">Corrective Actions Needed <span style={{ color: '#ef4444' }}>*</span></SectionLabel>
                         <textarea
+                            className="ram-textarea"
                             value={remarks}
                             onChange={e => setRemarks(e.target.value)}
-                            rows={5}
+                            rows={4}
                             autoFocus
                             placeholder="Detail exactly what needs to be fixed. Mention specific contractors using @..."
-                            style={{
-                                width: '100%', padding: '1rem', borderRadius: '12px',
-                                border: '1px solid var(--clr-border)',
-                                background: '#fff',
-                                fontSize: '0.95rem', lineHeight: '1.6', resize: 'none',
-                                fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
-                                transition: 'all 0.2s',
-                                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)'
-                            }}
-                            onFocus={e => {
-                                e.target.style.borderColor = 'var(--clr-danger)';
-                                e.target.style.boxShadow = '0 0 0 3px rgba(185, 28, 28, 0.1)';
-                            }}
-                            onBlur={e => {
-                                e.target.style.borderColor = 'var(--clr-border)';
-                                e.target.style.boxShadow = 'inset 0 1px 2px rgba(0,0,0,0.02)';
-                            }}
+                            onFocus={e => { e.target.style.borderColor = 'var(--clr-danger)'; e.target.style.boxShadow = '0 0 0 3px rgba(239,68,68,0.1)'; }}
+                            onBlur={e => { e.target.style.borderColor = 'var(--clr-border)'; e.target.style.boxShadow = 'none'; }}
                         />
                         {contractors.length > 0 && (
-                            <div style={{ marginTop: '0.75rem' }}>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                                    {contractors.slice(0, 10).map(c => (
-                                        <button
-                                            key={c.id}
-                                            type="button"
-                                            onClick={() => appendMention(c.name)}
-                                            style={{
-                                                padding: '0.25rem 0.65rem', fontSize: '0.75rem', borderRadius: '6px',
-                                                border: '1px solid var(--clr-border)', background: '#fff',
-                                                color: 'var(--clr-text-secondary)', cursor: 'pointer', fontFamily: 'inherit',
-                                                transition: 'all 0.15s'
-                                            }}
-                                            onMouseEnter={e => {
-                                                e.currentTarget.style.background = 'var(--clr-bg-hover)';
-                                                e.currentTarget.style.borderColor = 'var(--clr-text-muted)';
-                                            }}
-                                            onMouseLeave={e => {
-                                                e.currentTarget.style.background = '#fff';
-                                                e.currentTarget.style.borderColor = 'var(--clr-border)';
-                                            }}
-                                        >
-                                            @{toMentionKey(c.name)}
-                                        </button>
-                                    ))}
-                                </div>
+                            <div className="ram-mentions">
+                                {contractors.slice(0, 10).map(c => (
+                                    <button key={c.id} type="button" className="ram-mention-chip" onClick={() => appendMention(c.name)}>
+                                        @{toMentionKey(c.name)}
+                                    </button>
+                                ))}
                             </div>
                         )}
                     </div>
 
-                    {/* Attachments Section */}
-                    <div style={{ marginBottom: '0.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                            <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--clr-text-main)' }}>
-                                Evidence Photos
-                            </label>
-                            <button 
-                                type="button"
-                                onClick={() => fileInputRef.current?.click()}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '0.4rem',
-                                    fontSize: '0.8rem', color: 'var(--clr-info)', background: 'transparent',
-                                    border: 'none', fontWeight: 600, cursor: 'pointer'
-                                }}
-                            >
-                                <Camera size={14} /> Add Photos
-                            </button>
-                        </div>
-
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            multiple
-                            accept="image/*"
-                            style={{ display: 'none' }}
-                            onChange={e => {
-                                const incoming = Array.from(e.target.files || []);
-                                setFiles(prev => [...prev, ...incoming]);
-                                e.target.value = '';
-                            }}
-                        />
+                    {/* Evidence Photos */}
+                    <div className="ram-field">
+                        <SectionLabel right={<button type="button" className="ram-add-photo-btn" onClick={() => fileInputRef.current?.click()}><Camera size={14} /> Add Photos</button>}>
+                            Evidence Photos (Optional)
+                        </SectionLabel>
+                        <input ref={fileInputRef} type="file" multiple accept="image/*,application/pdf" style={{ display: 'none' }}
+                            onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
 
                         {files.length === 0 ? (
-                            <div 
+                            <div
+                                className={`ram-dropzone ${isDragOver ? 'drag-over' : ''}`}
                                 onClick={() => fileInputRef.current?.click()}
-                                style={{
-                                    border: '1.5px dashed var(--clr-border)', borderRadius: '12px',
-                                    padding: '2rem 1rem', textAlign: 'center', cursor: 'pointer',
-                                    background: 'rgba(248, 250, 252, 0.5)', transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'var(--clr-bg-hover)'; }}
-                                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.background = 'rgba(248, 250, 252, 0.5)'; }}
+                                onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
+                                onDragLeave={() => setIsDragOver(false)}
+                                onDrop={e => { e.preventDefault(); setIsDragOver(false); addFiles(e.dataTransfer.files); }}
                             >
-                                <Upload size={24} color="var(--clr-text-muted)" style={{ marginBottom: '0.5rem' }} />
-                                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--clr-text-secondary)' }}>
-                                    Upload images or marked-up snapshots
-                                </p>
+                                <div className="ram-dropzone-icon"><Upload size={22} /></div>
+                                <p className="ram-dropzone-title">Drag and drop files here</p>
+                                <p className="ram-dropzone-sub">JPG, PNG or PDF (Max 10MB per file)</p>
                             </div>
                         ) : (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                            <div className="ram-thumbs">
                                 {files.map((file, idx) => (
-                                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                        <div style={{
-                                            position: 'relative', width: '90px', height: '90px', borderRadius: '10px',
-                                            overflow: 'hidden', border: '1px solid var(--clr-border)',
-                                            boxShadow: 'var(--shadow-sm)'
-                                        }}>
-                                            <img src={getPreviewUrl(file)} alt={`Evidence ${idx + 1}`}
-                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                            {/* Desktop Hover Controls */}
-                                            <div style={{
-                                                position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)',
-                                                opacity: 0, transition: 'opacity 0.2s', display: 'flex',
-                                                alignItems: 'center', justifyContent: 'center', gap: '0.4rem'
-                                            }} className="desktop-hover-only" onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0}>
-                                                <button type="button" onClick={() => setMarkupIndex(idx)}
-                                                    style={{
-                                                        width: '28px', height: '28px', borderRadius: '6px', border: 'none',
-                                                        background: '#fff', color: 'var(--clr-text-main)', cursor: 'pointer',
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        boxShadow: 'var(--shadow-sm)'
-                                                    }}>
-                                                    <Brush size={14} />
-                                                </button>
-                                                <button type="button" onClick={() => removeFile(idx)}
-                                                    style={{
-                                                        width: '28px', height: '28px', borderRadius: '6px', border: 'none',
-                                                        background: '#fff', color: 'var(--clr-danger)', cursor: 'pointer',
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        boxShadow: 'var(--shadow-sm)'
-                                                    }}>
-                                                    <X size={14} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                        {/* Mobile Persistent Controls */}
-                                        <div className="mobile-only-flex" style={{ display: 'none', justifyContent: 'center', gap: '12px' }}>
-                                            <button type="button" onClick={() => setMarkupIndex(idx)}
-                                                style={{ background: 'transparent', border: 'none', color: 'var(--clr-info)', padding: '4px' }}>
-                                                <Brush size={18} />
-                                            </button>
-                                            <button type="button" onClick={() => removeFile(idx)}
-                                                style={{ background: 'transparent', border: 'none', color: 'var(--clr-danger)', padding: '4px' }}>
-                                                <X size={18} />
-                                            </button>
+                                    <div key={idx} className="ram-thumb-wrap">
+                                        <img src={getPreviewUrl(file)} alt={`Evidence ${idx + 1}`} className="ram-thumb" />
+                                        <div className="ram-thumb-overlay">
+                                            <button type="button" className="ram-thumb-btn" onClick={() => setMarkupIndex(idx)}><Brush size={13} /></button>
+                                            <button type="button" className="ram-thumb-btn ram-thumb-del" onClick={() => removeFile(idx)}><X size={13} /></button>
                                         </div>
                                     </div>
                                 ))}
-                                <div 
-                                    onClick={() => fileInputRef.current?.click()}
-                                    style={{
-                                        width: '90px', height: '90px', borderRadius: '10px',
-                                        border: '1.5px dashed var(--clr-border)', display: 'flex',
-                                        alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                                        background: 'rgba(248, 250, 252, 0.5)'
-                                    }}
-                                >
-                                    <Upload size={20} color="var(--clr-text-muted)" />
-                                </div>
+                                <div className="ram-thumb-add" onClick={() => fileInputRef.current?.click()}><Upload size={18} /></div>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Footer - Consistent with common modal patterns */}
-                <div style={{
-                    padding: '1.25rem 1.5rem',
-                    borderTop: '1px solid var(--clr-border)',
-                    background: '#fff',
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                    gap: '0.75rem',
-                    borderRadius: '0 0 16px 16px'
-                }}>
-                    <button 
-                        type="button" 
-                        onClick={onClose}
-                        className="btn"
-                        style={{ 
-                            background: 'transparent', 
-                            color: 'var(--clr-text-secondary)',
-                            border: '1px solid var(--clr-border)',
-                            fontWeight: 600
-                        }}
-                    >
-                        Keep Pending
-                    </button>
-                    <button 
-                        type="button" 
+                {/* ── Footer ─────────────────────────────────────────────── */}
+                <div className="ram-footer">
+                    <button type="button" className="ram-btn-ghost" onClick={onClose}>Keep Pending</button>
+                    <button
+                        type="button"
+                        className="ram-btn-primary"
+                        style={{ background: canSubmit ? 'var(--clr-danger)' : 'var(--clr-danger-bg)', cursor: canSubmit ? 'pointer' : 'not-allowed', color: canSubmit ? '#fff' : 'var(--clr-danger)' }}
+                        disabled={!canSubmit}
                         onClick={handleSubmit}
-                        disabled={!remarks.trim()}
-                        className="btn"
-                        style={{ 
-                            background: 'var(--clr-danger)', 
-                            color: 'white',
-                            border: 'none',
-                            fontWeight: 600,
-                            padding: '0.6rem 1.5rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            opacity: !remarks.trim() ? 0.6 : 1,
-                            cursor: !remarks.trim() ? 'not-allowed' : 'pointer'
-                        }}
                     >
-                        <Send size={16} /> Confirm Rejection
+                        <Send size={15} /> Confirm Rejection
                     </button>
                 </div>
             </div>
 
-            {/* Image Markup Modal */}
             {markupIndex !== null && markupImage && (
-                <ImageMarkupModal
-                    image={markupImage}
-                    onClose={() => setMarkupIndex(null)}
-                    onSave={(annotatedFile) => {
-                        replaceFile(markupIndex, annotatedFile);
-                        setMarkupIndex(null);
-                    }}
-                />
+                <FieldMarkupStudio image={markupImage} onClose={() => setMarkupIndex(null)}
+                    onSave={annotatedFile => { replaceFile(markupIndex, annotatedFile); setMarkupIndex(null); }} />
             )}
         </div>
     );
