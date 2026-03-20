@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { useProject } from './ProjectContext';
 import { useAuth } from './AuthContext';
 import { RFI_STATUS } from '../utils/constants';
-import { getNowLocalISO } from '../utils/rfiLogic';
+import { getNowLocalISO, getToday } from '../utils/rfiLogic';
 import {
     enqueuePendingRFI,
     listPendingRFIs,
@@ -1718,8 +1718,12 @@ export function RFIProvider({ children }) {
 
     /** Get all pending RFIs for consultant review (Sync from local state array) */
     function getReviewQueue(targetDate) {
+        const realToday = getToday();
         const pending = rfis.filter(
-            (rfi) => rfi.status === RFI_STATUS.PENDING && (rfi.filedDate || '') <= targetDate
+            (rfi) => 
+                rfi.status === RFI_STATUS.PENDING && 
+                (rfi.filedDate || '') <= targetDate &&
+                targetDate <= realToday
         );
 
         const sortQueue = (a, b) => {

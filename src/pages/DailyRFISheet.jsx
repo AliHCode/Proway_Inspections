@@ -636,8 +636,16 @@ export default function DailyRFISheet() {
                         {activeTab === 'daily' ? 'Filed RFIs' : 'Rejected RFIs'}
                     </h2>
                     {currentRfis.length === 0 ? (
-                        <div className="empty-state" style={{ padding: '1rem 1.25rem' }}>
-                            <p style={{ margin: 0 }}>No {activeTab} RFIs to show.</p>
+                        <div className="empty-state">
+                            <div className="empty-state-icon" style={{ marginBottom: '0.5rem', opacity: 0.4 }}>
+                                <ClipboardList size={32} strokeWidth={1.5} />
+                            </div>
+                            <h3 style={{ fontSize: '1rem' }}>No {activeTab === 'daily' ? 'Filed' : 'Rejected'} RFIs</h3>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--clr-text-muted)' }}>
+                                {activeTab === 'daily' 
+                                    ? 'No RFIs recorded for today.'
+                                    : 'No rejected RFIs at this time.'}
+                            </p>
                         </div>
                     ) : (
                         <div className="rfi-table-wrapper">

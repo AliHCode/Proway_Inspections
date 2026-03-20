@@ -1083,8 +1083,8 @@ h6 {
 .integrated-nav-btn {
   background: transparent;
   border: none;
-  color: #94a3b8;
-  width: 32px;
+  color: #0F172A; /* Midnight Slate */
+  width: 36px;
   height: 100%;
   display: flex;
   align-items: center;
@@ -1096,7 +1096,7 @@ h6 {
 
 .integrated-nav-btn:hover {
   background-color: #f1f5f9;
-  color: #3b82f6;
+  color: #2563eb; /* Prominent Blue */
 }
 
 .arrow-left {
@@ -1190,11 +1190,10 @@ h6 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4rem 2rem;
+  padding: 1.5rem 1rem;
   text-align: center;
   color: var(--clr-text-muted);
-  background: var(--clr-bg-secondary);
-  border: 1px dashed var(--clr-border-dark);
+  background: transparent;
   border-radius: var(--radius-lg);
   margin: 1rem 0;
 }
@@ -2154,10 +2153,9 @@ h6 {
 
 .empty-state {
   text-align: center;
-  padding: 4rem 2rem;
-  background: var(--clr-bg-main);
+  padding: 1.5rem 1rem;
+  background: transparent;
   border-radius: 1rem;
-  min-height: 500px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2840,20 +2838,267 @@ h6 {
   padding: 0 4px;
 }
 
-.review-filter-popover {
-  position: absolute;
-  top: calc(100% + 0.4rem);
-  left: 0;
-  z-index: 120;
-  width: min(320px, 90vw);
-  background: #fff;
-  border: 1px solid var(--clr-border);
-  border-radius: 12px;
-  box-shadow: var(--shadow-lg);
-  padding: 0.7rem;
+
+/* Filter Sidebar Drawer (V44) */
+.filter-sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 1100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.filter-sidebar-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.review-filter-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 25%;
+  min-width: 320px;
+  max-width: 480px;
+  height: 100vh;
+  background: var(--clr-bg-main, #fff);
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1);
+  z-index: 1200;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  transform: translateX(105%);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  border-left: 1px solid var(--clr-border);
+}
+
+.review-filter-sidebar.open {
+  transform: translateX(0);
+}
+
+.rfp-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--clr-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--clr-bg-secondary, #f8fafc);
+}
+
+.rfp-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--clr-brand-secondary, #0f172a);
+  letter-spacing: -0.01em;
+}
+
+.rfp-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--clr-text-muted);
+  cursor: pointer;
+  padding: 0.6rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.rfp-close-btn:hover {
+  background: var(--clr-bg-hover, #f1f5f9);
+  color: var(--clr-danger, #ef4444);
+}
+
+.rfp-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.rfp-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rfp-section-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--clr-text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.rfp-status-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+}
+
+.rfp-status-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: #fff;
+  border: 1px solid var(--clr-border);
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--clr-text-main);
+  text-align: left;
+}
+
+.rfp-status-btn:hover {
+  border-color: var(--clr-brand-primary);
+  background: var(--clr-bg-hover);
+}
+
+.rfp-status-btn.active {
+  background: var(--clr-brand-primary);
+  border-color: var(--clr-brand-primary);
+  color: #fff;
+  box-shadow: 0 4px 12px var(--clr-brand-primary-light);
+}
+
+.rfp-status-btn .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.rfp-status-btn .dot.pending { background-color: var(--clr-brand-secondary); }
+.rfp-status-btn .dot.approved { background-color: var(--clr-success); }
+.rfp-status-btn .dot.warning { background-color: var(--clr-warning); }
+.rfp-status-btn .dot.rejected { background-color: var(--clr-danger); }
+
+.rfp-toggle-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.rfp-toggle-btn {
+  padding: 0.85rem 1rem;
+  background: #fff;
+  border: 1px solid var(--clr-border);
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--clr-text-main);
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rfp-toggle-btn:hover {
+  background: var(--clr-bg-hover);
+}
+
+.rfp-toggle-btn.active {
+  background: #f0fdf4;
+  border-color: var(--clr-success);
+  color: #166534;
+}
+
+.rfp-select {
+  width: 100%;
+  padding: 0.85rem;
+  background: #fff;
+  border: 1px solid var(--clr-border);
+  border-radius: 0.75rem;
+  color: var(--clr-text-main);
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.rfp-search-wrap {
+  position: relative;
+}
+
+.rfp-search-input {
+  width: 100%;
+  padding: 0.85rem;
+  background: #fff;
+  border: 1px solid var(--clr-border);
+  border-radius: 0.75rem;
+  color: var(--clr-text-main);
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.rfp-search-input:focus {
+  border-color: var(--clr-brand-primary);
+  box-shadow: 0 0 0 3px var(--clr-brand-primary-faint);
+}
+
+.rfp-values-list {
+  max-height: 250px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--clr-bg-secondary, #f8fafc);
+  border: 1px solid var(--clr-border);
+  border-radius: 0.75rem;
+  padding: 0.4rem;
+}
+
+.rfp-value-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 0.85rem;
+}
+
+.rfp-value-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.rfp-value-item input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--clr-brand-primary);
+}
+
+.rfp-footer {
+  padding: 1.5rem;
+  border-top: 1px solid var(--clr-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: var(--clr-bg-secondary, #f8fafc);
+}
+
+.review-filter-count-badge {
+  background: var(--clr-danger);
+  color: #fff;
+  font-size: 0.65rem;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  margin-left: 0.35rem;
 }
 
 .review-filter-popover-header {
@@ -8577,6 +8822,7 @@ body,
 
 .studio-range {
   -webkit-appearance: none;
+  appearance: none;
   width: 120px;
   height: 4px;
   background: #334155;
@@ -8586,6 +8832,7 @@ body,
 
 .studio-range::-webkit-slider-thumb {
   -webkit-appearance: none;
+  appearance: none;
   width: 14px;
   height: 14px;
   background: #3b82f6;

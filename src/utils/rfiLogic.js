@@ -116,10 +116,13 @@ export function getStatsForDate(allRfis, targetDate) {
  * Get all pending RFIs for consultant review (across all dates up to targetDate)
  */
 export function getPendingRFIs(allRfis, targetDate) {
+    const realToday = getToday();
     return allRfis
         .filter(
             (rfi) =>
-                rfi.status === RFI_STATUS.PENDING && rfi.filedDate <= targetDate
+                rfi.status === RFI_STATUS.PENDING && 
+                rfi.filedDate <= targetDate &&
+                targetDate <= realToday
         )
         .sort((a, b) => {
             // Older first (carryovers surface)
@@ -132,6 +135,8 @@ export function getPendingRFIs(allRfis, targetDate) {
  * Get all RFIs that need consultant review: pending + rejected needing re-review
  */
 export function getReviewQueue(allRfis, targetDate) {
+    const realToday = getToday();
+    
     // Rejected/Info carryovers for today
     const carriedOver = allRfis.filter(
         (rfi) =>
@@ -139,11 +144,12 @@ export function getReviewQueue(allRfis, targetDate) {
             rfi.carryoverTo === targetDate
     );
 
-    // Pending RFIs for today
+    // Pending RFIs for today (only if not in the future)
     const pending = allRfis.filter(
         (rfi) =>
             rfi.status === RFI_STATUS.PENDING &&
-            rfi.filedDate <= targetDate
+            rfi.filedDate <= targetDate &&
+            targetDate <= realToday
     );
 
     return {

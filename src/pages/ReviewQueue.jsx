@@ -28,7 +28,7 @@ export default function ReviewQueue() {
     const [rejectTarget, setRejectTarget] = useState(null);
     const [cancelTarget, setCancelTarget] = useState(null);
     const [detailTarget, setDetailTarget] = useState(null);
-    const [filter, setFilter] = useState('to_review'); // to_review, approved, rejected
+    const [filter, setFilter] = useState('to_review'); // to_review, approved, rejected, conditional, my_assigned
     const [actionMessage, setActionMessage] = useState('');
     const [selectedImages, setSelectedImages] = useState(null);
     const [scrollTrigger, setScrollTrigger] = useState(0);
@@ -44,8 +44,14 @@ export default function ReviewQueue() {
     const queue = getReviewQueue(currentDate);
 
     // Also get approved/rejected for today for reference
-    const todayApproved = rfis.filter(
+    const todayApprovedTotal = rfis.filter(
         (r) => (r.status === 'approved' || r.status === 'conditional_approve') && r.reviewedAt && r.reviewedAt.startsWith(currentDate)
+    );
+    const todayApproved = rfis.filter(
+        (r) => r.status === 'approved' && r.reviewedAt && r.reviewedAt.startsWith(currentDate)
+    );
+    const todayConditional = rfis.filter(
+        (r) => r.status === 'conditional_approve' && r.reviewedAt && r.reviewedAt.startsWith(currentDate)
     );
     const todayRejected = rfis.filter(
         (r) => r.status === 'rejected' && r.reviewedAt && r.reviewedAt.startsWith(currentDate)
@@ -55,12 +61,14 @@ export default function ReviewQueue() {
     if (showAllToday) {
         // Collect everything for today without duplicates
         const allSet = new Map();
-        [...queue.all, ...todayApproved, ...todayRejected].forEach(r => allSet.set(r.id, r));
+        [...queue.all, ...todayApprovedTotal, ...todayRejected].forEach(r => allSet.set(r.id, r));
         baseItems = Array.from(allSet.values());
     } else {
         if (filter === 'approved') baseItems = todayApproved;
+        if (filter === 'conditional') baseItems = todayConditional;
         if (filter === 'rejected') baseItems = todayRejected;
         if (filter === 'my_assigned') baseItems = queue.all.filter(r => r.assignedTo === user.id);
+        // Default 'to_review' uses queue.all
     }
 
     const FILTER_EXCLUDED_COLUMNS = new Set(['serial', 'actions', 'attachments']);
@@ -183,13 +191,11 @@ export default function ReviewQueue() {
     }, [filteredItems]);
 
     useEffect(() => {
-        if (!filterPopoverOpen) return;
-
-        const closeOnOutsidePointer = (event) => {
-            const target = event.target;
-            if (target instanceof Element && target.closest('.review-filter-wrap')) return;
-            setFilterPopoverOpen(false);
-        };
+        if (filterPopoverOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
 
         const closeOnEscape = (event) => {
             if (event.key === 'Escape') {
@@ -197,19 +203,13 @@ export default function ReviewQueue() {
             }
         };
 
-        // REMOVED: closeOnResize closes the popover when mobile keyboard opens
-        // const closeOnResize = () => {
-        //     setFilterPopoverOpen(false);
-        // };
-
-        document.addEventListener('pointerdown', closeOnOutsidePointer);
-        document.addEventListener('keydown', closeOnEscape);
-        // window.addEventListener('resize', closeOnResize);
+        if (filterPopoverOpen) {
+            document.addEventListener('keydown', closeOnEscape);
+        }
 
         return () => {
-            document.removeEventListener('pointerdown', closeOnOutsidePointer);
             document.removeEventListener('keydown', closeOnEscape);
-            // window.removeEventListener('resize', closeOnResize);
+            document.body.style.overflow = '';
         };
     }, [filterPopoverOpen]);
 
@@ -365,7 +365,7 @@ export default function ReviewQueue() {
         const showApproveAction = filter !== 'approved';
         const showRejectAction = filter !== 'rejected';
 
-        if (filter === 'to_review' || filter === 'my_assigned' || filter === 'approved' || filter === 'rejected') {
+        if (filter === 'to_review' || filter === 'my_assigned' || filter === 'approved' || filter === 'rejected' || filter === 'conditional') {
             return (
                 <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
                     {canEditThisRfi && (
@@ -645,100 +645,144 @@ export default function ReviewQueue() {
                             <div className="review-filter-wrap" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                                 <button
                                     type="button"
-                                    className={`btn btn-sm rq-all-btn ${showAllToday ? 'active' : ''}`}
-                                    onClick={() => setShowAllToday(prev => !prev)}
-                                    title={showAllToday ? 'Return to category filter' : 'Show all RFIs for today'}
-                                >
-                                    All RFIs Today
-                                </button>
-                                <button
-                                    type="button"
                                     className="btn btn-sm review-filter-btn"
-                                    style={{ backgroundColor: 'var(--clr-bg-elevated)', color: 'var(--clr-text-main)', border: '1px solid var(--clr-border)' }}
+                                    style={{
+                                        backgroundColor: activeFilterEntries.length > 0 || filter !== 'to_review' || showAllToday ? 'var(--clr-brand-primary)' : 'var(--clr-bg-elevated)',
+                                        color: activeFilterEntries.length > 0 || filter !== 'to_review' || showAllToday ? '#fff' : 'var(--clr-text-main)',
+                                        border: '1px solid var(--clr-border)',
+                                        borderRadius: '0.6rem',
+                                        padding: '0.45rem 1rem',
+                                        fontWeight: '600'
+                                    }}
                                     onClick={() => setFilterPopoverOpen((prev) => !prev)}
                                     title="Filter table"
                                 >
-                                    <Filter size={15} color="#0f172a" /> Filters
-                                    {activeFilterEntries.length > 0 && <span className="review-filter-count">{activeFilterEntries.length}</span>}
+                                    <Filter size={16} /> Filters
+                                    {(activeFilterEntries.length > 0 || filter !== 'to_review') && (
+                                        <span className="review-filter-count-badge">
+                                            {activeFilterEntries.length + (filter !== 'to_review' ? 1 : 0)}
+                                        </span>
+                                    )}
                                 </button>
-                                {filterPopoverOpen && (
-                                    <div className="review-filter-popover">
-                                        <div className="review-filter-popover-header">
-                                            <h4>Filter Table</h4>
-                                            <button type="button" className="btn btn-sm btn-ghost" onClick={() => setFilterPopoverOpen(false)}>
-                                                <X size={14} />
-                                            </button>
-                                        </div>
-
-                                        <label className="review-filter-label">Column</label>
-                                        <select
-                                            className="review-filter-select"
-                                            value={selectedFilterColumn}
-                                            onChange={(e) => {
-                                                setSelectedFilterColumn(e.target.value);
-                                                setFilterValueSearch('');
-                                            }}
-                                        >
-                                            {filterableColumns.map((col) => (
-                                                <option key={col.field_key} value={col.field_key}>{col.field_name}</option>
-                                            ))}
-                                        </select>
-
-                                        <label className="review-filter-label">Values</label>
-                                        <input
-                                            type="text"
-                                            className="review-filter-search"
-                                            placeholder="Search values..."
-                                            value={filterValueSearch}
-                                            onChange={(e) => setFilterValueSearch(e.target.value)}
-                                        />
-
-                                        <div className="review-filter-values">
-                                            {availableValuesForSelectedColumn.length === 0 ? (
-                                                <div className="review-filter-empty">No values found</div>
-                                            ) : availableValuesForSelectedColumn.map((value) => (
-                                                <label key={`${selectedFilterColumn}_${value}`} className="review-filter-value-item">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedValuesForColumn.includes(value)}
-                                                        onChange={() => toggleColumnFilterValue(selectedFilterColumn, value)}
-                                                    />
-                                                    <span>{value}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-
-                                        <div className="review-filter-actions">
-                                            <button type="button" className="btn btn-sm btn-ghost" onClick={clearSelectedColumnFilters}>Clear Column</button>
-                                            <button type="button" className="btn btn-sm btn-ghost" onClick={clearAllColumnFilters}>Clear All</button>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         </div>
                         <DateNavigator currentDate={currentDate} onDateChange={setCurrentDate} />
                     </div>
                 </div>
 
-                {/* Mini Stats (Acts as filters) */}
-                <div className="review-mini-stats" style={{ opacity: showAllToday ? 0.5 : 1, pointerEvents: showAllToday ? 'none' : 'auto', transition: 'opacity 0.2s' }}>
-                    <div className="mini-stat pending" onClick={() => setFilter('to_review')} style={{ cursor: 'pointer', border: filter === 'to_review' && !showAllToday ? '2px solid var(--clr-brand-secondary)' : '' }}>
-                        <span className="mini-stat-label">To Review</span>
-                        <span className="mini-stat-value">{queue.all.length}</span>
+                {/* Filter Sidebar Drawer (V44) */}
+                <div 
+                    className={`filter-sidebar-overlay ${filterPopoverOpen ? 'open' : ''}`}
+                    onClick={() => setFilterPopoverOpen(false)}
+                />
+                <div className={`review-filter-sidebar ${filterPopoverOpen ? 'open' : ''}`}>
+                    <div className="rfp-header">
+                        <h3>Filters</h3>
+                        <button type="button" className="rfp-close-btn" onClick={() => setFilterPopoverOpen(false)}>
+                            <X size={20} />
+                        </button>
                     </div>
-                    <div className="mini-stat approved" onClick={() => setFilter('approved')} style={{ cursor: 'pointer', border: filter === 'approved' && !showAllToday ? '2px solid var(--clr-success)' : '' }}>
-                        <span className="mini-stat-label">Approved Today</span>
-                        <span className="mini-stat-value">{todayApproved.length}</span>
+
+                    <div className="rfp-body">
+                        {/* Status Quick Filters */}
+                        <div className="rfp-section">
+                            <label className="rfp-section-label">Quick Status</label>
+                            <div className="rfp-status-grid">
+                                <button
+                                    className={`rfp-status-btn ${filter === 'to_review' && !showAllToday ? 'active' : ''}`}
+                                    onClick={() => { setFilter('to_review'); setShowAllToday(false); }}
+                                >
+                                    <span className="dot pending"></span> To Review ({queue.all.length})
+                                </button>
+                                <button
+                                    className={`rfp-status-btn ${filter === 'approved' && !showAllToday ? 'active' : ''}`}
+                                    onClick={() => { setFilter('approved'); setShowAllToday(false); }}
+                                >
+                                    <span className="dot approved"></span> Approved ({todayApproved.length})
+                                </button>
+                                <button
+                                    className={`rfp-status-btn ${filter === 'conditional' && !showAllToday ? 'active' : ''}`}
+                                    onClick={() => { setFilter('conditional'); setShowAllToday(false); }}
+                                >
+                                    <span className="dot warning"></span> Conditional ({todayConditional.length})
+                                </button>
+                                <button
+                                    className={`rfp-status-btn ${filter === 'rejected' && !showAllToday ? 'active' : ''}`}
+                                    onClick={() => { setFilter('rejected'); setShowAllToday(false); }}
+                                >
+                                    <span className="dot rejected"></span> Rejected ({todayRejected.length})
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Advanced Toggles */}
+                        <div className="rfp-section">
+                            <label className="rfp-section-label">Options</label>
+                            <div className="rfp-toggle-row">
+                                <button
+                                    className={`rfp-toggle-btn ${filter === 'my_assigned' ? 'active' : ''}`}
+                                    onClick={() => setFilter(prev => prev === 'my_assigned' ? 'to_review' : 'my_assigned')}
+                                >
+                                    <span>Assigned to Me ({queue.all.filter(r => r.assignedTo === user.id).length})</span>
+                                </button>
+                                <button
+                                    className={`rfp-toggle-btn ${showAllToday ? 'active' : ''}`}
+                                    onClick={() => setShowAllToday(prev => !prev)}
+                                >
+                                    <span>Show All for Today</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Column Filters */}
+                        <div className="rfp-section">
+                            <label className="rfp-section-label">Filter by Column</label>
+                            <select
+                                className="rfp-select"
+                                value={selectedFilterColumn}
+                                onChange={(e) => {
+                                    setSelectedFilterColumn(e.target.value);
+                                    setFilterValueSearch('');
+                                }}
+                            >
+                                {filterableColumns.map((col) => (
+                                    <option key={col.field_key} value={col.field_key}>{col.field_name}</option>
+                                ))}
+                            </select>
+
+                            <div className="rfp-search-wrap">
+                                <input
+                                    type="text"
+                                    className="rfp-search-input"
+                                    placeholder="Search values..."
+                                    value={filterValueSearch}
+                                    onChange={(e) => setFilterValueSearch(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="rfp-values-list">
+                                {availableValuesForSelectedColumn.length === 0 ? (
+                                    <div className="rfp-empty">No values found</div>
+                                ) : availableValuesForSelectedColumn.map((value) => (
+                                    <label key={`${selectedFilterColumn}_${value}`} className="rfp-value-item">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedValuesForColumn.includes(value)}
+                                            onChange={() => toggleColumnFilterValue(selectedFilterColumn, value)}
+                                        />
+                                        <span>{value}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
                     </div>
-                    <div className="mini-stat rejected" onClick={() => setFilter('rejected')} style={{ cursor: 'pointer', border: filter === 'rejected' && !showAllToday ? '2px solid var(--clr-danger)' : '' }}>
-                        <span className="mini-stat-label">Rejected Today</span>
-                        <span className="mini-stat-value">{todayRejected.length}</span>
-                    </div>
-                    <div className="mini-stat assigned" onClick={() => setFilter('my_assigned')} style={{ cursor: 'pointer', border: filter === 'my_assigned' && !showAllToday ? '2px solid var(--clr-brand-primary)' : '' }}>
-                        <span className="mini-stat-label">Assigned to Me</span>
-                        <span className="mini-stat-value">{queue.all.filter(r => r.assignedTo === user.id).length}</span>
+
+                    <div className="rfp-footer">
+                        <button type="button" className="btn btn-sm btn-ghost" style={{ width: '100%' }} onClick={clearAllColumnFilters}>Clear All Column Filters</button>
+                        <button type="button" className="btn btn-primary" style={{ borderRadius: '12px', padding: '0.85rem' }} onClick={() => setFilterPopoverOpen(false)}>Apply Filters</button>
                     </div>
                 </div>
+
 
                 {activeFilterEntries.length > 0 && (
                     <div className="review-active-filters">
@@ -931,7 +975,6 @@ export default function ReviewQueue() {
                         </div>
                     </div>
                 )}
-
             </main>
             <style>
                 {`

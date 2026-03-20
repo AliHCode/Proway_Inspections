@@ -64,9 +64,11 @@ export default function DateNavigator({ currentDate, onDateChange, showArrows = 
             
             {showArrows && (
                 <button 
-                    className="integrated-nav-btn" 
-                    onClick={goForward}
-                    title="Next Day"
+                    className={`integrated-nav-btn ${isToday ? 'disabled' : ''}`} 
+                    onClick={isToday ? null : goForward}
+                    disabled={isToday}
+                    title={isToday ? "Cannot navigate to future" : "Next Day"}
+                    style={isToday ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
                 >
                     <ChevronRight size={16} />
                 </button>
@@ -76,6 +78,7 @@ export default function DateNavigator({ currentDate, onDateChange, showArrows = 
                 ref={dateInputRef}
                 type="date"
                 value={currentDate}
+                max={today}
                 onChange={(e) => onDateChange(e.target.value)}
                 style={{
                     position: 'absolute',
