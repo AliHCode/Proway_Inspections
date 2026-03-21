@@ -12,7 +12,9 @@ export default function SubscriptionGuard({ children }) {
     const { user, loading: authLoading } = useAuth();
     const { activeProject, checkProjectAccess, loadingProjects, projectsResolved } = useProject();
 
-    if (authLoading || loadingProjects || !projectsResolved) {
+    // We only block if genuinely loading without an offline cache active.
+    // If we have an activeProject from cache, we let the app render immediately.
+    if (authLoading || (loadingProjects && !activeProject)) {
         return <LoadingSpinner />;
     }
 
