@@ -1,6 +1,11 @@
 import { useAuth } from '../context/AuthContext';
 import { useProject } from '../context/ProjectContext';
-import { LogOut, Menu, X, Building, Shield, User, Briefcase, UserCircle, LayoutDashboard, FileText, ClipboardList, Bell, Smartphone, GitBranch, ListChecks, ChevronDown, BarChart2, Settings } from 'lucide-react';
+import { 
+    LogOut, Menu, X, Building, Shield, User, Briefcase, UserCircle, 
+    LayoutGrid, ScrollText, ListChecks, BellRing, Smartphone, 
+    GitBranch, BarChart3, Settings2, LifeBuoy, Edit2, 
+    ShieldCheck, Power, Activity, ChevronDown, Info
+} from 'lucide-react';
 import { useRFI } from '../context/RFIContext';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -22,6 +27,7 @@ export default function Header() {
     const [notifPermission, setNotifPermission] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported');
     const { notifications } = useRFI() || { notifications: [] };
     const [pushBadge, setPushBadge] = useState({ state: 'checking', label: 'Push: Checking' });
+    const [pushEnabled, setPushEnabled] = useState(true);
     
     // Refs for click-away detection
     const projectRef = useRef(null);
@@ -32,7 +38,8 @@ export default function Header() {
 
     const isContractor = user.role === 'contractor';
     const isAdmin = user.role === 'admin';
-    const canManageNotifications = isContractor || user.role === 'consultant';
+    const isConsultant = user.role === 'consultant';
+    const canManageNotifications = isContractor || isConsultant;
     const dashPath = isAdmin ? '/admin' : isContractor ? '/contractor' : '/consultant';
     const roleLabel = isAdmin ? 'Admin' : isContractor ? 'Contractor' : 'Consultant';
     const nameInitials = user.name
@@ -176,7 +183,7 @@ export default function Header() {
                                 setNotifMenuOpen(false);
                             }}
                         >
-                            <Building size={16} className="project-icon" />
+                            <LayoutGrid size={18} className="project-icon" strokeWidth={1.5} fill="#000000" color="#000000" />
                             <span className="project-name">{activeProject.name}</span>
                             <ChevronDown size={14} className={`chevron-icon ${projectMenuOpen ? 'open' : ''}`} />
                         </button>
@@ -193,7 +200,7 @@ export default function Header() {
                                             setProjectMenuOpen(false);
                                         }}
                                     >
-                                        <Building size={16} />
+                                        <LayoutGrid size={16} strokeWidth={1.5} fill="currentColor" />
                                         {p.name}
                                     </button>
                                 ))}
@@ -224,113 +231,162 @@ export default function Header() {
                         setProjectMenuOpen(false); 
                         setNotifMenuOpen(false);
                     }}>
-                        {menuOpen ? <X size={20} /> : <Menu size={20} />}
+                        {menuOpen ? <X size={20} strokeWidth={2.5} color="#000000" /> : <Menu size={20} strokeWidth={2.5} color="#000000" />}
                     </button>
 
                     {menuOpen && (
-                        <div className="header-dropdown">
+                        <div className="header-dropdown premium-menu">
                             <div className="header-dropdown-info">
-                                <div className="header-identity-card">
-                                    <div className="header-identity-avatar" aria-hidden="true">
+                                <div 
+                                    className="header-identity-card-premium" 
+                                    onClick={() => { navigate('/profile'); setMenuOpen(false); }}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <div className="header-identity-avatar-premium" aria-hidden="true">
                                         {nameInitials}
+                                        <div className="avatar-edit-icon"><Edit2 size={10} /></div>
                                     </div>
-                                    <div className="header-identity-meta">
-                                        <div className="header-identity-name">{user.name}</div>
-                                        <div className="header-identity-details">
-                                            <div className="header-identity-detail">
-                                                <Briefcase size={12} />
-                                                <span>{user.company || 'ClearLine Inc.'}</span>
-                                            </div>
-                                            <div className="header-identity-detail">
-                                                <User size={12} />
-                                                <span className="header-identity-designation">{roleLabel}</span>
-                                            </div>
-                                        </div>
+                                    <div className="header-identity-meta-premium">
+                                        <div className="header-identity-name-premium">{user.name}</div>
+                                        <div className="header-identity-title-premium">{user.company || 'ClearLine Inc.'} • {roleLabel}</div>
                                     </div>
                                 </div>
                             </div>
-                        <button
-                            onClick={() => { navigate(dashPath); setMenuOpen(false); }}
-                            className={`header-dropdown-item ${location.pathname === dashPath ? 'active' : ''}`}
-                        >
-                            <LayoutDashboard size={16} /> Dashboard
-                        </button>
-                        {isContractor && (
-                            <button
-                                onClick={() => { navigate('/contractor/rfi-sheet'); setMenuOpen(false); }}
-                                className={`header-dropdown-item ${location.pathname.includes('rfi-sheet') ? 'active' : ''}`}
-                            >
-                                <FileText size={16} /> Daily RFI Sheet
-                            </button>
-                        )}
+                            
+                            {/* Section 1: Core Navigation */}
+                            <div className="menu-section">
+                                <button
+                                    onClick={() => { navigate(dashPath); setMenuOpen(false); }}
+                                    className={`header-dropdown-item-premium ${location.pathname === dashPath ? 'active' : ''}`}
+                                >
+                                    <div className="menu-icon-box"><LayoutGrid size={18} strokeWidth={1.5} /></div>
+                                    <span>Dashboard</span>
+                                </button>
 
-                            {isContractor && (
-                                <button
-                                    onClick={() => { navigate('/contractor/summary'); setMenuOpen(false); }}
-                                    className={`header-dropdown-item ${location.pathname.includes('/contractor/summary') ? 'active' : ''}`}
-                                >
-                                    <BarChart2 size={16} /> Summary
-                                </button>
-                            )}
-                        {user.role === 'consultant' && (
-                            <>
-                                <button
-                                    onClick={() => { navigate('/consultant/review'); setMenuOpen(false); }}
-                                    className={`header-dropdown-item ${location.pathname.includes('review') ? 'active' : ''}`}
-                                >
-                                    <ClipboardList size={16} /> Review Queue
-                                </button>
-                                <button
-                                    onClick={() => { navigate('/consultant/rejection-journey'); setMenuOpen(false); }}
-                                    className={`header-dropdown-item ${location.pathname.includes('/consultant/rejection-journey') ? 'active' : ''}`}
-                                >
-                                    <GitBranch size={16} /> Rejection Journey
-                                </button>
+                                {isContractor && (
                                     <button
-                                        onClick={() => { navigate('/consultant/summary'); setMenuOpen(false); }}
-                                        className={`header-dropdown-item ${location.pathname.includes('/consultant/summary') ? 'active' : ''}`}
+                                        onClick={() => { navigate('/contractor/rfi-sheet'); setMenuOpen(false); }}
+                                        className={`header-dropdown-item-premium ${location.pathname.includes('rfi-sheet') ? 'active' : ''}`}
                                     >
-                                        <BarChart2 size={16} /> Summary
+                                        <div className="menu-icon-box"><ScrollText size={18} strokeWidth={1.5} /></div>
+                                        <span>Daily RFI Sheet</span>
                                     </button>
-                            </>
-                        )}
-                        {isAdmin && (
-                            <>
-                                <button
-                                    onClick={() => { navigate('/admin/users'); setMenuOpen(false); }}
-                                    className={`header-dropdown-item ${location.pathname === '/admin/users' ? 'active' : ''}`}
-                                >
-                                    <UserCircle size={16} /> Users
-                                </button>
-                                <button
-                                    onClick={() => { navigate('/admin/export-format'); setMenuOpen(false); }}
-                                    className={`header-dropdown-item ${location.pathname === '/admin/export-format' ? 'active' : ''}`}
-                                >
-                                    <Shield size={16} /> Project Export Format
-                                </button>
-                                <button
-                                    onClick={() => { navigate('/admin/registered-devices'); setMenuOpen(false); }}
-                                    className={`header-dropdown-item ${location.pathname === '/admin/registered-devices' ? 'active' : ''}`}
-                                >
-                                    <Smartphone size={16} /> Registered Devices
-                                </button>
-                            </>
-                        )}
-                        <div className="header-dropdown-divider" style={{ height: '1px', background: 'var(--clr-border)', margin: '0.25rem 0' }}></div>
-                        
-                        <button
-                            onClick={() => { navigate('/settings'); setMenuOpen(false); }}
-                            className={`header-dropdown-item ${location.pathname === '/settings' ? 'active' : ''}`}
-                        >
-                            <Settings size={16} /> 
-                            <span>Settings</span>
-                        </button>
+                                )}
 
-                        <button onClick={() => { logout(); navigate('/'); }} className="header-dropdown-item logout">
-                            <LogOut size={16} /> Sign Out
-                        </button>
-                    </div>
-                )}
+                                {isConsultant && (
+                                    <button
+                                        onClick={() => { navigate('/consultant/review'); setMenuOpen(false); }}
+                                        className={`header-dropdown-item-premium ${location.pathname.includes('review') ? 'active' : ''}`}
+                                    >
+                                        <div className="menu-icon-box"><ListChecks size={18} strokeWidth={1.5} /></div>
+                                        <span>Review RFI</span>
+                                    </button>
+                                )}
+
+                                {isConsultant && (
+                                    <button
+                                        onClick={() => { navigate('/consultant/rejection-journey'); setMenuOpen(false); }}
+                                        className={`header-dropdown-item-premium ${location.pathname.includes('/consultant/rejection-journey') ? 'active' : ''}`}
+                                    >
+                                        <div className="menu-icon-box"><GitBranch size={18} strokeWidth={1.5} /></div>
+                                        <span>Rejection Journey</span>
+                                    </button>
+                                )}
+
+                                {(isConsultant || isContractor) && (
+                                    <button
+                                        onClick={() => { 
+                                            const path = isContractor ? '/contractor/summary' : '/consultant/summary';
+                                            navigate(path); 
+                                            setMenuOpen(false); 
+                                        }}
+                                        className={`header-dropdown-item-premium ${location.pathname.includes('summary') ? 'active' : ''}`}
+                                    >
+                                        <div className="menu-icon-box"><BarChart3 size={18} strokeWidth={1.5} /></div>
+                                        <span>Summary</span>
+                                    </button>
+                                )}
+
+                                {isAdmin && (
+                                    <>
+                                        <button
+                                            onClick={() => { navigate('/admin/users'); setMenuOpen(false); }}
+                                            className={`header-dropdown-item-premium ${location.pathname === '/admin/users' ? 'active' : ''}`}
+                                        >
+                                            <div className="menu-icon-box"><UserCircle size={18} strokeWidth={1.5} /></div>
+                                            <span>Users</span>
+                                        </button>
+                                        <button
+                                            onClick={() => { navigate('/admin/export-format'); setMenuOpen(false); }}
+                                            className={`header-dropdown-item-premium ${location.pathname === '/admin/export-format' ? 'active' : ''}`}
+                                        >
+                                            <div className="menu-icon-box"><Shield size={18} strokeWidth={1.5} /></div>
+                                            <span>Project Export Format</span>
+                                        </button>
+                                        <button
+                                            onClick={() => { navigate('/admin/registered-devices'); setMenuOpen(false); }}
+                                            className={`header-dropdown-item-premium ${location.pathname === '/admin/registered-devices' ? 'active' : ''}`}
+                                        >
+                                            <div className="menu-icon-box"><Smartphone size={18} strokeWidth={1.5} /></div>
+                                            <span>Registered Devices</span>
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+
+                            <div className="menu-divider"></div>
+
+                            {/* Section 2: Account & Updates */}
+                            <div className="menu-section">
+                                <div className="premium-toggle-item" onClick={handleEnableNotifications} style={{ cursor: 'pointer' }}>
+                                    <div className="premium-toggle-label">
+                                        <div className="menu-icon-box"><Activity size={18} strokeWidth={1.5} /></div>
+                                        <span>Push Notifications</span>
+                                    </div>
+                                    <label className="premium-switch" onClick={(e) => e.stopPropagation()}>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={pushBadge.state === 'subscribed'} 
+                                            onChange={handleEnableNotifications} 
+                                        />
+                                        <span className="premium-slider"></span>
+                                    </label>
+                                </div>
+                                
+                                <button
+                                    onClick={() => { navigate('/subscription'); setMenuOpen(false); }}
+                                    className={`header-dropdown-item-premium ${location.pathname === '/subscription' ? 'active' : ''}`}
+                                >
+                                    <div className="menu-icon-box"><ShieldCheck size={18} strokeWidth={1.5} /></div>
+                                    <span>Subscription</span>
+                                    <span className="menu-badge-pro">PRO Tier</span>
+                                </button>
+
+                                <button
+                                    onClick={() => { navigate('/settings'); setMenuOpen(false); }}
+                                    className={`header-dropdown-item-premium ${location.pathname === '/settings' ? 'active' : ''}`}
+                                >
+                                    <div className="menu-icon-box"><Settings2 size={18} strokeWidth={1.5} /></div>
+                                    <span>Settings</span>
+                                </button>
+                            </div>
+
+                            <div className="menu-divider"></div>
+
+                            {/* Section 3: Support & Leave */}
+                            <div className="menu-section">
+                                <button className="header-dropdown-item-premium">
+                                    <div className="menu-icon-box"><LifeBuoy size={18} strokeWidth={1.5} /></div>
+                                    <span>Help & Support</span>
+                                </button>
+
+                                <button onClick={() => { logout(); navigate('/'); }} className="header-dropdown-item-premium logout">
+                                    <div className="menu-icon-box"><Power size={18} strokeWidth={1.5} /></div>
+                                    <span>Sign Out</span>
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </header>
             <MFAEnrollmentModal isOpen={mfaModalOpen} onClose={() => setMfaModalOpen(false)} />

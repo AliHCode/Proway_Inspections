@@ -118,33 +118,6 @@ export default function SettingsPage() {
                     </div>
                 </section>
 
-
-                {/* Notifications Section */}
-                <section className="settings-section-enterprise">
-                    <h2 className="settings-section-title">Notification Settings</h2>
-                    <div className="settings-card-enterprise">
-                        <div className="settings-item-enterprise">
-                            <div className="settings-item-info">
-                                <p>Real-time Push Alerts</p>
-                                <p className="item-desc">Receive instant notifications for RFI approvals, rejections, and assignments.</p>
-                                {pushBadge.state === 'blocked' && (
-                                    <div className="settings-hint" style={{ marginTop: '0.5rem', background: 'var(--clr-danger-bg)', color: 'var(--clr-danger)' }}>
-                                        Notifications are blocked by your browser. Please allow them in your browser settings.
-                                    </div>
-                                )}
-                            </div>
-                            <div className="settings-toggle-wrap">
-                                <div 
-                                    className={`menu-alert-toggle ${pushBadge.state === 'subscribed' ? 'subscribed' : ''}`}
-                                    onClick={handleEnableNotifications}
-                                >
-                                    <div className="toggle-handle"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
                 {/* Security Section */}
                 <section className="settings-section-enterprise">
                     <h2 className="settings-section-title">Security & Privacy</h2>

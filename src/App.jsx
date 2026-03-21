@@ -21,6 +21,8 @@ import RegisteredDevicesPage from './pages/RegisteredDevicesPage';
 import NotificationRedirect from './pages/NotificationRedirect';
 import SubscriptionBlocked from './pages/SubscriptionBlocked';
 import SettingsPage from './pages/SettingsPage';
+import ProfilePage from './pages/ProfilePage';
+import SubscriptionPage from './pages/SubscriptionPage';
 import SubscriptionGuard from './components/SubscriptionGuard';
 
 function ProtectedRoute({ children, allowedRoles }) {
@@ -57,6 +59,8 @@ function AppRoutes() {
             <Route path="/admin/export-format" element={<ProtectedRoute allowedRoles={['admin']}><AdminFormatDesigner /></ProtectedRoute>} />
             <Route path="/admin/registered-devices" element={<ProtectedRoute allowedRoles={['admin']}><RegisteredDevicesPage /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+            <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
             <Route path="/project-blocked" element={<SubscriptionBlocked />} />
             <Route path="/notification-open" element={<NotificationRedirect />} />
             <Route path="*" element={<Navigate to="/" replace />} />

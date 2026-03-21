@@ -39,11 +39,11 @@ export default function NotificationCenter({ isOpen, onToggle }) {
             >
                 {unreadCount > 0 ? (
                     <>
-                        <BellDot size={18} className="bell-icon active" />
+                        <BellDot size={18} className="bell-icon active" strokeWidth={1.5} fill="#000000" color="#000000" />
                         <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
                     </>
                 ) : (
-                    <Bell size={18} className="bell-icon" />
+                    <Bell size={18} className="bell-icon" strokeWidth={1.5} fill="#000000" color="#000000" />
                 )}
             </button>
 
@@ -152,21 +152,19 @@ export default function NotificationCenter({ isOpen, onToggle }) {
                                 const iconSize = isConsultant ? 20 : 16;
                                 const getIcon = () => {
                                     if (isContractor) {
-                                        if (isApproval) return <Check size={16} />;
-                                        if (isRejection) return <X size={16} />;
-                                        if (isMention) return <Bell size={16} />;
-                                        // Use same as consultant for filing/assignment but simpler if needed, 
-                                        // following screenshot classic icons:
-                                        if (isAssignment) return <UserPlus size={16} />;
-                                        if (isFiled) return <FilePlus size={16} />;
+                                        if (isApproval) return <Check size={16} strokeWidth={1.5} />;
+                                        if (isRejection) return <X size={16} strokeWidth={1.5} />;
+                                        if (isMention) return <Bell size={16} strokeWidth={1.5} />;
+                                        if (isAssignment) return <UserPlus size={16} strokeWidth={1.5} />;
+                                        if (isFiled) return <FilePlus size={16} strokeWidth={1.5} />;
                                     } else {
-                                        if (isApproval) return <CheckCircle2 size={iconSize} />;
-                                        if (isRejection) return <XCircle size={iconSize} />;
-                                        if (isMention) return <MessageCircle size={iconSize} />;
-                                        if (isAssignment) return <UserPlus size={iconSize} />;
-                                        if (isFiled) return <FilePlus size={iconSize} />;
+                                        if (isApproval) return <CheckCircle2 size={iconSize} strokeWidth={1.5} />;
+                                        if (isRejection) return <XCircle size={iconSize} strokeWidth={1.5} />;
+                                        if (isMention) return <MessageCircle size={iconSize} strokeWidth={1.5} />;
+                                        if (isAssignment) return <UserPlus size={iconSize} strokeWidth={1.5} />;
+                                        if (isFiled) return <FilePlus size={iconSize} strokeWidth={1.5} />;
                                     }
-                                    return <Bell size={iconSize} />;
+                                    return <Bell size={iconSize} strokeWidth={1.5} />;
                                 };
 
                                 const getIconClass = () => {
