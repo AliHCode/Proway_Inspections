@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useProject } from '../context/ProjectContext';
 import { useAuth } from '../context/AuthContext';
-import { ShieldAlert, Mail, ArrowLeft, Building2 } from 'lucide-react';
+import { ShieldAlert, Mail, ArrowLeft, Building2, Lock, Clock } from 'lucide-react';
 import Header from '../components/Header';
 import { useEffect } from 'react';
 
@@ -20,94 +20,161 @@ export default function SubscriptionBlocked() {
         }
     }, [access.allowed, navigate, user?.role]);
 
+    const isLocked = access.reason === 'locked';
+    const isExpired = access.reason === 'expired';
+
     return (
-        <div className="page-wrapper" style={{ minHeight: '100vh', background: 'var(--clr-bg-secondary)' }}>
+        <div className="page-wrapper premium-dashboard" style={{ minHeight: '100vh' }}>
             <Header />
-            <main className="blocked-page" style={{ 
+            <main className="dashboard-page" style={{ 
                 display: 'flex', 
                 flexDirection: 'column', 
                 alignItems: 'center', 
                 justifyContent: 'center', 
                 padding: '2rem',
-                marginTop: '4rem'
+                maxWidth: '520px',
+                margin: '0 auto',
+                marginTop: '3rem',
             }}>
-                <div className="blocked-card" style={{
-                    maxWidth: '500px',
+                <div className="premium-card" style={{
                     width: '100%',
-                    background: '#fff',
-                    borderRadius: '24px',
-                    padding: '3rem 2rem',
+                    padding: '2.5rem 2rem',
                     textAlign: 'center',
-                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-                    border: '1px solid rgba(0,0,0,0.05)'
                 }}>
-                    <div className="icon-wrapper" style={{
-                        width: '80px',
-                        height: '80px',
-                        borderRadius: '20px',
-                        background: '#fee2e2',
-                        color: '#ef4444',
+                    {/* Icon */}
+                    <div style={{
+                        width: '64px',
+                        height: '64px',
+                        borderRadius: '16px',
+                        background: isLocked ? '#fef3c7' : '#fef2f2',
+                        color: isLocked ? '#d97706' : '#dc2626',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        margin: '0 auto 2rem'
+                        margin: '0 auto 1.5rem',
                     }}>
-                        <ShieldAlert size={40} />
+                        {isLocked ? <Lock size={32} /> : <ShieldAlert size={32} />}
                     </div>
 
+                    {/* Title */}
                     <h1 style={{ 
-                        fontSize: '1.75rem', 
+                        fontSize: '1.5rem', 
                         fontWeight: 800, 
                         color: '#0f172a', 
-                        marginBottom: '1rem' 
+                        marginBottom: '0.75rem',
+                        letterSpacing: '-0.02em',
                     }}>
-                        Access Restricted
+                        {isLocked ? 'Project Locked' : 'Access Restricted'}
                     </h1>
 
+                    {/* Project Badge */}
                     <div style={{
                         background: '#f8fafc',
-                        padding: '1rem',
-                        borderRadius: '12px',
-                        display: 'flex',
+                        padding: '0.75rem 1rem',
+                        borderRadius: '10px',
+                        display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '0.75rem',
-                        marginBottom: '1.5rem',
-                        border: '1px solid #e2e8f0'
+                        gap: '0.5rem',
+                        marginBottom: '1.25rem',
+                        border: '1px solid #e2e8f0',
+                        fontSize: '0.85rem',
                     }}>
-                        <Building2 size={20} style={{ color: '#64748b' }} />
+                        <Building2 size={16} style={{ color: '#64748b' }} />
                         <span style={{ fontWeight: 600, color: '#334155' }}>{activeProject?.name || 'Unknown Project'}</span>
                     </div>
 
-                    <p style={{ color: '#64748b', lineHeight: 1.6, marginBottom: '2rem' }}>
-                        {access.message || 'Access to this project has been restricted by the administrator. This is usually due to an expired subscription or a manual lock for maintenance.'}
+                    {/* Description */}
+                    <p style={{ 
+                        color: '#64748b', 
+                        lineHeight: 1.6, 
+                        marginBottom: '1.75rem', 
+                        fontSize: '0.85rem',
+                        maxWidth: '380px',
+                        margin: '0 auto 1.75rem',
+                    }}>
+                        {access.message || 'Access to this project has been restricted by the administrator. This may be due to an expired subscription or a maintenance lock.'}
                     </p>
 
-                    <div className="blocked-actions" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        <a href="mailto:admin@clearline.com" className="btn btn-primary" style={{ 
-                            width: '100%', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center', 
-                            gap: '0.5rem',
-                            padding: '1rem'
-                        }}>
-                            <Mail size={18} /> Contact Administrator
+                    {/* Reason Badge */}
+                    <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        background: isLocked ? '#fffbeb' : '#fef2f2',
+                        color: isLocked ? '#d97706' : '#dc2626',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        padding: '0.35rem 0.75rem',
+                        borderRadius: '6px',
+                        marginBottom: '1.75rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                    }}>
+                        {isLocked ? <Lock size={13} /> : <Clock size={13} />}
+                        {isLocked ? 'Manually Locked' : 'Subscription Expired'}
+                    </div>
+
+                    {/* Actions */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                        <a 
+                            href="mailto:admin@proway.com" 
+                            style={{ 
+                                width: '100%', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                gap: '0.5rem',
+                                padding: '0.85rem',
+                                borderRadius: '10px',
+                                border: 'none',
+                                background: '#0f172a',
+                                color: '#fff',
+                                fontWeight: 700,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                textDecoration: 'none',
+                                transition: 'all 0.2s',
+                            }}
+                        >
+                            <Mail size={16} /> Contact Administrator
                         </a>
                         
-                        <button className="btn btn-ghost" onClick={() => navigate('/admin')} style={{ 
-                            width: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '0.5rem'
-                        }}>
-                            <ArrowLeft size={18} /> Back to Dashboard
+                        <button 
+                            onClick={() => {
+                                const home = user?.role === 'admin' ? '/admin' : 
+                                            user?.role === 'contractor' ? '/contractor' : 
+                                            user?.role === 'consultant' ? '/consultant' : '/';
+                                navigate(home);
+                            }} 
+                            style={{ 
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.5rem',
+                                padding: '0.75rem',
+                                borderRadius: '10px',
+                                border: '1px solid #e2e8f0',
+                                background: '#fff',
+                                color: '#64748b',
+                                fontWeight: 600,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                fontFamily: 'inherit',
+                            }}
+                        >
+                            <ArrowLeft size={16} /> Back to Dashboard
                         </button>
                     </div>
                 </div>
 
-                <p style={{ marginTop: '2rem', color: '#94a3b8', fontSize: '0.85rem' }}>
-                    ClearLine Inspection Management &copy; 2026
+                <p style={{ 
+                    marginTop: '1.5rem', 
+                    color: '#94a3b8', 
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                }}>
+                    ProWay Inspection Management &copy; {new Date().getFullYear()}
                 </p>
             </main>
         </div>

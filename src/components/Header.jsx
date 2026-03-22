@@ -427,7 +427,10 @@ export default function Header() {
 
                             {/* Section 3: Support & Leave */}
                             <div className="menu-section">
-                                <button className="header-dropdown-item-premium">
+                                <button 
+                                    onClick={() => handleMenuNavigation('/support')}
+                                    className={`header-dropdown-item-premium ${location.pathname === '/support' ? 'active' : ''}`}
+                                >
                                     <div className="menu-icon-box"><LifeBuoy size={18} strokeWidth={1.5} /></div>
                                     <span>Help & Support</span>
                                 </button>

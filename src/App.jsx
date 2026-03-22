@@ -23,6 +23,7 @@ import SubscriptionBlocked from './pages/SubscriptionBlocked';
 import SettingsPage from './pages/SettingsPage';
 import ProfilePage from './pages/ProfilePage';
 import SubscriptionPage from './pages/SubscriptionPage';
+import SupportPage from './pages/SupportPage';
 import SubscriptionGuard from './components/SubscriptionGuard';
 
 function ProtectedRoute({ children, allowedRoles }) {
@@ -61,6 +62,7 @@ function AppRoutes() {
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
+            <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
             <Route path="/project-blocked" element={<SubscriptionBlocked />} />
             <Route path="/notification-open" element={<NotificationRedirect />} />
             <Route path="*" element={<Navigate to="/" replace />} />
