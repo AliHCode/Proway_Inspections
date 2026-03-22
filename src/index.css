@@ -1661,7 +1661,7 @@ input:checked + .premium-slider:before {
    ============================================ */
 .page-wrapper {
   min-height: 100vh;
-  padding-top: 64px;
+  /* padding-top handled by .app-header-spacer in Header.jsx */
   padding-bottom: 3rem;
 }
 
@@ -1670,7 +1670,24 @@ input:checked + .premium-slider:before {
 .review-page {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 1rem 2rem;
+  padding: 1.25rem 2rem; /* Increased slightly */
+}
+
+/* Ensure settings/profile text in main-content is pushed down */
+.main-content.dashboard-page {
+  margin-top: 1rem;
+}
+
+/* Spacer to push content below fixed header */
+.app-header-spacer {
+  height: 64px;
+  width: 100%;
+}
+
+@media (max-width: 480px) {
+  .app-header-spacer {
+    height: 56px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1749,8 +1766,8 @@ input:checked + .premium-slider:before {
    ============================================ */
 .premium-dashboard {
   --bento-gap: 1.25rem;
-  padding: 0 0 1.5rem 0;
-  /* Remove top padding to keep header at top */
+  padding-bottom: 1.5rem;
+  /* Allow .page-wrapper's padding-top to handle fixed header offset */
 }
 
 .bento-grid {
@@ -2584,7 +2601,7 @@ input:checked + .premium-slider:before {
 
 @media (max-width: 480px) {
   .connectivity-banner {
-    top: 56px;
+    top: 56px; /* Match mobile fixed header height */
     font-size: 0.75rem;
     padding: 0.35rem 0.5rem;
   }
@@ -2601,7 +2618,7 @@ input:checked + .premium-slider:before {
   }
 
   .page-wrapper {
-    padding-top: 56px;
+    padding-top: 0 !important; /* Mobile padding handled by .app-header-spacer */
   }
 
   .header-user-info {
@@ -5044,8 +5061,8 @@ input:checked + .premium-slider:before {
 }
 
 .connectivity-banner {
-  position: sticky;
-  top: 0;
+  position: fixed;
+  top: 64px; /* Move below fixed header (desktop) */
   z-index: 90;
   pointer-events: none;
   width: 100%;

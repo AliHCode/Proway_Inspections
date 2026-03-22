@@ -451,6 +451,7 @@ export default function Header() {
                     </div>
                 </div>
             </header>
+            <div className="app-header-spacer"></div>
             <MFAEnrollmentModal isOpen={mfaModalOpen} onClose={() => setMfaModalOpen(false)} />
         </>
     );
