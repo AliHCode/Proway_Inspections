@@ -2235,6 +2235,60 @@ input:checked + .premium-slider:before {
   border-bottom: 1px solid #c7d2fe;
 }
 
+/* RFI Entry Grid - Efficiency Features */
+.locked-cell-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.lock-toggle-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: white;
+  border: 1px solid var(--clr-border);
+  border-radius: 4px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--clr-text-muted);
+  z-index: 5;
+  transition: all 0.2s;
+  padding: 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.lock-toggle-btn:hover {
+  background: var(--clr-bg-hover);
+  color: var(--clr-brand-primary);
+  border-color: var(--clr-brand-primary);
+}
+
+.lock-toggle-btn.active {
+  background: var(--clr-brand-primary);
+  color: white;
+  border-color: var(--clr-brand-primary);
+}
+
+.is-sticky {
+  background-color: #f0f7ff !important;
+  border-color: #bfdbfe !important;
+  color: var(--clr-brand-primary) !important;
+  font-weight: 500;
+}
+
+.cell-input.is-sticky::placeholder,
+.cell-select.is-sticky::placeholder {
+  color: #94a3b8;
+}
+
+
 .rfi-table-divider-row:hover td {
   background: #e8f0ff;
 }

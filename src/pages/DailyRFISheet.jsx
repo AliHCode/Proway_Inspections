@@ -25,7 +25,16 @@ export default function DailyRFISheet() {
     const [currentDate, setCurrentDate] = useState(getToday());
     const [detailTarget, setDetailTarget] = useState(null);
     const [editTarget, setEditTarget] = useState(null);
-    const [newRows, setNewRows] = useState([createEmptyRow()]);
+    const [newRows, setNewRows] = useState(() => [{
+        tempId: Date.now() + Math.random(),
+        description: '',
+        location: '',
+        inspectionType: INSPECTION_TYPES[0],
+        assignedTo: '',
+        images: [],
+        parentId: null,
+        customFields: {},
+    }]);
     const [submitMessage, setSubmitMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedImages, setSelectedImages] = useState(null);
@@ -56,6 +65,31 @@ export default function DailyRFISheet() {
         r.status !== RFI_STATUS.CANCELLED &&
         !rfis.some(child => child.parentId === r.id)
     ).sort((a,b) => a.serialNo - b.serialNo);
+
+    // Determine unique previously used locations for suggestions
+    const uniqueLocations = Array.from(new Set([
+        ...dailyRfis.map(r => r.location).filter(Boolean),
+        ...newRows.map(r => r.location).filter(Boolean)
+    ]));
+
+    // Determine unique descriptions for suggestions
+    const uniqueDescriptions = Array.from(new Set([
+        ...dailyRfis.map(r => r.description).filter(Boolean),
+        ...newRows.map(r => r.description).filter(Boolean)
+    ]));
+
+    // Determine unique custom field values for suggestions dynamically
+    const uniqueCustomFields = {};
+    if (projectFields) {
+        projectFields.forEach(pf => {
+            if (pf.field_type === 'text' || pf.field_type === 'number') {
+                uniqueCustomFields[pf.field_key] = Array.from(new Set([
+                    ...dailyRfis.map(r => r.customFields?.[pf.field_key]).filter(Boolean),
+                    ...newRows.map(r => r.customFields?.[pf.field_key]).filter(Boolean)
+                ]));
+            }
+        });
+    }
 
     // Determines what to show in the table
     const currentRfis = activeTab === 'daily' ? dailyRfis : activeRejectedRfis;
@@ -520,13 +554,13 @@ export default function DailyRFISheet() {
             case 'description':
                 return (
                     <td key={col.field_key} style={style}>
-                        <input type="text" className="cell-input" value={row.description} onChange={(e) => updateRow(row.tempId, 'description', e.target.value)} placeholder="e.g. Concrete pouring Zone B" disabled={row.isLocked} />
+                        <input type="text" list="description-suggestions" className="cell-input" value={row.description} onChange={(e) => updateRow(row.tempId, 'description', e.target.value)} placeholder="e.g. Concrete pouring Zone B" disabled={row.isLocked} />
                     </td>
                 );
             case 'location':
                 return (
                     <td key={col.field_key} style={style}>
-                        <input type="text" className="cell-input" value={row.location} onChange={(e) => updateRow(row.tempId, 'location', e.target.value)} placeholder="e.g. Floor 3, Zone A" disabled={row.isLocked} />
+                        <input type="text" list="location-suggestions" className="cell-input" value={row.location} onChange={(e) => updateRow(row.tempId, 'location', e.target.value)} placeholder="e.g. Floor 3, Zone A" disabled={row.isLocked} />
                     </td>
                 );
             case 'inspection_type':
@@ -606,7 +640,15 @@ export default function DailyRFISheet() {
                     }
                     return (
                         <td key={col.field_key} style={style}>
-                            <input type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : 'text'} className="cell-input" value={row.customFields?.[f.field_key] || ''} onChange={e => { const updated = { ...row.customFields, [f.field_key]: e.target.value }; updateRow(row.tempId, 'customFields', updated); }} placeholder={f.field_name} disabled={row.isLocked} />
+                            <input 
+                                type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : 'text'} 
+                                list={f.field_type !== 'date' ? `custom-${f.field_key}-suggestions` : undefined}
+                                className="cell-input" 
+                                value={row.customFields?.[f.field_key] || ''} 
+                                onChange={e => { const updated = { ...row.customFields, [f.field_key]: e.target.value }; updateRow(row.tempId, 'customFields', updated); }} 
+                                placeholder={f.field_name} 
+                                disabled={row.isLocked} 
+                            />
                         </td>
                     );
                 }
@@ -743,6 +785,24 @@ export default function DailyRFISheet() {
 
                     {showNewRfiEntry && (
                         <>
+                            <datalist id="location-suggestions">
+                                {uniqueLocations.map((loc, idx) => (
+                                    <option key={idx} value={loc} />
+                                ))}
+                            </datalist>
+
+                            <datalist id="description-suggestions">
+                                {uniqueDescriptions.map((desc, idx) => (
+                                    <option key={idx} value={desc} />
+                                ))}
+                            </datalist>
+
+                            {Object.entries(uniqueCustomFields).map(([key, values]) => (
+                                <datalist key={`custom-${key}`} id={`custom-${key}-suggestions`}>
+                                    {values.map((val, idx) => <option key={idx} value={val} />)}
+                                </datalist>
+                            ))}
+
                             <div id="new-rfi-entry-grid" className="rfi-table-wrapper" style={{ marginTop: '1rem' }}>
                                 <table className="rfi-table editable">
                                     <thead>
