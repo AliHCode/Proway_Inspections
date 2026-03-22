@@ -557,7 +557,7 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
                         const parsed = parseCommentContent(c.content);
                         return (
                             <div key={c.id} className={`comment-bubble-wrapper ${isMe ? 'is-me' : ''}`}>
-                                {!isMe && <UserAvatar name={c.userName} size={32} />}
+                                {!isMe && <UserAvatar name={c.userName} avatarUrl={c.userAvatarUrl} size={32} />}
                                 <div className={`comment-bubble ${isMe ? 'is-me' : ''}`}>
                                     <div className="comment-header">
                                         <span className="comment-name">{c.userName}</span>

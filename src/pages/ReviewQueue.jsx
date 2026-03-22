@@ -561,7 +561,7 @@ export default function ReviewQueue() {
             const escalated = isEscalated(rfi);
             return (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <UserAvatar name={rfi.filerName} size={32} />
+                    <UserAvatar name={rfi.filerName} avatarUrl={rfi.filerAvatarUrl} size={32} />
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ fontWeight: 600 }}>#{rfi.serialNo}</span>

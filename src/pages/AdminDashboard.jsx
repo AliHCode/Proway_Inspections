@@ -1076,7 +1076,7 @@ export default function AdminDashboard() {
                                         return (
                                             <div key={pu.id} className="ua-row">
                                                 <div className="ua-row-user">
-                                                    <UserAvatar name={pu.name} size={36} />
+                                                    <UserAvatar name={pu.name} avatarUrl={pu.avatar_url} size={36} />
                                                     <div>
                                                         <div className="ua-row-name">{pu.name}</div>
                                                         <div className="ua-row-meta">{pu.company || 'No company'}</div>
@@ -1122,7 +1122,7 @@ export default function AdminDashboard() {
                                             return (
                                                 <div key={ru.id} className="ua-row">
                                                     <div className="ua-row-user">
-                                                        <UserAvatar name={ru.name} size={36} />
+                                                        <UserAvatar name={ru.name} avatarUrl={ru.avatar_url} size={36} />
                                                         <div>
                                                             <div className="ua-row-name">{ru.name}</div>
                                                             <div className="ua-row-meta">{ru.company || 'No company'}</div>
@@ -1166,7 +1166,7 @@ export default function AdminDashboard() {
                                     {unassignedUsers.map(u => (
                                         <div key={u.id} className="ua-row">
                                             <div className="ua-row-user">
-                                                <UserAvatar name={u.name} size={36} />
+                                                <UserAvatar name={u.name} avatarUrl={u.avatar_url} size={36} />
                                                 <div>
                                                     <div className="ua-row-name">{u.name}</div>
                                                     <div className="ua-row-meta">
@@ -1208,7 +1208,7 @@ export default function AdminDashboard() {
                                 <div className="ua-team-list">
                                     {teamUsers.map(m => (
                                         <div key={m.id} className="ua-team-row">
-                                            <UserAvatar name={m.name} size={30} />
+                                            <UserAvatar name={m.name} avatarUrl={m.avatar_url} size={30} />
                                             <span className="ua-team-name">{m.name}</span>
                                             <span className="ua-role-badge">{m.memberRole}</span>
                                             <span className="ua-team-company">{m.company || ''}</span>

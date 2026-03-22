@@ -288,7 +288,15 @@ export default function Header() {
                                     style={{ cursor: 'pointer' }}
                                 >
                                     <div className="header-identity-avatar-premium" aria-hidden="true">
-                                        {nameInitials}
+                                        {user.avatar_url ? (
+                                            <img 
+                                                src={user.avatar_url} 
+                                                alt={user.name} 
+                                                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} 
+                                            />
+                                        ) : (
+                                            nameInitials
+                                        )}
                                         <div className="avatar-edit-icon"><Edit2 size={10} /></div>
                                     </div>
                                     <div className="header-identity-meta-premium">

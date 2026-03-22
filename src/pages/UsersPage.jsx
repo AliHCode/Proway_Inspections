@@ -182,7 +182,7 @@ export default function UsersPage() {
                             return (
                                 <div key={u.id} className={`user-card ${isInactive ? 'user-card-dim' : ''}`}>
                                     <div className="user-card-top">
-                                        <UserAvatar name={u.name} size={42} />
+                                        <UserAvatar name={u.name} avatarUrl={u.avatar_url} size={42} />
                                         <div className="user-card-info">
                                             <div className="user-card-name">
                                                 {u.name}

@@ -3,11 +3,11 @@ import { X, Calendar, MapPin, Tag, User, MessageSquare, History, List, Upload, C
 import ThreadedComments from './ThreadedComments';
 import AuditLog from './AuditLog';
 import StatusBadge from './StatusBadge';
+import UserAvatar from './UserAvatar';
 import { formatDateDisplay } from '../utils/rfiLogic';
 import { useRFI } from '../context/RFIContext';
 import { useAuth } from '../context/AuthContext';
 import { RFI_STATUS } from '../utils/constants';
-
 export default function RFIDetailModal({ rfi, onClose, externalScrollTrigger }) {
     const [activeTab, setActiveTab] = useState('discussion');
     const [tabScrollTrigger, setTabScrollTrigger] = useState(0);
@@ -127,7 +127,7 @@ export default function RFIDetailModal({ rfi, onClose, externalScrollTrigger }) 
                             </div>
 
                             <div className="rfi-detail-item">
-                                <User size={18} color="var(--clr-text-muted)" />
+                                <UserAvatar name={rfi.filerName} avatarUrl={rfi.filerAvatarUrl} size={32} />
                                 <div>
                                     <div className="rfi-detail-label">Filed By</div>
                                     <div className="rfi-detail-value">{rfi.filerName}</div>

@@ -1,16 +1,19 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Header from '../components/Header';
-import { Camera, Mail, Building, User, Edit2, Shield, Globe, Calendar, BadgeCheck } from 'lucide-react';
+import { Camera, Mail, Building, User, Edit2, Shield, Globe, Calendar, BadgeCheck, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { supabase } from '../utils/supabaseClient';
 
 export default function ProfilePage() {
-    const { user } = useAuth();
+    const { user, updateProfile } = useAuth();
     const [isEditing, setIsEditing] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const [formData, setFormData] = useState({
         name: user?.name || '',
         company: user?.company || '',
     });
+    const fileInputRef = useRef(null);
 
     if (!user) return null;
 
@@ -18,9 +21,68 @@ export default function ProfilePage() {
         ? user.name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0].toUpperCase()).join('')
         : 'U';
 
-    const handleSave = () => {
-        setIsEditing(false);
-        toast.success('Profile details updated');
+    const handleSave = async () => {
+        const { success, error } = await updateProfile({
+            name: formData.name,
+            company: formData.company
+        });
+
+        if (success) {
+            setIsEditing(false);
+            toast.success('Profile details updated');
+        } else {
+            toast.error(`Update failed: ${error}`);
+        }
+    };
+
+    const handleAvatarClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Limit size (e.g., 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            toast.error("Image must be smaller than 2MB");
+            return;
+        }
+
+        setIsUploading(true);
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        try {
+            // 1. Upload to storage
+            const { error: uploadError } = await supabase.storage
+                .from('avatars')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            // 2. Get public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from('avatars')
+                .getPublicUrl(filePath);
+
+            // 3. Update profile record
+            const { success, error: updateError } = await updateProfile({
+                avatar_url: publicUrl
+            });
+
+            if (!success) throw new Error(updateError);
+
+            toast.success("Profile picture updated!");
+        } catch (error) {
+            console.error("Upload error:", error);
+            toast.error(`Upload failed: ${error.message}`);
+        } finally {
+            setIsUploading(false);
+            // Reset input
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        }
     };
 
     return (
@@ -35,13 +97,34 @@ export default function ProfilePage() {
                 <div className="v53-card">
                     <section className="v53-avatar-section">
                         <div className="v53-avatar-wrapper">
-                            <div className="v53-avatar-circle">
-                                {nameInitials}
+                            <div className="v53-avatar-circle" style={{ overflow: 'hidden' }}>
+                                {user.avatar_url ? (
+                                    <img 
+                                        src={user.avatar_url} 
+                                        alt={user.name} 
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                    />
+                                ) : (
+                                    nameInitials
+                                )}
+                                {isUploading && (
+                                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyCenter: 'center', borderRadius: '50%' }}>
+                                        <Loader2 className="animate-spin" color="white" />
+                                    </div>
+                                )}
                             </div>
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                style={{ display: 'none' }} 
+                                accept="image/*"
+                                onChange={handleFileChange}
+                            />
                             <button 
                                 className="avatar-edit-icon" 
                                 style={{ width: '32px', height: '32px', bottom: '0', right: '0' }}
-                                onClick={() => toast.success("Photo upload feature active soon")}
+                                onClick={handleAvatarClick}
+                                disabled={isUploading}
                             >
                                 <Camera size={16} />
                             </button>

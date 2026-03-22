@@ -363,6 +363,36 @@ export function AuthProvider({ children }) {
         return data;
     }
 
+    async function updateProfile(updates) {
+        if (!user?.id) return { success: false, error: 'User not logged in' };
+        
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .update(updates)
+                .eq('id', user.id)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            const fullUser = { ...data, email: user.email };
+            setUser(fullUser);
+            
+            // Update cache
+            try {
+                localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(fullUser));
+            } catch (e) {
+                console.warn('Failed to update profile cache:', e);
+            }
+
+            return { success: true, data: fullUser };
+        } catch (error) {
+            console.error('Update profile error:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
     return (
         <AuthContext.Provider value={{ 
             user, 
@@ -370,6 +400,7 @@ export function AuthProvider({ children }) {
             login, 
             register, 
             logout,
+            updateProfile,
             mfaFactors,
             enrollMFA,
             verifyMFAEnrollment,

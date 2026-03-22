@@ -1,6 +1,6 @@
 import { User } from 'lucide-react';
 
-export default function UserAvatar({ name, size = 40, className = '' }) {
+export default function UserAvatar({ name, avatarUrl, size = 40, className = '' }) {
     // Generate initials from name
     const getInitials = (nameStr) => {
         if (!nameStr) return '?';
@@ -28,7 +28,7 @@ export default function UserAvatar({ name, size = 40, className = '' }) {
         width: size,
         height: size,
         borderRadius: '50%',
-        backgroundColor: getBgColor(name),
+        backgroundColor: avatarUrl ? 'transparent' : getBgColor(name),
         color: 'white',
         display: 'flex',
         alignItems: 'center',
@@ -36,11 +36,20 @@ export default function UserAvatar({ name, size = 40, className = '' }) {
         fontSize: size * 0.4,
         fontWeight: '600',
         flexShrink: 0,
+        overflow: 'hidden'
     };
 
     return (
         <div className={`user-avatar ${className}`} style={style} title={name}>
-            {name ? getInitials(name) : <User size={size * 0.5} />}
+            {avatarUrl ? (
+                <img 
+                    src={avatarUrl} 
+                    alt={name} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                />
+            ) : (
+                name ? getInitials(name) : <User size={size * 0.5} />
+            )}
         </div>
     );
 }

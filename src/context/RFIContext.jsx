@@ -258,7 +258,7 @@ export function RFIProvider({ children }) {
                 if (userIds.size > 0) {
                     const { data: profilesData } = await supabase
                         .from('profiles')
-                        .select('id, name, company')
+                        .select('id, name, company, avatar_url')
                         .in('id', Array.from(userIds));
 
                     if (profilesData) {
@@ -278,10 +278,12 @@ export function RFIProvider({ children }) {
                     filedBy: r.filed_by,
                     filerName: userMap[r.filed_by]?.name || '—',
                     filerCompany: userMap[r.filed_by]?.company || '',
+                    filerAvatarUrl: userMap[r.filed_by]?.avatar_url || null,
                     filedDate: r.filed_date,
                     status: r.status,
                     reviewedBy: r.reviewed_by,
                     reviewerName: userMap[r.reviewed_by]?.name || '',
+                    reviewerAvatarUrl: userMap[r.reviewed_by]?.avatar_url || null,
                     reviewedAt: r.reviewed_at,
                     remarks: r.remarks,
                     carryoverCount: r.carryover_count,
@@ -289,6 +291,7 @@ export function RFIProvider({ children }) {
                     images: r.images || [],
                     assignedTo: r.assigned_to,
                     assigneeName: userMap[r.assigned_to]?.name || '',
+                    assigneeAvatarUrl: userMap[r.assigned_to]?.avatar_url || null,
                     parentId: r.parent_id,
                     createdAt: r.created_at,
                     customFields: r.custom_fields || {},
@@ -363,7 +366,7 @@ export function RFIProvider({ children }) {
         try {
             const { data, error } = await supabase
                 .from('project_members')
-                .select('profiles:user_id(id, name, company, role)')
+                .select('profiles:user_id(id, name, company, role, avatar_url)')
                 .eq('project_id', projectId)
                 .eq('role', 'consultant');
             if (error) throw error;
@@ -378,7 +381,7 @@ export function RFIProvider({ children }) {
         try {
             const { data, error } = await supabase
                 .from('project_members')
-                .select('profiles:user_id(id, name, company, role)')
+                .select('profiles:user_id(id, name, company, role, avatar_url)')
                 .eq('project_id', projectId)
                 .eq('role', 'contractor');
             if (error) throw error;
@@ -1362,7 +1365,7 @@ export function RFIProvider({ children }) {
                     content,
                     created_at,
                     user_id,
-                    profiles (name, role, company)
+                    profiles (name, role, company, avatar_url)
                 `)
                 .eq('rfi_id', rfiId)
                 .order('created_at', { ascending: true });
@@ -1376,6 +1379,7 @@ export function RFIProvider({ children }) {
                 userId: c.user_id,
                 userName: c.profiles?.name || 'Unknown User',
                 userRole: c.profiles?.role || '',
+                userAvatarUrl: c.profiles?.avatar_url || null,
             }));
         } catch (error) {
             console.error("Error fetching comments:", error);
