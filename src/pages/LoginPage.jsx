@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { USER_ROLES } from '../utils/constants';
-import { Eye, EyeOff, HardHat, UserCheck, ArrowRight, Shield, Lock } from 'lucide-react';
+import { Eye, EyeOff, Clock, Shield, Lock, User, Mail, Building, ChevronRight } from 'lucide-react';
 import MFALoginChallenge from '../components/MFALoginChallenge';
 import { supabase } from '../utils/supabaseClient';
 
@@ -10,7 +10,7 @@ export default function LoginPage() {
     const { user, login, register, logout } = useAuth();
     const navigate = useNavigate();
     const [isRegister, setIsRegister] = useState(false);
-    const [form, setForm] = useState({ name: '', email: '', password: '', company: '' });
+    const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', company: '' });
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
     const [loading, setLoading] = useState(false);
@@ -24,15 +24,16 @@ export default function LoginPage() {
 
         try {
             if (isRegister) {
-                if (!form.name || !form.email || !form.password || !form.company) {
+                if (!form.firstName || !form.lastName || !form.email || !form.password || !form.company) {
                     setError('All fields are required');
                     setLoading(false);
                     return;
                 }
-                const result = await register(form.name, form.email, form.password, form.company);
+                const fullName = `${form.firstName} ${form.lastName}`;
+                const result = await register(fullName, form.email, form.password, form.company);
                 if (result.success) {
                     setIsRegister(false); // Switch to login view which will show pending message
-                    setSuccessMessage(`Welcome, ${form.name.split(' ')[0]}! Your account has been created. Please wait for admin approval. You will be notified by email.`);
+                    setSuccessMessage(`Welcome, ${form.firstName}! Your account has been created. Please wait for admin approval. You will be notified by email.`);
                     setForm((prev) => ({ ...prev, password: '' }));
                 } else {
                     setError(result.error);
@@ -77,24 +78,40 @@ export default function LoginPage() {
 
     if (user && user.role === USER_ROLES.PENDING) {
         return (
-            <div className="auth-page">
-                <div className="auth-bg-pattern"></div>
-                <div className="auth-wrapper">
-                    <div className="auth-hero" style={{ textAlign: 'center' }}>
-                        <div className="auth-logo-img">
-                            <img src="/dashboardlogo.png" alt="ClearLine Logo" />
+            <div className="auth-container">
+                <div className="auth-branding-section">
+                    <div className="auth-branding-content">
+                        <div className="auth-logo-wrapper">
+                            <img src="/dashboardlogo.png" alt="ClearLine Logo" className="auth-logo-large" />
                         </div>
-                        <h2 className="hero-title">Approval <span className="text-accent">Pending.</span></h2>
-                        <p className="hero-subtitle">
-                            Welcome, {user.name.split(' ')[0]}! Your account has been created.
-                            <br /><br />
-                            Please wait for admin approval. You will be notified by email.
+                        <div className="auth-hero-text">
+                            <h1 className="auth-hero-title">
+                                Approval <span className="text-gradient">Pending.</span>
+                            </h1>
+                            <p className="auth-hero-description">
+                                Welcome, {user.name.split(' ')[0]}! Your account is ready for review.
+                                An administrator has been notified.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="auth-visual-grid"></div>
+                    <div className="auth-visual-glow"></div>
+                </div>
+
+                <div className="auth-form-section">
+                    <div className="auth-form-wrapper" style={{ textAlign: 'center' }}>
+                        <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'center' }}>
+                            <div style={{ padding: '2rem', borderRadius: '50%', background: 'var(--clr-bg-hover)', color: 'var(--clr-brand-primary)' }}>
+                                <Shield size={64} strokeWidth={1.5} />
+                            </div>
+                        </div>
+                        <h2 className="auth-form-title">Verifying Identity</h2>
+                        <p className="auth-form-subtitle" style={{ marginBottom: '2.5rem' }}>
+                            Your request is currently being processed. You will receive an email confirmation once access is granted.
                         </p>
-                        <div style={{ marginTop: '2rem' }}>
-                            <button className="auth-submit" onClick={logout} style={{ maxWidth: '200px', margin: '0 auto' }}>
-                                Sign Out
-                            </button>
-                        </div>
+                        <button className="auth-submit-btn" onClick={logout} style={{ width: '100%' }}>
+                            Sign Out
+                        </button>
                     </div>
                 </div>
             </div>
@@ -103,24 +120,39 @@ export default function LoginPage() {
 
     if (user && user.role === USER_ROLES.REJECTED) {
         return (
-            <div className="auth-page">
-                <div className="auth-bg-pattern"></div>
-                <div className="auth-wrapper">
-                    <div className="auth-hero" style={{ textAlign: 'center' }}>
-                        <div className="auth-logo-img">
-                            <img src="/dashboardlogo.png" alt="ClearLine Logo" />
+            <div className="auth-container">
+                <div className="auth-branding-section">
+                    <div className="auth-branding-content">
+                        <div className="auth-logo-wrapper">
+                            <img src="/dashboardlogo.png" alt="ClearLine Logo" className="auth-logo-large" />
                         </div>
-                        <h2 className="hero-title">Request <span className="text-accent" style={{ color: 'var(--clr-danger)' }}>Declined.</span></h2>
-                        <p className="hero-subtitle">
-                            Your account request was not approved by the administrator.
-                            <br /><br />
-                            Please contact your project manager if you believe this is an error.
+                        <div className="auth-hero-text">
+                            <h1 className="auth-hero-title">
+                                Access <span className="text-gradient" style={{ opacity: 0.8 }}>Declined.</span>
+                            </h1>
+                            <p className="auth-hero-description">
+                                Your application for access could not be approved at this time.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="auth-visual-grid"></div>
+                    <div className="auth-visual-glow"></div>
+                </div>
+
+                <div className="auth-form-section">
+                    <div className="auth-form-wrapper" style={{ textAlign: 'center' }}>
+                        <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'center' }}>
+                            <div style={{ padding: '2rem', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.05)', color: '#ef4444' }}>
+                                <Lock size={64} strokeWidth={1.5} />
+                            </div>
+                        </div>
+                        <h2 className="auth-form-title">Not Authorized</h2>
+                        <p className="auth-form-subtitle" style={{ marginBottom: '2.5rem' }}>
+                            Please contact your supervisor or project administrator for further information regarding your access.
                         </p>
-                        <div style={{ marginTop: '2rem' }}>
-                            <button className="auth-submit" onClick={logout} style={{ maxWidth: '200px', margin: '0 auto', background: 'var(--clr-danger)' }}>
-                                Sign Out
-                            </button>
-                        </div>
+                        <button className="auth-submit-btn" onClick={logout} style={{ width: '100%', background: '#ef4444' }}>
+                            Sign Out
+                        </button>
                     </div>
                 </div>
             </div>
@@ -128,42 +160,26 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="auth-page">
-            {/* Background decoration */}
-            <div className="auth-bg-pattern"></div>
-
-            <div className="auth-wrapper">
-                {/* Branding Hero */}
-                <div className="auth-hero">
-                    <div className="auth-logo-img">
-                        <img src="/dashboardlogo.png" alt="ClearLine Logo" />
-                    </div>
-                    {/* Build with Confidence removed per user request */}
-                    <p className="hero-subtitle">
-                        The enterprise platform for streamlined RFIs, inspections, and QA/QC management.
-                    </p>
+        <div className={`auth-container ${isRegister ? 'signup-view' : ''}`}>
+            {/* Form Section */}
+            <div className="auth-form-section">
+                <div className="auth-logo-top">
+                    <img src="/dashboardlogo.png" alt="ClearLine Logo" />
                 </div>
 
-                {/* Card */}
-                <div className="auth-card">
-                    {/* Tabs */}
-                    <div className="auth-tabs">
-                        <button
-                            className={`auth-tab ${!isRegister ? 'active' : ''}`}
-                            onClick={() => { setIsRegister(false); setError(''); }}
-                        >
-                            Sign In
-                        </button>
-                        <button
-                            className={`auth-tab ${isRegister ? 'active' : ''}`}
-                            onClick={() => { setIsRegister(true); setError(''); setSuccessMessage(''); }}
-                        >
-                            Create Account
-                        </button>
+                <div className="auth-form-wrapper">
+                    <div className="auth-form-header">
+                        <h1 className="auth-form-title">
+                            {isRegister ? 'Create your account' : 'Welcome back'}
+                        </h1>
+                        <p className="auth-form-subtitle">
+                            {isRegister 
+                                ? "Start your 30-day free trial. No credit card required." 
+                                : 'Enter your credentials to access your account.'}
+                        </p>
                     </div>
 
 
-                    {/* MFA Challenge View */}
                     {mfaChallengeFactor ? (
                         <MFALoginChallenge 
                             factor={mfaChallengeFactor} 
@@ -171,60 +187,99 @@ export default function LoginPage() {
                             onCancel={() => setMfaChallengeFactor(null)} 
                         />
                     ) : (
-                        <form onSubmit={handleSubmit} className="auth-form">
+                        <form onSubmit={handleSubmit} className="auth-form-premium">
                             {isRegister && (
-                                <div className="auth-form-row">
-                                    <div className="auth-field">
-                                        <label htmlFor="name">Full Name</label>
-                                        <input
-                                            id="name"
-                                            type="text"
-                                            value={form.name}
-                                            onChange={(e) => handleChange('name', e.target.value)}
-                                            placeholder="John Doe"
-                                            autoComplete="name"
-                                        />
+                                <>
+                                    <div className="auth-form-grid">
+                                        <div className="auth-input-group">
+                                            <label htmlFor="firstName">First Name</label>
+                                            <div className="auth-input-wrapper">
+                                                <User className="auth-input-icon" size={20} />
+                                                <input
+                                                    id="firstName"
+                                                    type="text"
+                                                    value={form.firstName}
+                                                    onChange={(e) => handleChange('firstName', e.target.value)}
+                                                    placeholder="John"
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="auth-input-group">
+                                            <label htmlFor="lastName">Last Name</label>
+                                            <div className="auth-input-wrapper">
+                                                <User className="auth-input-icon" size={20} />
+                                                <input
+                                                    id="lastName"
+                                                    type="text"
+                                                    value={form.lastName}
+                                                    onChange={(e) => handleChange('lastName', e.target.value)}
+                                                    placeholder="Doe"
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="auth-field">
-                                        <label htmlFor="company">Company</label>
-                                        <input
-                                            id="company"
-                                            type="text"
-                                            value={form.company}
-                                            onChange={(e) => handleChange('company', e.target.value)}
-                                            placeholder="ACME Construction"
-                                            autoComplete="organization"
-                                        />
+                                    <div className="auth-input-group">
+                                        <label htmlFor="company">Company Name</label>
+                                        <div className="auth-input-wrapper">
+                                            <Building className="auth-input-icon" size={20} />
+                                            <input
+                                                id="company"
+                                                type="text"
+                                                value={form.company}
+                                                onChange={(e) => handleChange('company', e.target.value)}
+                                                placeholder="Acme Construction"
+                                                required
+                                            />
+                                        </div>
                                     </div>
-                                </div>
+                                </>
                             )}
 
-                            <div className="auth-field">
-                                <label htmlFor="email">Email Address</label>
-                                <input
-                                    id="email"
-                                    type="email"
-                                    value={form.email}
-                                    onChange={(e) => handleChange('email', e.target.value)}
-                                    placeholder="you@company.com"
-                                    autoComplete="email"
-                                />
+                            <div className="auth-input-group">
+                                <label htmlFor="email">Work Email</label>
+                                <div className="auth-input-wrapper">
+                                    <Mail className="auth-input-icon" size={20} />
+                                    <input
+                                        id="email"
+                                        type="email"
+                                        value={form.email}
+                                        onChange={(e) => handleChange('email', e.target.value)}
+                                        placeholder="name@company.com"
+                                        autoComplete="email"
+                                        required
+                                    />
+                                </div>
                             </div>
 
-                            <div className="auth-field">
-                                <label htmlFor="password">Password</label>
-                                <div className="auth-password-wrapper">
+                            <div className="auth-input-group">
+                                <div className="auth-label-row">
+                                    <label htmlFor="password">Password</label>
+                                    {!isRegister && (
+                                        <button 
+                                            type="button" 
+                                            className="auth-forgot-link"
+                                            onClick={() => navigate('/forgot-password')}
+                                        >
+                                            FORGOT?
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="auth-input-wrapper">
+                                    <Lock className="auth-input-icon" size={20} />
                                     <input
                                         id="password"
                                         type={showPassword ? 'text' : 'password'}
                                         value={form.password}
                                         onChange={(e) => handleChange('password', e.target.value)}
-                                        placeholder="••••••••"
+                                        placeholder={isRegister ? "Min. 8 characters" : "••••••••"}
                                         autoComplete={isRegister ? 'new-password' : 'current-password'}
+                                        required
                                     />
                                     <button
                                         type="button"
-                                        className="auth-password-toggle"
+                                        className="auth-password-toggle-btn"
                                         onClick={() => setShowPassword(!showPassword)}
                                         tabIndex={-1}
                                     >
@@ -233,31 +288,55 @@ export default function LoginPage() {
                                 </div>
                             </div>
 
-                            {successMessage && !isRegister && <div className="auth-success">{successMessage}</div>}
-                            {error && <div className="auth-error">{error}</div>}
+                            {isRegister && (
+                                <div className="auth-checkbox-row">
+                                    <input type="checkbox" id="terms" required />
+                                    <label htmlFor="terms">By creating an account, you agree to our Terms of Service and Privacy Policy.</label>
+                                </div>
+                            )}
+
+                            {successMessage && !isRegister && <div className="auth-alert success">{successMessage}</div>}
+                            {error && <div className="auth-alert error">{error}</div>}
 
                             <button
                                 type="submit"
-                                className="auth-submit"
+                                className="auth-submit-btn modern"
                                 disabled={loading}
                             >
-                                {loading ? (
-                                    <span className="auth-submit-loading">Processing...</span>
-                                ) : (
+                                {loading ? 'Processing...' : (
                                     <>
-                                        {isRegister ? 'Create Account' : 'Sign In'}
-                                        <ArrowRight size={18} />
+                                        {isRegister ? 'Create Account' : 'Log In'}
+                                        <ChevronRight size={20} />
                                     </>
                                 )}
                             </button>
+
+                            <div className="auth-switch-view">
+                                <span>{isRegister ? "Already have an account?" : "Don't have an account?"}</span>
+                                <button type="button" onClick={() => setIsRegister(!isRegister)}>
+                                    {isRegister ? "Log in" : "Sign up for free"}
+                                </button>
+                            </div>
                         </form>
                     )}
                 </div>
+            </div>
 
-                {/* Footer */}
-                <p className="auth-footer">
-                    Enterprise-grade inspection management for construction teams.
-                </p>
+            <div className="auth-branding-section">
+                <img 
+                    src="https://images.unsplash.com/photo-1541888946425-d81bb19480c5?q=80&w=2070&auto=format&fit=crop" 
+                    alt="Construction Site" 
+                    className="auth-branding-image" 
+                />
+                <div className="auth-branding-content">
+                    <h1 className="auth-hero-title">
+                        The Future of<br/>Inspection Management
+                    </h1>
+                    <p className="auth-hero-description">
+                        Streamline your RFI workflows, automate inspections, 
+                        and track project progress with our all-in-one suite.
+                    </p>
+                </div>
             </div>
         </div>
     );
