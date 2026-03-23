@@ -1721,25 +1721,25 @@ input:checked+.premium-slider:before {
 }
 
 .data-metric-label {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--clr-text-secondary);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 .data-metric-value {
   font-family: var(--font-main);
-  font-size: 2.25rem;
+  font-size: 1.85rem;
   font-weight: 600;
   color: #0f172a;
   line-height: 1.1;
   margin-bottom: 0.25rem;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
 }
 
 .data-metric-subtitle {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--clr-text-muted);
 }
 
@@ -5914,16 +5914,16 @@ input:checked+.premium-slider:before {
 .timeline-title {
   font-weight: 600;
   color: var(--clr-text);
-  font-size: 1.1rem;
+  font-size: 0.95rem;
 }
 
 .timeline-time {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: var(--clr-text-muted);
 }
 
 .timeline-desc {
-  font-size: 1rem;
+  font-size: 0.875rem;
   color: var(--clr-text-secondary);
   margin: 0;
 }

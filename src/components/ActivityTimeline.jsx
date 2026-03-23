@@ -47,7 +47,7 @@ export default function ActivityTimeline({ rfis, limit = 5 }) {
             <div className="empty-state" style={{ padding: '2rem 1rem' }}>
                 <Clock size={32} />
                 <h4 style={{ margin: '0.5rem 0', fontWeight: 600 }}>No Activity Yet</h4>
-                <p style={{ color: 'var(--clr-text-secondary)', fontSize: '0.9rem' }}>Recent events will appear here.</p>
+                <p style={{ color: 'var(--clr-text-secondary)', fontSize: '0.85rem' }}>Recent events will appear here.</p>
             </div>
         );
     }

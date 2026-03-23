@@ -270,7 +270,7 @@ export default function ContractorDashboard() {
 
                     <div className="bento-span-4 premium-card">
                         <div className="section-header" style={{ border: 'none', padding: 0, marginBottom: '1rem' }}>
-                            <h2 style={{ fontSize: '1rem', fontWeight: 600 }}><Clock size={18} style={{ marginRight: '0.5rem' }} /> Event Log</h2>
+                            <h2 style={{ fontSize: '0.9rem', fontWeight: 600 }}><Clock size={16} style={{ marginRight: '0.5rem' }} /> Event Log</h2>
                         </div>
                         <ActivityTimeline rfis={allMyRfis.filter(r => r.filedDate === today)} limit={4} />
                     </div>
