@@ -169,13 +169,8 @@ export default function LoginPage() {
 
                 <div className="auth-form-wrapper">
                     <div className="auth-form-header">
-                        <h1 className="auth-form-title">
-                            {isRegister ? 'Create your account' : 'Welcome back'}
-                        </h1>
                         <p className="auth-form-subtitle">
-                            {isRegister 
-                                ? "Start your 30-day free trial. No credit card required." 
-                                : 'Enter your credentials to access your account.'}
+                            Enter your credentials to access your account.
                         </p>
                     </div>
 
@@ -311,12 +306,6 @@ export default function LoginPage() {
                                 )}
                             </button>
 
-                            <div className="auth-switch-view">
-                                <span>{isRegister ? "Already have an account?" : "Don't have an account?"}</span>
-                                <button type="button" onClick={() => setIsRegister(!isRegister)}>
-                                    {isRegister ? "Log in" : "Sign up for free"}
-                                </button>
-                            </div>
                         </form>
                     )}
                 </div>
