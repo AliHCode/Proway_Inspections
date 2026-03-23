@@ -150,7 +150,7 @@ export default function ContractorDashboard() {
                             {actionRequiredRfis.slice(0, 5).map(rfi => (
                                 <button
                                     key={rfi.id}
-                                    onClick={() => navigate(`/contractor/summary?rfi=${rfi.id}`)}
+                                    onClick={() => navigate(`/contractor/rfi-sheet?rfi=${rfi.id}`)}
                                     style={{
                                         background: 'var(--clr-bg-elevated)', border: '1px solid var(--clr-danger-border)', borderRadius: '8px', padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--clr-danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s', boxShadow: 'var(--shadow-sm)'
                                     }}
@@ -162,7 +162,7 @@ export default function ContractorDashboard() {
                             ))}
                             {actionRequiredRfis.length > 5 && (
                                 <button
-                                    onClick={() => navigate('/contractor/summary')}
+                                    onClick={() => navigate('/contractor/rfi-sheet')}
                                     style={{ background: 'transparent', border: 'none', color: 'var(--clr-danger)', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
                                 >
                                     View all {actionRequiredRfis.length}

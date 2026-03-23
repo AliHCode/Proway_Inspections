@@ -288,25 +288,45 @@ export default function DailyRFISheet() {
             return;
         }
 
-        setDetailTarget(targetRfi);
         setFocusedRfiId(targetRfi.id);
+
+        // Always land on the 'daily' tab (Filed RFI) regardless of the status
+        setActiveTab('daily');
 
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete('rfi');
         nextParams.delete('source');
         setSearchParams(nextParams, { replace: true });
 
-        const scrollTimer = window.setTimeout(() => {
-            const row = document.querySelector(`[data-rfi-id="${targetRfi.id}"]`);
-            row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 180);
-        const clearTimer = window.setTimeout(() => setFocusedRfiId(null), 4500);
+
+        const clearTimer = window.setTimeout(() => setFocusedRfiId(null), 5000);
 
         return () => {
-            window.clearTimeout(scrollTimer);
             window.clearTimeout(clearTimer);
         };
     }, [searchParams, setSearchParams, rfis, user, currentDate]);
+
+    // Dedicated Effect for Robust Smooth Scrolling (V61)
+    useEffect(() => {
+        if (!focusedRfiId) return;
+
+        const timer = setTimeout(() => {
+            const el = document.querySelector(`[data-rfi-id="${focusedRfiId}"]`);
+            if (el) {
+                // Determine the vertical position to scroll to, centering the RFI while accounting for the fixed header
+                const headerOffset = 120; // Slate header height + some breathing room
+                const elementPosition = el.getBoundingClientRect().top;
+                const offsetPosition = elementPosition + window.pageYOffset - (window.innerHeight / 2) + (el.offsetHeight / 2);
+
+                window.scrollTo({
+                    top: offsetPosition,
+                    behavior: 'smooth'
+                });
+            }
+        }, 450); // Sufficient delay for tab-switching/rendering to stabilize
+
+        return () => clearTimeout(timer);
+    }, [focusedRfiId]);
 
     // Fullscreen / Landscape Logic (V60)
     useEffect(() => {
