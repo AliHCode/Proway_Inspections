@@ -878,73 +878,73 @@ export default function DailyRFISheet() {
                     )}
                 </div>
                 )}
+            </main>
 
-                {/* Lightbox for Contractor Uploads */}
-                {selectedImages && (
-                    <div className="modal-overlay" onClick={() => setSelectedImages(null)}>
-                        <div className="modal lightbox" onClick={e => e.stopPropagation()}>
-                            <div className="modal-header">
-                                <h3>Previews ({selectedImages.length})</h3>
-                                <button className="btn-close modal-close" onClick={() => setSelectedImages(null)}>
-                                    <X size={20} />
-                                </button>
-                            </div>
-                            <div className="lightbox-content">
-                                {selectedImages.map((img, idx) => {
-                                    const objectUrl = typeof img === 'string' ? img : URL.createObjectURL(img);
-                                    return (
-                                        <div key={idx} className="lightbox-image-wrapper">
-                                            <img src={objectUrl} alt={`Attachment ${idx + 1}`} className="lightbox-image" />
-                                            <a href={objectUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-ghost lightbox-download">
-                                                Open Full Size
-                                            </a>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+            {/* Lightbox for Contractor Uploads - Moved outside main to avoid transform clipping */}
+            {selectedImages && (
+                <div className="modal-overlay" onClick={() => setSelectedImages(null)}>
+                    <div className="modal lightbox" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>Previews ({selectedImages.length})</h3>
+                            <button className="btn-close modal-close" onClick={() => setSelectedImages(null)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="lightbox-content">
+                            {selectedImages.map((img, idx) => {
+                                const objectUrl = typeof img === 'string' ? img : URL.createObjectURL(img);
+                                return (
+                                    <div key={idx} className="lightbox-image-wrapper">
+                                        <img src={objectUrl} alt={`Attachment ${idx + 1}`} className="lightbox-image" />
+                                        <a href={objectUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-ghost lightbox-download">
+                                            Open Full Size
+                                        </a>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
-                )}
+                </div>
+            )}
 
-                {markupTarget && markupImage && (
-                    <FieldMarkupStudio
-                        image={markupImage}
-                        onClose={() => setMarkupTarget(null)}
-                        onSave={(annotatedFile) => {
-                            replaceImage(markupTarget.tempId, markupTarget.imageIndex, annotatedFile);
-                            setMarkupTarget(null);
-                        }}
-                    />
-                )}
+            {markupTarget && markupImage && (
+                <FieldMarkupStudio
+                    image={markupImage}
+                    onClose={() => setMarkupTarget(null)}
+                    onSave={(annotatedFile) => {
+                        replaceImage(markupTarget.tempId, markupTarget.imageIndex, annotatedFile);
+                        setMarkupTarget(null);
+                    }}
+                />
+            )}
 
-                {/* Detail & Comments Modal */}
-                {detailTarget && (
-                    <RFIDetailModal
-                        key={detailTarget.id}
-                        rfi={detailTarget}
-                        onClose={() => setDetailTarget(null)}
-                    />
-                )}
+            {/* Detail & Comments Modal */}
+            {detailTarget && (
+                <RFIDetailModal
+                    key={detailTarget.id}
+                    rfi={detailTarget}
+                    onClose={() => setDetailTarget(null)}
+                />
+            )}
 
-                {editTarget && (
-                    <EditRFIModal
-                        key={editTarget.id}
-                        rfi={editTarget}
-                        projectFields={projectFields}
-                        orderedColumns={orderedTableColumns}
-                        onSave={handleSaveEdit}
-                        onClose={() => setEditTarget(null)}
-                    />
-                )}
+            {editTarget && (
+                <EditRFIModal
+                    key={editTarget.id}
+                    rfi={editTarget}
+                    projectFields={projectFields}
+                    orderedColumns={orderedTableColumns}
+                    onSave={handleSaveEdit}
+                    onClose={() => setEditTarget(null)}
+                />
+            )}
 
-                {revisionTarget && (
-                    <CreateRevisionModal
-                        parentRfi={revisionTarget}
-                        onClose={() => setRevisionTarget(null)}
-                        onSuccess={() => setActiveTab('daily')}
-                    />
-                )}
-            </main>
+            {revisionTarget && (
+                <CreateRevisionModal
+                    parentRfi={revisionTarget}
+                    onClose={() => setRevisionTarget(null)}
+                    onSuccess={() => setActiveTab('daily')}
+                />
+            )}
         </div>
     );
 }

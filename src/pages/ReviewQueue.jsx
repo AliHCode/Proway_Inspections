@@ -712,120 +712,6 @@ export default function ReviewQueue() {
                     </div>
                 </div>
 
-                {/* Filter Sidebar Drawer (V44) */}
-                <div 
-                    className={`filter-sidebar-overlay ${filterPopoverOpen ? 'open' : ''}`}
-                    onClick={() => setFilterPopoverOpen(false)}
-                />
-                <div className={`review-filter-sidebar ${filterPopoverOpen ? 'open' : ''}`}>
-                    <div className="rfp-header">
-                        <h3>Filters</h3>
-                        <button type="button" className="rfp-close-btn" onClick={() => setFilterPopoverOpen(false)}>
-                            <X size={20} />
-                        </button>
-                    </div>
-
-                    <div className="rfp-body">
-                        {/* Status Quick Filters */}
-                        <div className="rfp-section">
-                            <label className="rfp-section-label">Quick Status</label>
-                            <div className="rfp-status-grid">
-                                <button
-                                    className={`rfp-status-btn ${filter === 'to_review' && !showAllToday ? 'active' : ''}`}
-                                    onClick={() => { setFilter('to_review'); setShowAllToday(false); }}
-                                >
-                                    <span className="dot pending"></span> To Review ({queue.all.length})
-                                </button>
-                                <button
-                                    className={`rfp-status-btn ${filter === 'approved' && !showAllToday ? 'active' : ''}`}
-                                    onClick={() => { setFilter('approved'); setShowAllToday(false); }}
-                                >
-                                    <span className="dot approved"></span> Approved ({todayApproved.length})
-                                </button>
-                                <button
-                                    className={`rfp-status-btn ${filter === 'conditional' && !showAllToday ? 'active' : ''}`}
-                                    onClick={() => { setFilter('conditional'); setShowAllToday(false); }}
-                                >
-                                    <span className="dot warning"></span> Conditional ({todayConditional.length})
-                                </button>
-                                <button
-                                    className={`rfp-status-btn ${filter === 'rejected' && !showAllToday ? 'active' : ''}`}
-                                    onClick={() => { setFilter('rejected'); setShowAllToday(false); }}
-                                >
-                                    <span className="dot rejected"></span> Rejected ({todayRejected.length})
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Advanced Toggles */}
-                        <div className="rfp-section">
-                            <label className="rfp-section-label">Options</label>
-                            <div className="rfp-toggle-row">
-                                <button
-                                    className={`rfp-toggle-btn ${filter === 'my_assigned' ? 'active' : ''}`}
-                                    onClick={() => setFilter(prev => prev === 'my_assigned' ? 'to_review' : 'my_assigned')}
-                                >
-                                    <span>Assigned to Me ({queue.all.filter(r => r.assignedTo === user.id).length})</span>
-                                </button>
-                                <button
-                                    className={`rfp-toggle-btn ${showAllToday ? 'active' : ''}`}
-                                    onClick={() => setShowAllToday(prev => !prev)}
-                                >
-                                    <span>Show All for Today</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Column Filters */}
-                        <div className="rfp-section">
-                            <label className="rfp-section-label">Filter by Column</label>
-                            <select
-                                className="rfp-select"
-                                value={selectedFilterColumn}
-                                onChange={(e) => {
-                                    setSelectedFilterColumn(e.target.value);
-                                    setFilterValueSearch('');
-                                }}
-                            >
-                                {filterableColumns.map((col) => (
-                                    <option key={col.field_key} value={col.field_key}>{col.field_name}</option>
-                                ))}
-                            </select>
-
-                            <div className="rfp-search-wrap">
-                                <input
-                                    type="text"
-                                    className="rfp-search-input"
-                                    placeholder="Search values..."
-                                    value={filterValueSearch}
-                                    onChange={(e) => setFilterValueSearch(e.target.value)}
-                                />
-                            </div>
-
-                            <div className="rfp-values-list">
-                                {availableValuesForSelectedColumn.length === 0 ? (
-                                    <div className="rfp-empty">No values found</div>
-                                ) : availableValuesForSelectedColumn.map((value) => (
-                                    <label key={`${selectedFilterColumn}_${value}`} className="rfp-value-item">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedValuesForColumn.includes(value)}
-                                            onChange={() => toggleColumnFilterValue(selectedFilterColumn, value)}
-                                        />
-                                        <span>{value}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="rfp-footer">
-                        <button type="button" className="btn btn-sm btn-ghost" style={{ width: '100%' }} onClick={clearAllColumnFilters}>Clear All Column Filters</button>
-                        <button type="button" className="btn btn-primary" style={{ borderRadius: '12px', padding: '0.85rem' }} onClick={() => setFilterPopoverOpen(false)}>Apply Filters</button>
-                    </div>
-                </div>
-
-
                 {activeFilterEntries.length > 0 && (
                     <div className="review-active-filters">
                         {activeFilterEntries.map(([fieldKey, values]) => (
@@ -876,7 +762,7 @@ export default function ReviewQueue() {
                                 <thead>
                                     <tr>
                                         <th className="col-serial" style={{ width: '40px' }}>
-                                            {(filter === 'to_review' || filter === 'my_assigned') && (
+                                            {(filter === 'to_review' || filter === 'my_assigned' || filter === 'conditional' || filter === 'approved' || filter === 'rejected') && (
                                                 <input
                                                     type="checkbox"
                                                     checked={selectedRfiIds.length > 0 && selectedRfiIds.length === filteredItems.length}
@@ -901,7 +787,7 @@ export default function ReviewQueue() {
                                                 className={`${isCarryover ? 'carryover-row ' : ''}${focusedRfiId === rfi.id ? 'notification-focus-row' : ''}`.trim()}
                                             >
                                                 <td className="col-serial">
-                                                    {(filter === 'to_review' || filter === 'my_assigned') && (
+                                                    {(filter === 'to_review' || filter === 'my_assigned' || filter === 'conditional' || filter === 'approved' || filter === 'rejected') && (
                                                         <input
                                                             type="checkbox"
                                                             checked={selectedRfiIds.includes(rfi.id)}
@@ -936,94 +822,207 @@ export default function ReviewQueue() {
                         </div>
                     </div>
                 )}
+            </main>
 
-                {isFullscreen && (
-                    <div className="landscape-hint">
-                        <RotateCcw size={16} /> <span>Rotate device for landscape view</span>
-                    </div>
-                )}
+            {/* Filter Sidebar Drawer (V44) - Moved outside main to avoid transform clipping */}
+            <div 
+                className={`filter-sidebar-overlay ${filterPopoverOpen ? 'open' : ''}`}
+                onClick={() => setFilterPopoverOpen(false)}
+            />
+            <div className={`review-filter-sidebar ${filterPopoverOpen ? 'open' : ''}`}>
+                <div className="rfp-header">
+                    <h3>Filters</h3>
+                    <button type="button" className="rfp-close-btn" onClick={() => setFilterPopoverOpen(false)}>
+                        <X size={20} />
+                    </button>
+                </div>
 
-                {/* Detail & Comments Modal */}
-                {detailTarget && (
-                    <RFIDetailModal
-                        key={detailTarget.id}
-                        rfi={detailTarget}
-                        onClose={() => setDetailTarget(null)}
-                        externalScrollTrigger={scrollTrigger}
-                    />
-                )}
-
-                {/* Inline Widgets */}
-                {approveTarget && (
-                    <ApproveModal
-                        key={approveTarget.id}
-                        rfi={approveTarget}
-                        mode={approveMode}
-                        contractors={contractors}
-                        onApprove={handleApprove}
-                        onClose={() => setApproveTarget(null)}
-                    />
-                )}
-
-                {rejectTarget && (
-                    <RejectModal
-                        key={rejectTarget.id}
-                        rfi={rejectTarget}
-                        onReject={handleReject}
-                        contractors={contractors}
-                        onClose={() => setRejectTarget(null)}
-                    />
-                )}
-                {cancelTarget && (
-                    <CancelModal
-                        key={cancelTarget.id}
-                        isOpen={!!cancelTarget}
-                        rfi={cancelTarget}
-                        onConfirm={(reason) => handleCancel(cancelTarget.id, reason)}
-                        onClose={() => setCancelTarget(null)}
-                    />
-                )}
-
-                {/* Lightbox for Images */}
-                {selectedImages && (
-                    <div className="modal-overlay" onClick={() => setSelectedImages(null)}>
-                        <div className="modal lightbox" onClick={e => e.stopPropagation()}>
-                            <div className="modal-header">
-                                <h3>Attachments ({selectedImages.length})</h3>
-                                <button className="btn-close" onClick={() => setSelectedImages(null)}>
-                                    <X size={20} />
-                                </button>
-                            </div>
-                            <div className="lightbox-content">
-                                {selectedImages.map((url, idx) => (
-                                    <div key={idx} className="lightbox-image-wrapper">
-                                        <img src={url} alt={`Attachment ${idx + 1}`} className="lightbox-image" />
-                                        <a href={url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-ghost lightbox-download">
-                                            Open Full Size
-                                        </a>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Batch Action Bar */}
-                {selectedRfiIds.length > 0 && (
-                    <div className="batch-action-bar">
-                        <div className="batch-action-selected">
-                            <span className="selected-count">{selectedRfiIds.length} Selected</span>
-                            <button className="btn btn-sm btn-ghost clear-btn" onClick={() => setSelectedRfiIds([])}>Clear</button>
-                        </div>
-                        <div className="batch-divider"></div>
-                        <div className="batch-action-ops">
-                            <button className="btn btn-primary approve-btn" onClick={handleBulkApprove}>
-                                <CheckCircle size={18} /> Bulk Approve
+                <div className="rfp-body">
+                    {/* Status Quick Filters */}
+                    <div className="rfp-section">
+                        <label className="rfp-section-label">Quick Status</label>
+                        <div className="rfp-status-grid">
+                            <button
+                                className={`rfp-status-btn ${filter === 'to_review' && !showAllToday ? 'active' : ''}`}
+                                onClick={() => { setFilter('to_review'); setShowAllToday(false); }}
+                            >
+                                <span className="dot pending"></span> To Review ({queue.all.length})
+                            </button>
+                            <button
+                                className={`rfp-status-btn ${filter === 'approved' && !showAllToday ? 'active' : ''}`}
+                                onClick={() => { setFilter('approved'); setShowAllToday(false); }}
+                            >
+                                <span className="dot approved"></span> Approved ({todayApproved.length})
+                            </button>
+                            <button
+                                className={`rfp-status-btn ${filter === 'conditional' && !showAllToday ? 'active' : ''}`}
+                                onClick={() => { setFilter('conditional'); setShowAllToday(false); }}
+                            >
+                                <span className="dot warning"></span> Conditional ({todayConditional.length})
+                            </button>
+                            <button
+                                className={`rfp-status-btn ${filter === 'rejected' && !showAllToday ? 'active' : ''}`}
+                                onClick={() => { setFilter('rejected'); setShowAllToday(false); }}
+                            >
+                                <span className="dot rejected"></span> Rejected ({todayRejected.length})
                             </button>
                         </div>
                     </div>
-                )}
-            </main>
+
+                    {/* Advanced Toggles */}
+                    <div className="rfp-section">
+                        <label className="rfp-section-label">Options</label>
+                        <div className="rfp-toggle-row">
+                            <button
+                                className={`rfp-toggle-btn ${filter === 'my_assigned' ? 'active' : ''}`}
+                                onClick={() => setFilter(prev => prev === 'my_assigned' ? 'to_review' : 'my_assigned')}
+                            >
+                                <span>Assigned to Me ({queue.all.filter(r => r.assignedTo === user.id).length})</span>
+                            </button>
+                            <button
+                                className={`rfp-toggle-btn ${showAllToday ? 'active' : ''}`}
+                                onClick={() => setShowAllToday(prev => !prev)}
+                            >
+                                <span>Show All for Today</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Column Filters */}
+                    <div className="rfp-section">
+                        <label className="rfp-section-label">Filter by Column</label>
+                        <select
+                            className="rfp-select"
+                            value={selectedFilterColumn}
+                            onChange={(e) => {
+                                setSelectedFilterColumn(e.target.value);
+                                setFilterValueSearch('');
+                            }}
+                        >
+                            {filterableColumns.map((col) => (
+                                <option key={col.field_key} value={col.field_key}>{col.field_name}</option>
+                            ))}
+                        </select>
+
+                        <div className="rfp-search-wrap">
+                            <input
+                                type="text"
+                                className="rfp-search-input"
+                                placeholder="Search values..."
+                                value={filterValueSearch}
+                                onChange={(e) => setFilterValueSearch(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="rfp-values-list">
+                            {availableValuesForSelectedColumn.length === 0 ? (
+                                <div className="rfp-empty">No values found</div>
+                            ) : availableValuesForSelectedColumn.map((value) => (
+                                <label key={`${selectedFilterColumn}_${value}`} className="rfp-value-item">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedValuesForColumn.includes(value)}
+                                        onChange={() => toggleColumnFilterValue(selectedFilterColumn, value)}
+                                    />
+                                    <span>{value}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="rfp-footer">
+                    <button type="button" className="btn btn-sm btn-ghost" style={{ width: '100%' }} onClick={clearAllColumnFilters}>Clear All Column Filters</button>
+                    <button type="button" className="btn btn-primary" style={{ borderRadius: '12px', padding: '0.85rem' }} onClick={() => setFilterPopoverOpen(false)}>Apply Filters</button>
+                </div>
+            </div>
+
+            {isFullscreen && (
+                <div className="landscape-hint">
+                    <RotateCcw size={16} /> <span>Rotate device for landscape view</span>
+                </div>
+            )}
+
+            {/* Detail & Comments Modal */}
+            {detailTarget && (
+                <RFIDetailModal
+                    key={detailTarget.id}
+                    rfi={detailTarget}
+                    onClose={() => setDetailTarget(null)}
+                    externalScrollTrigger={scrollTrigger}
+                />
+            )}
+
+            {/* Inline Widgets */}
+            {approveTarget && (
+                <ApproveModal
+                    key={approveTarget.id}
+                    rfi={approveTarget}
+                    mode={approveMode}
+                    contractors={contractors}
+                    onApprove={handleApprove}
+                    onClose={() => setApproveTarget(null)}
+                />
+            )}
+
+            {rejectTarget && (
+                <RejectModal
+                    key={rejectTarget.id}
+                    rfi={rejectTarget}
+                    onReject={handleReject}
+                    contractors={contractors}
+                    onClose={() => setRejectTarget(null)}
+                />
+            )}
+            {cancelTarget && (
+                <CancelModal
+                    key={cancelTarget.id}
+                    isOpen={!!cancelTarget}
+                    rfi={cancelTarget}
+                    onConfirm={(reason) => handleCancel(cancelTarget.id, reason)}
+                    onClose={() => setCancelTarget(null)}
+                />
+            )}
+
+            {/* Lightbox for Images */}
+            {selectedImages && (
+                <div className="modal-overlay" onClick={() => setSelectedImages(null)}>
+                    <div className="modal lightbox" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>Attachments ({selectedImages.length})</h3>
+                            <button className="btn-close" onClick={() => setSelectedImages(null)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="lightbox-content">
+                            {selectedImages.map((url, idx) => (
+                                <div key={idx} className="lightbox-image-wrapper">
+                                    <img src={url} alt={`Attachment ${idx + 1}`} className="lightbox-image" />
+                                    <a href={url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-ghost lightbox-download">
+                                        Open Full Size
+                                    </a>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Batch Action Bar */}
+            {selectedRfiIds.length > 0 && (
+                <div className="batch-action-bar">
+                    <div className="batch-action-selected">
+                        <span className="selected-count">{selectedRfiIds.length} Selected</span>
+                        <button className="btn btn-sm btn-ghost clear-btn" onClick={() => setSelectedRfiIds([])}>Clear</button>
+                    </div>
+                    <div className="batch-divider"></div>
+                    <div className="batch-action-ops">
+                        <button className="btn btn-primary approve-btn" onClick={handleBulkApprove}>
+                            <CheckCircle size={18} /> Bulk Approve
+                        </button>
+                    </div>
+                </div>
+            )}
             <style>
                 {`
                 @keyframes slideUp {

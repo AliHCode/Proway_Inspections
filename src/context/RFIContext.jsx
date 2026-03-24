@@ -959,6 +959,10 @@ export function RFIProvider({ children }) {
                             images: mergedImages,
                         }).eq('id', payload.rfiId);
                         if (error) throw error;
+
+                        if (targetRfi) {
+                            await notifyContractorAboutStatusChange(targetRfi, RFI_STATUS.APPROVED, payload.remarks);
+                        }
                     }
 
                     if (item.type === 'reject_rfi') {
@@ -979,6 +983,10 @@ export function RFIProvider({ children }) {
                             assigned_to: payload.assignedTo || targetRfi?.assignedTo
                         }).eq('id', payload.rfiId);
                         if (error) throw error;
+
+                        if (targetRfi) {
+                            await notifyContractorAboutStatusChange(targetRfi, RFI_STATUS.REJECTED, payload.remarks);
+                        }
                     }
 
                     await removePendingAction(item.id);
@@ -1048,31 +1056,7 @@ export function RFIProvider({ children }) {
             }).eq('id', rfiId);
             if (error) throw error;
 
-            // Notify Contractor
-            const rfiNo = targetRfi.customFields?.rfi_no || targetRfi.serialNo;
-            await createNotification(
-                targetRfi.filedBy,
-                `RFI Approved: #${rfiNo}`,
-                `Remarks: ${remarks?.trim() || 'No remarks provided.'}`,
-                rfiId
-            );
-
-            const mentionMatches = (remarks || '').match(/@([a-z0-9._-]+)/gi) || [];
-            const mentionKeys = new Set(mentionMatches.map((m) => m.slice(1).toLowerCase()));
-            const taggedContractors = contractors.filter((c) =>
-                mentionKeys.has(c.name.toLowerCase().replace(/\s+/g, ''))
-            );
-
-            for (const tagged of taggedContractors) {
-                if (tagged.id !== targetRfi.filedBy) {
-                    await createNotification(
-                        tagged.id,
-                        `RFI Approved: #${rfiNo} (TAG)`,
-                        `Remarks: ${remarks.trim()}`,
-                        rfiId
-                    );
-                }
-            }
+            await notifyContractorAboutStatusChange(targetRfi, RFI_STATUS.APPROVED, remarks);
 
             await logAuditEvent(rfiId, 'approved', {
                 remarks: remarks?.trim() || null,
@@ -1140,30 +1124,7 @@ export function RFIProvider({ children }) {
             }).eq('id', rfiId);
             if (error) throw error;
 
-            // Notify Contractor
-            const rfiNo = targetRfi.customFields?.rfi_no || targetRfi.serialNo;
-            await createNotification(
-                targetRfi.filedBy,
-                `RFI Rejected: #${rfiNo}`,
-                `Remarks: ${remarks || 'No remarks provided.'}`,
-                rfiId
-            );
-            const mentionMatches = remarks.match(/@([a-z0-9._-]+)/gi) || [];
-            const mentionKeys = new Set(mentionMatches.map((m) => m.slice(1).toLowerCase()));
-            const taggedContractors = contractors.filter((c) =>
-                mentionKeys.has(c.name.toLowerCase().replace(/\s+/g, ''))
-            );
-            for (const tagged of taggedContractors) {
-                if (tagged.id !== targetRfi.filedBy) {
-                    await createNotification(
-                        tagged.id,
-                        `RFI Rejected: #${rfiNo} (TAG)`,
-                        `Remarks: ${remarks}`,
-                        rfiId
-                    );
-                }
-            }
-
+            await notifyContractorAboutStatusChange(targetRfi, RFI_STATUS.REJECTED, remarks);
             await logAuditEvent(rfiId, 'rejected', { remarks });
             await fetchAllRFIs();
         } catch (error) {
@@ -1222,15 +1183,7 @@ export function RFIProvider({ children }) {
             
             if (error) throw error;
 
-            // Notify Contractor
-            const rfiNo = targetRfi.customFields?.rfi_no || targetRfi.serialNo;
-            await createNotification(
-                targetRfi.filedBy,
-                `RFI Cancelled: #${rfiNo}`,
-                `Reason: ${reason}`,
-                rfiId
-            );
-
+            await notifyContractorAboutStatusChange(targetRfi, RFI_STATUS.CANCELLED, reason);
             await logAuditEvent(rfiId, 'cancelled', { reason });
             await fetchAllRFIs();
         } catch (error) {
@@ -1260,12 +1213,7 @@ export function RFIProvider({ children }) {
             // Notify all contractors involved
             const targetRfis = rfis.filter(r => rfiIds.includes(r.id));
             for (const rfi of targetRfis) {
-                await createNotification(
-                    rfi.filedBy,
-                    `RFI Approved: #${rfi.customFields?.rfi_no || rfi.serialNo}`,
-                    'Remarks: Approved via bulk operation.',
-                    rfi.id
-                );
+                await notifyContractorAboutStatusChange(rfi, RFI_STATUS.APPROVED, 'Approved via bulk operation.');
                 await logAuditEvent(rfi.id, 'approved', { bulk: true });
             }
 
@@ -1641,50 +1589,10 @@ export function RFIProvider({ children }) {
             const { error } = await supabase.from('rfis').update(dbUpdates).eq('id', rfiId);
             if (error) throw error;
 
-            // --- Notification Trigger Logic (if status changed to approved/conditional) ---
-            const statusChanged = updates.status && updates.status !== current?.status;
-            if (statusChanged && (updates.status === RFI_STATUS.APPROVED || updates.status === RFI_STATUS.CONDITIONAL_APPROVE)) {
-                const rfiNo = current.customFields?.rfi_no || current.serialNo;
-                const displayStatus = updates.status === RFI_STATUS.CONDITIONAL_APPROVE ? 'Cond. Approved' : 'Approved';
-                
-                // If resolving conditions (Conditional -> Approved), notify the original reviewer
-                // Otherwise (Pending -> Approved/Conditional), notify the filer
-                const targetUserId = (current.status === RFI_STATUS.CONDITIONAL_APPROVE && updates.status === RFI_STATUS.APPROVED)
-                    ? current.reviewedBy 
-                    : current.filedBy;
-
-                if (targetUserId) {
-                    await createNotification(
-                        targetUserId,
-                        `Status: ${displayStatus} (#${rfiNo})`,
-                        `Remarks: ${updates.remarks?.trim() || 'Conditions resolved'}.`,
-                        rfiId
-                    );
-                }
-
-                // Handle Tags in remarks
-                const mentionMatches = (updates.remarks || '').match(/@([a-z0-9._-]+)/gi) || [];
-                const mentionKeys = new Set(mentionMatches.map((m) => m.slice(1).toLowerCase()));
-                if (mentionKeys.size > 0) {
-                    const taggedContractors = contractors.filter((c) =>
-                        mentionKeys.has(c.name.toLowerCase().replace(/\s+/g, ''))
-                    );
-                    const taggedConsultants = consultants.filter((c) =>
-                        mentionKeys.has(c.name.toLowerCase().replace(/\s+/g, ''))
-                    );
-                    const allTagged = [...taggedContractors, ...taggedConsultants];
-
-                    for (const tagged of allTagged) {
-                        if (tagged.id !== targetUserId && tagged.id !== user?.id) {
-                            await createNotification(
-                                tagged.id,
-                                `Status: ${displayStatus} (#${rfiNo}) (TAG)`,
-                                `Remarks: ${updates.remarks.trim()}`,
-                                rfiId
-                            );
-                        }
-                    }
-                }
+            // --- Notification Trigger Logic (if status changed) ---
+            const statusChangedForNotification = updates.status && updates.status !== current?.status;
+            if (statusChangedForNotification) {
+                await notifyContractorAboutStatusChange(current, updates.status, updates.remarks || '');
             }
 
             await logAuditEvent(rfiId, 'updated', { 
@@ -1903,6 +1811,58 @@ export function RFIProvider({ children }) {
             });
         } catch (error) {
             console.error("Error creating notification:", error);
+        }
+    }
+
+    /**
+     * Centralized helper to notify the contractor (and tagged users) about a status change.
+     */
+    async function notifyContractorAboutStatusChange(rfi, newStatus, remarks = '') {
+        if (!rfi || !newStatus) return;
+
+        const rfiNo = rfi.customFields?.rfi_no || rfi.serialNo || '—';
+        let displayStatus = 'Updated';
+
+        switch (newStatus) {
+            case RFI_STATUS.APPROVED: displayStatus = 'Approved'; break;
+            case RFI_STATUS.REJECTED: displayStatus = 'Rejected'; break;
+            case RFI_STATUS.CONDITIONAL_APPROVE: displayStatus = 'Conditionally Approved'; break;
+            case RFI_STATUS.INFO_REQUESTED: displayStatus = 'Revision Required'; break;
+            case RFI_STATUS.CANCELLED: displayStatus = 'Cancelled'; break;
+        }
+
+        // 1. Notify the Filer (Contractor)
+        const targetUserId = rfi.filedBy;
+        if (targetUserId) {
+            await createNotification(
+                targetUserId,
+                `RFI ${displayStatus}: #${rfiNo}`,
+                `Remarks: ${remarks?.trim() || 'No additional remarks.'}`,
+                rfi.id
+            );
+        }
+
+        // 2. Handle Tags/Mentions
+        const mentionMatches = (remarks || '').match(/@([a-z0-9._-]+)/gi) || [];
+        const mentionKeys = new Set(mentionMatches.map((m) => m.slice(1).toLowerCase()));
+
+        if (mentionKeys.size > 0) {
+            const allMembers = [...contractors, ...consultants];
+            const taggedMembers = allMembers.filter((m) =>
+                mentionKeys.has(m.name.toLowerCase().replace(/\s+/g, ''))
+            );
+
+            for (const tagged of taggedMembers) {
+                // Don't notify the filer twice, and don't notify the person taking the action (current user)
+                if (tagged.id !== targetUserId && tagged.id !== user?.id) {
+                    await createNotification(
+                        tagged.id,
+                        `RFI ${displayStatus}: #${rfiNo} (TAG)`,
+                        `Remarks: ${remarks.trim()}`,
+                        rfi.id
+                    );
+                }
+            }
         }
     }
 
