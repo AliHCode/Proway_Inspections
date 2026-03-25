@@ -13,7 +13,7 @@ import CancelModal from '../components/CancelModal';
 import RFIDetailModal from '../components/RFIDetailModal';
 import UserAvatar from '../components/UserAvatar';
 import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
-import { CheckCircle, XCircle, MessageSquare, Ban, X, FileDown, Table, ClipboardList, Filter, Maximize2, Minimize2, RotateCcw, User } from 'lucide-react';
+import { CheckCircle, XCircle, Ban, X, FileDown, Table, ClipboardList, Filter, Maximize2, Minimize2, RotateCcw, User } from 'lucide-react';
 
 export default function ReviewQueue() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -477,136 +477,108 @@ export default function ReviewQueue() {
     }
 
     function renderReviewActionCell(rfi) {
-        const canEditThisRfi = canUserEditRfi(rfi);
-        const canChatThisRfi = canUserDiscussRfi(rfi);
+        const isAssignee = rfi.assignedTo === user.id;
+        const isReviewer = rfi.reviewedBy === user.id;
+        const isNotAssigned = !rfi.assignedTo && !rfi.reviewedBy;
+        
+        // SECURITY: If the RFI is assigned to/reviewed by someone else, show NOTHING.
+        // If it's your assignment OR you were the one who reviewed it, you get the buttons.
+        if (!isAssignee && !isReviewer && !isNotAssigned) {
+            return null;
+        }
+
         const showFullApprove = rfi.status !== 'approved';
         const showConditionalApprove = rfi.status !== 'conditional_approve';
         const showRejectAction = rfi.status !== 'rejected';
         const showCancelAction = rfi.status !== 'cancelled';
 
-        const isActionable = filterOptions.status === 'to_review' || filterOptions.status === 'all';
-
-        if (isActionable) {
-            return (
-                <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
-                    {canEditThisRfi && (
-                        <>
-                            {showFullApprove && (
-                                <button
-                                    onClick={() => {
-                                        setApproveMode('full');
-                                        setApproveTarget(rfi);
-                                        setRejectTarget(null);
-                                        setDetailTarget(null);
-                                    }}
-                                    title="Full Approve"
-                                    style={{
-                                        background: 'transparent', border: '1.5px solid #d1d5db',
-                                        borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
-                                        display: 'flex', alignItems: 'center', gap: '3px',
-                                        color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
-                                        fontFamily: 'inherit', transition: 'all 0.15s',
-                                    }}
-                                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-success)'; e.currentTarget.style.color = 'var(--clr-success)'; e.currentTarget.style.background = 'var(--clr-success-bg)'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
-                                >
-                                    <CheckCircle size={15} />
-                                </button>
-                            )}
-                            {showConditionalApprove && (
-                                <button
-                                    onClick={() => {
-                                        setApproveMode('conditional');
-                                        setApproveTarget(rfi);
-                                        setRejectTarget(null);
-                                        setDetailTarget(null);
-                                    }}
-                                    title="Conditional Approve"
-                                    style={{
-                                        background: 'transparent', border: '1.5px solid #d1d5db',
-                                        borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
-                                        display: 'flex', alignItems: 'center', gap: '3px',
-                                        color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
-                                        fontFamily: 'inherit', transition: 'all 0.15s',
-                                    }}
-                                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-warning)'; e.currentTarget.style.color = 'var(--clr-warning)'; e.currentTarget.style.background = 'var(--clr-warning-bg)'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
-                                >
-                                    <CheckCircle size={15} />
-                                    <span style={{ fontSize: '10px', fontWeight: 700 }}>COND.</span>
-                                </button>
-                            )}
-                            {showCancelAction && (
-                                <button
-                                    onClick={() => {
-                                        setCancelTarget(rfi);
-                                        setDetailTarget(null);
-                                    }}
-                                    title="Cancel RFI (Terminal)"
-                                    style={{
-                                        background: 'transparent', border: '1.5px solid #d1d5db',
-                                        borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
-                                        display: 'flex', alignItems: 'center', gap: '3px',
-                                        color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
-                                        fontFamily: 'inherit', transition: 'all 0.15s',
-                                    }}
-                                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#4b5563'; e.currentTarget.style.color = '#4b5563'; e.currentTarget.style.background = '#f3f4f6'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.background = 'transparent'; }}
-                                >
-                                    <Ban size={15} />
-                                </button>
-                            )}
-                            {showRejectAction && (
-                                <button
-                                    onClick={() => {
-                                        setRejectTarget(rfi);
-                                        setDetailTarget(null);
-                                    }}
-                                    title="Reject"
-                                    style={{
-                                        background: 'transparent', border: '1.5px solid #d1d5db',
-                                        borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
-                                        display: 'flex', alignItems: 'center', gap: '3px',
-                                        color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
-                                        fontFamily: 'inherit', transition: 'all 0.15s',
-                                    }}
-                                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-main)'; e.currentTarget.style.background = 'var(--clr-bg-hover)'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
-                                >
-                                    <XCircle size={15} />
-                                </button>
-                            )}
-                        </>
-                    )}
-                    {canChatThisRfi && (
-                        <button
-                            onClick={() => {
-                                setDetailTarget(rfi);
-                                setRejectTarget(null);
-                                setScrollTrigger(prev => prev + 1);
-                                setTimeout(() => scrollToPageBottom(), 80);
-                            }}
-                            title="Chat"
-                            style={{
-                                background: 'transparent', border: '1.5px solid #d1d5db',
-                                borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
-                                display: 'flex', alignItems: 'center', gap: '3px',
-                                color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
-                                fontFamily: 'inherit', transition: 'all 0.15s',
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = '#9ca3af'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = '#f9fafb'; }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.background = 'transparent'; }}
-                        >
-                            <ClipboardList size={15} />
-                        </button>
-                    )}
-                </div>
-            );
-        }
-
         return (
             <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', alignItems: 'center' }}>
-                <StatusBadge status={rfi.status} />
+                {showFullApprove && (
+                    <button
+                        onClick={() => {
+                            setApproveMode('full');
+                            setApproveTarget(rfi);
+                            setRejectTarget(null);
+                            setDetailTarget(null);
+                        }}
+                        title="Approve"
+                        style={{
+                            background: 'transparent', border: '1.5px solid #d1d5db',
+                            borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '3px',
+                            color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
+                            fontFamily: 'inherit', transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-success)'; e.currentTarget.style.color = 'var(--clr-success)'; e.currentTarget.style.background = 'var(--clr-success-bg)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+                    >
+                        <CheckCircle size={15} />
+                    </button>
+                )}
+                {showConditionalApprove && (
+                    <button
+                        onClick={() => {
+                            setApproveMode('conditional');
+                            setApproveTarget(rfi);
+                            setRejectTarget(null);
+                            setDetailTarget(null);
+                        }}
+                        title="Conditional Approve"
+                        style={{
+                            background: 'transparent', border: '1.5px solid #d1d5db',
+                            borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '3px',
+                            color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
+                            fontFamily: 'inherit', transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-warning)'; e.currentTarget.style.color = 'var(--clr-warning)'; e.currentTarget.style.background = 'var(--clr-warning-bg)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+                    >
+                        <CheckCircle size={15} />
+                        <span style={{ fontSize: '10px', fontWeight: 700 }}>COND.</span>
+                    </button>
+                )}
+                {showRejectAction && (
+                    <button
+                        onClick={() => {
+                            setRejectTarget(rfi);
+                            setDetailTarget(null);
+                        }}
+                        title="Reject"
+                        style={{
+                            background: 'transparent', border: '1.5px solid #d1d5db',
+                            borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '3px',
+                            color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
+                            fontFamily: 'inherit', transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-danger)'; e.currentTarget.style.color = 'var(--clr-danger)'; e.currentTarget.style.background = 'var(--clr-danger-bg)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+                    >
+                        <XCircle size={15} />
+                    </button>
+                )}
+                {showCancelAction && (
+                    <button
+                        onClick={() => {
+                            setCancelTarget(rfi);
+                            setDetailTarget(null);
+                        }}
+                        title="Cancel (Terminal)"
+                        style={{
+                            background: 'transparent', border: '1.5px solid #d1d5db',
+                            borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '3px',
+                            color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
+                            fontFamily: 'inherit', transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = '#4b5563'; e.currentTarget.style.color = '#4b5563'; e.currentTarget.style.background = '#f3f4f6'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+                    >
+                        <Ban size={15} />
+                    </button>
+                )}
                 <button
                     onClick={() => {
                         setDetailTarget(rfi);
@@ -614,7 +586,7 @@ export default function ReviewQueue() {
                         setScrollTrigger(prev => prev + 1);
                         setTimeout(() => scrollToPageBottom(), 80);
                     }}
-                    title="Open Discussion"
+                    title="View Review & Details"
                     style={{
                         background: 'transparent', border: '1.5px solid #d1d5db',
                         borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
@@ -623,9 +595,9 @@ export default function ReviewQueue() {
                         fontFamily: 'inherit', transition: 'all 0.15s',
                     }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = '#9ca3af'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = '#f9fafb'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.background = 'transparent'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
                 >
-                    <MessageSquare size={15} />
+                    <ClipboardList size={15} />
                 </button>
             </div>
         );

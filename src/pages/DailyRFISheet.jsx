@@ -520,7 +520,7 @@ export default function DailyRFISheet() {
                                         <Plus size={14} />
                                     </button>
                                 )}
-                                <button className="btn btn-sm btn-ghost" onClick={() => { setDetailTarget(rfi); setEditTarget(null); setMarkupTarget(null); scrollToPageBottom(); }} title="Open Discussion">
+                                <button className="btn btn-sm btn-ghost" onClick={() => { setDetailTarget(rfi); setEditTarget(null); setMarkupTarget(null); scrollToPageBottom(); }} title="View Review & Details">
                                     <ClipboardList size={14} />
                                 </button>
                             </div>
@@ -531,7 +531,7 @@ export default function DailyRFISheet() {
                 return (
                     <td key={col.field_key} style={style}>
                         <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
-                            <button className="btn btn-sm btn-ghost" onClick={() => { setDetailTarget(rfi); setEditTarget(null); setMarkupTarget(null); scrollToPageBottom(); }} title="Open Discussion">
+                            <button className="btn btn-sm btn-ghost" onClick={() => { setDetailTarget(rfi); setEditTarget(null); setMarkupTarget(null); scrollToPageBottom(); }} title="View Review & Details">
                                 <ClipboardList size={14} />
                             </button>
                             {rfi.status === RFI_STATUS.REJECTED && (

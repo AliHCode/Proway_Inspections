@@ -283,16 +283,14 @@ export default function RejectionJourneyBoard() {
                         {exportRfis.length > 0 && (
                             <div className="rj-export-btns">
                                 <button
-                                    className="btn btn-sm"
-                                    style={{ backgroundColor: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
+                                    className="btn btn-sm btn-export"
                                     onClick={() => exportToPDF(exportRfis, `Rejected_RFIs_${showAll ? 'All' : currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template)}
                                     title="Export to PDF"
                                 >
                                     <FileDown size={17} /> PDF
                                 </button>
                                 <button
-                                    className="btn btn-sm"
-                                    style={{ backgroundColor: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
+                                    className="btn btn-sm btn-export"
                                     onClick={() => exportToExcel(exportRfis, `Rejected_RFIs_${showAll ? 'All' : currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template)}
                                     title="Export to Excel"
                                 >
@@ -392,6 +390,22 @@ export default function RejectionJourneyBoard() {
                 .rj-export-btns {
                     display: flex;
                     gap: 0.5rem;
+                }
+                .btn-export {
+                    background-color: var(--clr-bg-elevated);
+                    color: var(--clr-brand-primary);
+                    border: 1px solid var(--clr-border);
+                    border-radius: 0.75rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    font-weight: 600;
+                    padding: 0.45rem 1rem;
+                    transition: all 0.2s;
+                }
+                .btn-export:hover {
+                    border-color: var(--clr-brand-primary);
+                    background: var(--clr-bg-hover);
                 }
                 .rj-subtitle {
                     font-size: 0.85rem;
