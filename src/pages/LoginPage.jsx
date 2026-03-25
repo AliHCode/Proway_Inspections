@@ -94,8 +94,9 @@ export default function LoginPage() {
                             </p>
                         </div>
                     </div>
-                    <div className="auth-visual-grid"></div>
-                    <div className="auth-visual-glow"></div>
+                    <video autoPlay loop muted playsInline className="auth-branding-video">
+                        <source src="/authpage.mp4" type="video/mp4" />
+                    </video>
                 </div>
 
                 <div className="auth-form-section">
@@ -135,8 +136,9 @@ export default function LoginPage() {
                             </p>
                         </div>
                     </div>
-                    <div className="auth-visual-grid"></div>
-                    <div className="auth-visual-glow"></div>
+                    <video autoPlay loop muted playsInline className="auth-branding-video">
+                        <source src="/authpage.mp4" type="video/mp4" />
+                    </video>
                 </div>
 
                 <div className="auth-form-section">
@@ -312,7 +314,9 @@ export default function LoginPage() {
             </div>
 
             <div className="auth-branding-section">
-                {/* Image only branding */}
+                <video autoPlay loop muted playsInline className="auth-branding-video">
+                    <source src="/authpage.mp4" type="video/mp4" />
+                </video>
             </div>
         </div>
     );

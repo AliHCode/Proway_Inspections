@@ -3369,22 +3369,26 @@ input:checked+.premium-slider:before {
 .auth-branding-section {
   position: relative;
   flex: 1.2;
-  /* Pure image branding - no content padding or flex center */
+  /* Premium video branding - no content padding or flex center */
   padding: 0;
-  background-image: url('/authpage.png');
-  background-size: contain; /* Don't zoom - make it fit */
-  background-position: center;
-  background-repeat: no-repeat;
-  background-color: #f9f7f2; /* Matches container - no blue edges */
-  color: #ffffff;
+  background-color: #000; /* Dark base for video loading */
   overflow: hidden;
-  /* Corners squared for a truly modern edge-to-edge feel */
   border-radius: 0;
-  box-shadow: none;
-  /* Subtle shadow on the left edge */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Overlay block removed for clean image-only display */
+.auth-branding-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.6; /* Muted for background */
+  z-index: 0;
+}
 
 .auth-branding-content {
   position: relative;

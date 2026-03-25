@@ -40,7 +40,9 @@ export default function PendingApproval() {
             </div>
 
             <div className="auth-branding-section">
-                {/* Image only branding */}
+                <video autoPlay loop muted playsInline className="auth-branding-video">
+                    <source src="/authpage.mp4" type="video/mp4" />
+                </video>
             </div>
         </div>
     );
