@@ -19,7 +19,8 @@
     "workbox-strategies": "^7.4.0"
   },
   "dependencies": {
-    "@capacitor/app": "^8.0.1",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/core": "^8.3.0",
     "@supabase/supabase-js": "^2.98.0",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
