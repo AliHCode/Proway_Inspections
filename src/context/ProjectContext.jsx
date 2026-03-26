@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
 import { buildColumnWidthMap, getColumnWidthStyle } from '../utils/tableLayout';
