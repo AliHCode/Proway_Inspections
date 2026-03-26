@@ -22,7 +22,7 @@ export default function DailyRFISheet() {
     const { user } = useAuth();
     const { activeProject, projectFields, orderedTableColumns, getTableColumnStyle, columnWidthMap } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
-    const { createRFI, uploadImages, updateRFI, getRFIsForDate, resubmitRFI, deleteRFI, consultants, rfis, pendingSyncCount, canUserEditRfi } = useRFI();
+    const { createRFI, uploadImages, updateRFI, getRFIsForDate, resubmitRFI, deleteRFI, consultants, rfis, pendingSyncCount, canUserEditRfi, minDate } = useRFI();
     const [currentDate, setCurrentDate] = useState(getToday());
     const [detailTarget, setDetailTarget] = useState(null);
     const [editTarget, setEditTarget] = useState(null);
@@ -760,7 +760,7 @@ export default function DailyRFISheet() {
                                 </button>
                             </div>
                         )}
-                        <DateNavigator currentDate={currentDate} onDateChange={setCurrentDate} showArrows={true} disabled={activeTab === 'rejected' && showAllRejected} />
+                        <DateNavigator currentDate={currentDate} onDateChange={setCurrentDate} minDate={minDate} showArrows={true} disabled={activeTab === 'rejected' && showAllRejected} />
                     </div>
                 </div>
 

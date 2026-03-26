@@ -180,3 +180,13 @@ export function getNextSerialNo(allRfis, date) {
     if (dateRfis.length === 0) return 1;
     return Math.max(...dateRfis.map((r) => r.serialNo)) + 1;
 }
+
+/**
+ * Get the earliest filed date from a list of RFIs
+ */
+export function getEarliestDate(allRfis) {
+    if (!allRfis || allRfis.length === 0) return getToday();
+    const dates = allRfis.map(r => r.filedDate).filter(Boolean);
+    if (dates.length === 0) return getToday();
+    return dates.reduce((min, d) => d < min ? d : min, dates[0]);
+}

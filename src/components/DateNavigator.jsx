@@ -2,19 +2,28 @@ import { useRef } from 'react';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { formatDateDisplay, getToday } from '../utils/rfiLogic';
 
-export default function DateNavigator({ currentDate, onDateChange, showArrows = true, disabled = false }) {
+export default function DateNavigator({ currentDate, onDateChange, minDate, showArrows = true, disabled = false }) {
     const today = getToday();
     const isToday = currentDate === today;
+    const isMinDate = minDate && currentDate <= minDate;
     const dateInputRef = useRef(null);
 
     function adjustDate(days) {
+        if (days < 0 && isMinDate) return;
+        if (days > 0 && isToday) return;
+
         const [year, month, day] = currentDate.split('-').map(Number);
         const d = new Date(year, month - 1, day);
         d.setDate(d.getDate() + days);
         const yStr = d.getFullYear();
         const mStr = String(d.getMonth() + 1).padStart(2, '0');
         const dStr = String(d.getDate()).padStart(2, '0');
-        onDateChange(`${yStr}-${mStr}-${dStr}`);
+        const nextDate = `${yStr}-${mStr}-${dStr}`;
+
+        if (minDate && nextDate < minDate) return;
+        if (nextDate > today) return;
+
+        onDateChange(nextDate);
     }
 
     function goBack() {
@@ -43,9 +52,11 @@ export default function DateNavigator({ currentDate, onDateChange, showArrows = 
         <div className={`date-navigator ${disabled ? 'disabled' : ''}`} style={disabled ? { opacity: 0.6, pointerEvents: 'none', filter: 'grayscale(0.5)' } : {}}>
             {showArrows && (
                 <button 
-                    className="integrated-nav-btn" 
-                    onClick={goBack}
-                    title="Previous Day"
+                    className={`integrated-nav-btn ${isMinDate ? 'disabled' : ''}`} 
+                    onClick={isMinDate ? null : goBack}
+                    disabled={isMinDate}
+                    title={isMinDate ? "Reached the first RFI date" : "Previous Day"}
+                    style={isMinDate ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
                 >
                     <ChevronLeft size={16} />
                 </button>
@@ -78,8 +89,14 @@ export default function DateNavigator({ currentDate, onDateChange, showArrows = 
                 ref={dateInputRef}
                 type="date"
                 value={currentDate}
+                min={minDate}
                 max={today}
-                onChange={(e) => onDateChange(e.target.value)}
+                onChange={(e) => {
+                    const val = e.target.value;
+                    if (minDate && val < minDate) return;
+                    if (val > today) return;
+                    onDateChange(val);
+                }}
                 style={{
                     position: 'absolute',
                     opacity: 0,

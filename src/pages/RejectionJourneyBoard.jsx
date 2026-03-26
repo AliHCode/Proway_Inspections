@@ -173,7 +173,7 @@ function JourneyCard({ chain, resolveName }) {
 /* ─── Main Component ─── */
 
 export default function RejectionJourneyBoard() {
-    const { rfis, consultants } = useRFI();
+    const { rfis, consultants, contractors, minDate } = useRFI();
     const { activeProject, orderedTableColumns, columnWidthMap } = useProject();
     const [currentDate, setCurrentDate] = useState(getToday());
     const [searchQuery, setSearchQuery] = useState('');
@@ -305,7 +305,7 @@ export default function RejectionJourneyBoard() {
                         >
                             All RFI
                         </button>
-                        {!showAll && <DateNavigator currentDate={currentDate} onDateChange={setCurrentDate} showArrows={true} />}
+                        {!showAll && <DateNavigator currentDate={currentDate} onDateChange={setCurrentDate} minDate={minDate} showArrows={true} />}
                     </div>
                 </div>
                 <p className="rj-subtitle">{filteredJourneys.length} of {currentJourneys.length} journeys{showAll ? '' : ` on this date`}</p>

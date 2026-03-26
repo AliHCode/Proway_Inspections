@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { useProject } from './ProjectContext';
 import { useAuth } from './AuthContext';
 import { RFI_STATUS } from '../utils/constants';
-import { getNowLocalISO, getToday } from '../utils/rfiLogic';
+import { getNowLocalISO, getToday, getEarliestDate } from '../utils/rfiLogic';
 import {
     enqueuePendingRFI,
     listPendingRFIs,
@@ -30,9 +30,8 @@ function rfiCacheKey(userId, projectId) {
 
 function normalizeRfiRecord(rfi = {}) {
     const fallbackDate = new Date().toISOString().slice(0, 10);
-    const filedDate = typeof rfi.filedDate === 'string' && rfi.filedDate
-        ? rfi.filedDate
-        : (typeof rfi.originalFiledDate === 'string' && rfi.originalFiledDate ? rfi.originalFiledDate : fallbackDate);
+    const filedDate = rfi.filed_date || rfi.filedDate || rfi.original_filed_date || rfi.originalFiledDate || fallbackDate;
+    const reviewedAt = rfi.reviewed_at || rfi.reviewedAt || null;
 
     return {
         ...rfi,
@@ -42,11 +41,15 @@ function normalizeRfiRecord(rfi = {}) {
         location: rfi.location || rfi.customFields?.location || '',
         inspectionType: rfi.inspectionType || rfi.inspection_type || rfi.customFields?.inspection_type || rfi.customFields?.inspectionType || '',
         filedDate,
-        originalFiledDate: rfi.originalFiledDate || filedDate,
+        originalFiledDate: rfi.original_filed_date || rfi.originalFiledDate || filedDate,
+        reviewedAt,
+        reviewedBy: rfi.reviewed_by || rfi.reviewedBy || null,
+        assignedTo: rfi.assigned_to || rfi.assignedTo || null,
+        assigneeName: rfi.assignee_name || rfi.assigneeName || null,
         status: rfi.status || RFI_STATUS.PENDING,
         images: Array.isArray(rfi.images) ? rfi.images : [],
         parentId: rfi.parent_id || rfi.parentId || rfi.customFields?.parentId || null,
-        customFields: rfi.customFields && typeof rfi.customFields === 'object' ? rfi.customFields : {},
+        customFields: rfi.custom_fields && typeof rfi.custom_fields === 'object' ? rfi.custom_fields : (rfi.customFields && typeof rfi.customFields === 'object' ? rfi.customFields : {}),
     };
 }
 
@@ -95,13 +98,14 @@ function canUserDiscussRfiRecord(rfi, user) {
 }
 
 export function RFIProvider({ children }) {
-    const { activeProject } = useProject();
+    const { activeProject, projects } = useProject();
     const { user } = useAuth();
     const [rfis, setRfis] = useState([]);
     const [loadingRfis, setLoadingRfis] = useState(true);
     const [pendingSyncCount, setPendingSyncCount] = useState(0);
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [lastSyncTime, setLastSyncTime] = useState(null);
+    const [minDate, setMinDate] = useState(getToday());
 
     // Monitoring network status
     useEffect(() => {
@@ -313,6 +317,7 @@ export function RFIProvider({ children }) {
                 }));
                 const normalized = normalizeRfisArray(formatted || []);
                 setRfis(normalized);
+                setMinDate(getEarliestDate(normalized));
                 persistRfiCache(activeProject.id, normalized);
                 setLastSyncTime(new Date());
                 setIsOffline(false);
@@ -345,16 +350,23 @@ export function RFIProvider({ children }) {
         try {
             const { data, error } = await supabase
                 .from('notifications')
-                .select('*')
+                .select('*, rfi:rfi_id(project_id)')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
                 .limit(50);
 
             if (error) throw error;
             
-            // Note: We keep all data but use visibleNotifications for UI.
-            // This allows us to keep the logic simple in deleteAllNotifications
-            setNotifications(data || []);
+            // Filter notifications to only show those where the user is a member of the project.
+            // This prevents "ghost" notifications from projects the user was removed from.
+            const userProjectIds = (projects || []).map(p => p.id);
+            const filteredData = (data || []).filter(n => {
+                // If there's no RFI associated (shouldn't happen), keep it as a fallback
+                if (!n.rfi?.project_id) return true;
+                return userProjectIds.includes(n.rfi.project_id);
+            });
+
+            setNotifications(filteredData);
             setIsOffline(false);
         } catch (error) {
             console.error('Error fetching notifications:', error);
@@ -363,17 +375,25 @@ export function RFIProvider({ children }) {
                     await new Promise(r => setTimeout(r, 1500));
                     const { data: retryData, error: retryError } = await supabase
                         .from('notifications')
-                        .select('*')
+                        .select('*, rfi:rfi_id(project_id)')
                         .eq('user_id', user.id)
                         .order('created_at', { ascending: false })
                         .limit(50);
-                    if (!retryError) setNotifications(retryData || []);
+                    
+                    if (!retryError) {
+                        const userProjectIds = (projects || []).map(p => p.id);
+                        const filteredRetry = (retryData || []).filter(n => {
+                            if (!n.rfi?.project_id) return true;
+                            return userProjectIds.includes(n.rfi.project_id);
+                        });
+                        setNotifications(filteredRetry);
+                    }
                 } catch (retryErr) {
                     console.error('Retry error:', retryErr);
                 }
             }
         }
-    }, [user]);
+    }, [user, projects]);
 
     // Fetch consultants/contractors scoped to the active project's members only
     const fetchConsultants = useCallback(async (projectId) => {
@@ -1862,12 +1882,16 @@ export function RFIProvider({ children }) {
         <RFIContext.Provider
             value={{
                 rfis,
+                activeProject,
                 loadingRfis,
+                pendingSyncCount,
+                lastSyncTime,
+                isOffline,
                 consultants,
                 contractors,
+                minDate,
                 notifications: visibleNotifications,
                 unreadCount,
-                pendingSyncCount,
                 uploadImages,
                 createRFI,
                 assignRFI,
@@ -1892,9 +1916,7 @@ export function RFIProvider({ children }) {
                 markAllNotificationsRead,
                 deleteNotification,
                 deleteAllNotifications,
-                createNotification,
-                isOffline,
-                lastSyncTime
+                createNotification
             }}
         >
             {children}

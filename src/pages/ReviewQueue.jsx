@@ -19,7 +19,7 @@ export default function ReviewQueue() {
     const [searchParams, setSearchParams] = useSearchParams();
     const location = useLocation();
     const { user } = useAuth();
-    const { approveRFI, updateRFI, rejectRFI, cancelRFI, getReviewQueue, rfis, contractors, canUserEditRfi, canUserDiscussRfi } = useRFI();
+    const { approveRFI, updateRFI, rejectRFI, cancelRFI, getReviewQueue, rfis, contractors, canUserEditRfi, canUserDiscussRfi, minDate } = useRFI();
     const { activeProject, orderedTableColumns, columnWidthMap, getTableColumnStyle, loadingFields, fieldsResolvedProjectId, projectFields } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
     const [currentDate, setCurrentDate] = useState(getToday());
@@ -776,7 +776,7 @@ export default function ReviewQueue() {
                                 </div>
                             </div>
                         </div>
-                        <DateNavigator currentDate={currentDate} onDateChange={setCurrentDate} />
+                        <DateNavigator currentDate={currentDate} onDateChange={setCurrentDate} minDate={minDate} />
                     </div>
                 </div>
 
