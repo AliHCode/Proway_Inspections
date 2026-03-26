@@ -216,9 +216,6 @@ export default function AdminDashboard() {
     const BUILT_IN_COLUMNS = [
         { id: 'builtin_serial', field_key: 'serial', field_name: 'Sr#', field_type: 'Built-in', is_builtin: true },
         { id: 'builtin_rfi_no', field_key: 'rfi_no', field_name: 'RFI #', field_type: 'Built-in', is_builtin: true },
-        { id: 'builtin_description', field_key: 'description', field_name: 'Description', field_type: 'Built-in', is_builtin: true },
-        { id: 'builtin_location', field_key: 'location', field_name: 'Location', field_type: 'Built-in', is_builtin: true },
-        { id: 'builtin_inspection_type', field_key: 'inspection_type', field_name: 'Inspection Type', field_type: 'Built-in', is_builtin: true },
         { id: 'builtin_status', field_key: 'status', field_name: 'Status', field_type: 'Built-in', is_builtin: true },
         { id: 'builtin_actions', field_key: 'actions', field_name: 'Actions', field_type: 'Built-in', is_builtin: true },
     ];

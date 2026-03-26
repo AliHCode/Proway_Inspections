@@ -158,7 +158,6 @@ export function ProjectProvider({ children }) {
         }
         // These keys are already rendered as hardcoded table columns everywhere —
         // keep them out of projectFields so they don't appear twice.
-        const BUILTIN_KEYS = new Set(['description', 'location', 'inspection_type']);
         setLoadingFields(true);
         setFieldsResolvedProjectId((prev) => (prev === projectId ? prev : null));
         try {
@@ -168,10 +167,9 @@ export function ProjectProvider({ children }) {
                 .eq('project_id', projectId)
                 .order('sort_order');
             if (error) throw error;
-            const cleaned = (data || []).filter(f => !BUILTIN_KEYS.has(f.field_key));
-            setProjectFields(cleaned);
+            setProjectFields(data || []);
             try {
-                localStorage.setItem(projectFieldsCacheKey(projectId), JSON.stringify(cleaned));
+                localStorage.setItem(projectFieldsCacheKey(projectId), JSON.stringify(data || []));
             } catch {
                 // Ignore storage failures.
             }
@@ -225,9 +223,6 @@ export function ProjectProvider({ children }) {
         const BUILT_IN_COLUMNS = [
             { id: 'builtin_serial', field_key: 'serial', field_name: 'Sr#', is_builtin: true },
             { id: 'builtin_rfi_no', field_key: 'rfi_no', field_name: 'RFI #', is_builtin: true },
-            { id: 'builtin_description', field_key: 'description', field_name: 'Description', is_builtin: true },
-            { id: 'builtin_location', field_key: 'location', field_name: 'Location', is_builtin: true },
-            { id: 'builtin_inspection_type', field_key: 'inspection_type', field_name: 'Inspection Type', is_builtin: true },
             { id: 'builtin_status', field_key: 'status', is_builtin: true },
             { id: 'builtin_actions', field_key: 'actions', is_builtin: true },
         ];

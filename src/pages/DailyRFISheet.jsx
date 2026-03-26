@@ -587,12 +587,6 @@ export default function DailyRFISheet() {
                     predictedNo = row.customFields?.rfi_no || '—';
                 }
                 return <td key={col.field_key} style={{ ...style, whiteSpace: 'nowrap' }}>{predictedNo}</td>;
-            case 'description':
-            case 'location':
-            case 'inspection_type':
-                // These are no longer built-in for new projects. 
-                // We let them fall through to default where they can be configured by Admin.
-                return null; 
             case 'attachments':
                 return (
                     <td key={col.field_key} style={style}>
