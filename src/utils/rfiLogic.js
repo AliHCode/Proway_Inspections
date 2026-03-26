@@ -190,3 +190,61 @@ export function getEarliestDate(allRfis) {
     if (dates.length === 0) return getToday();
     return dates.reduce((min, d) => d < min ? d : min, dates[0]);
 }
+/**
+ * Compress an image file using Canvas.
+ * Resizes to max 1920px width/height and compresses to JPEG (quality 0.7).
+ */
+export async function compressImage(file, { maxWidth = 1920, maxHeight = 1920, quality = 0.7 } = {}) {
+    if (!file || !file.type.startsWith('image/')) return file;
+
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+
+                // Calculate new dimensions
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width = Math.round((width * maxHeight) / height);
+                        height = maxHeight;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob(
+                    (blob) => {
+                        if (!blob) {
+                            reject(new Error('Canvas toBlob failed'));
+                            return;
+                        }
+                        const compressedFile = new File([blob], file.name, {
+                            type: 'image/jpeg',
+                            lastModified: Date.now(),
+                        });
+                        resolve(compressedFile);
+                    },
+                    'image/jpeg',
+                    quality
+                );
+            };
+            img.onerror = reject;
+        };
+        reader.onerror = reject;
+    });
+}

@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { useProject } from './ProjectContext';
 import { useAuth } from './AuthContext';
 import { RFI_STATUS } from '../utils/constants';
-import { getNowLocalISO, getToday, getEarliestDate } from '../utils/rfiLogic';
+import { getNowLocalISO, getToday, getEarliestDate, compressImage } from '../utils/rfiLogic';
 import {
     enqueuePendingRFI,
     listPendingRFIs,
@@ -780,22 +780,24 @@ export function RFIProvider({ children }) {
         }
     }
 
-    /** Upload Images to Storage */
+    /** Upload Images to Storage with Auto-Compression */
     async function uploadImages(files) {
         if (!files || files.length === 0) return [];
 
         const uploadedUrls = [];
 
         for (const file of files) {
-            // Generate a unique filename: timestamp_random.ext
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-            const filePath = `${activeProject?.id || 'general'}/${fileName}`;
-
             try {
+                // Apply client-side compression before upload
+                const compressedFile = await compressImage(file, { maxWidth: 1920, quality: 0.75 });
+
+                // Generate a unique filename: timestamp_random.jpg (we convert to jpeg in compressImage)
+                const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+                const filePath = `${activeProject?.id || 'general'}/${fileName}`;
+
                 const { data, error } = await supabase.storage
                     .from('rfi-images')
-                    .upload(filePath, file);
+                    .upload(filePath, compressedFile);
 
                 if (error) throw error;
 
@@ -808,7 +810,25 @@ export function RFIProvider({ children }) {
                     uploadedUrls.push(urlData.publicUrl);
                 }
             } catch (error) {
-                console.error("Error uploading image:", error);
+                console.error("Error compressing or uploading image:", error);
+                
+                // Fallback: If compression fails for some weird reason, try uploading original
+                try {
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${Date.now()}_original_${Math.random().toString(36).substring(7)}.${fileExt}`;
+                    const filePath = `${activeProject?.id || 'general'}/${fileName}`;
+                    
+                    const { error: uploadOrigError } = await supabase.storage
+                        .from('rfi-images')
+                        .upload(filePath, file);
+                    
+                    if (uploadOrigError) throw uploadOrigError;
+                    
+                    const { data: urlData } = supabase.storage.from('rfi-images').getPublicUrl(filePath);
+                    if (urlData?.publicUrl) uploadedUrls.push(urlData.publicUrl);
+                } catch (origErr) {
+                    console.error("Original upload fallback failed too:", origErr);
+                }
             }
         }
 
