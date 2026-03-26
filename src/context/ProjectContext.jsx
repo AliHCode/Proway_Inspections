@@ -225,8 +225,11 @@ export function ProjectProvider({ children }) {
         const BUILT_IN_COLUMNS = [
             { id: 'builtin_serial', field_key: 'serial', field_name: 'Sr#', is_builtin: true },
             { id: 'builtin_rfi_no', field_key: 'rfi_no', field_name: 'RFI #', is_builtin: true },
-            { id: 'builtin_status', field_key: 'status', field_name: 'Status', is_builtin: true },
-            { id: 'builtin_actions', field_key: 'actions', field_name: 'Actions', is_builtin: true },
+            { id: 'builtin_description', field_key: 'description', field_name: 'Description', is_builtin: true },
+            { id: 'builtin_location', field_key: 'location', field_name: 'Location', is_builtin: true },
+            { id: 'builtin_inspection_type', field_key: 'inspection_type', field_name: 'Inspection Type', is_builtin: true },
+            { id: 'builtin_status', field_key: 'status', is_builtin: true },
+            { id: 'builtin_actions', field_key: 'actions', is_builtin: true },
         ];
 
         const allFields = [
@@ -384,6 +387,9 @@ export function ProjectProvider({ children }) {
             return { success: true, field: data?.[0] };
         } catch (error) {
             console.error("Error adding field:", error);
+            if (error.code === '23505') {
+                return { success: false, error: 'A field with this name or key already exists in this project.' };
+            }
             return { success: false, error: error.message };
         }
     }

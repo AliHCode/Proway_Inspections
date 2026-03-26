@@ -216,6 +216,9 @@ export default function AdminDashboard() {
     const BUILT_IN_COLUMNS = [
         { id: 'builtin_serial', field_key: 'serial', field_name: 'Sr#', field_type: 'Built-in', is_builtin: true },
         { id: 'builtin_rfi_no', field_key: 'rfi_no', field_name: 'RFI #', field_type: 'Built-in', is_builtin: true },
+        { id: 'builtin_description', field_key: 'description', field_name: 'Description', field_type: 'Built-in', is_builtin: true },
+        { id: 'builtin_location', field_key: 'location', field_name: 'Location', field_type: 'Built-in', is_builtin: true },
+        { id: 'builtin_inspection_type', field_key: 'inspection_type', field_name: 'Inspection Type', field_type: 'Built-in', is_builtin: true },
         { id: 'builtin_status', field_key: 'status', field_name: 'Status', field_type: 'Built-in', is_builtin: true },
         { id: 'builtin_actions', field_key: 'actions', field_name: 'Actions', field_type: 'Built-in', is_builtin: true },
     ];
@@ -459,6 +462,14 @@ export default function AdminDashboard() {
         e.preventDefault();
         if (!newField.field_name.trim() || !activeProject) return;
         const key = newField.field_key.trim() || newField.field_name.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+        
+        // Client-side validation: prevent duplicates before calling API
+        const isDuplicate = projectFields.some(f => f.field_key === key) || BUILT_IN_COLUMNS.some(f => f.field_key === key);
+        if (isDuplicate) {
+            showMsg('Error: A field with this name or key already exists in this project.');
+            return;
+        }
+
         const opts = newField.field_type === 'select' && newField.options
             ? newField.options.split(',').map(o => o.trim()).filter(Boolean)
             : [];
