@@ -157,7 +157,17 @@ export default function RFIDetailModal({ rfi, projectFields = [], orderedColumns
                                             <div className="rfi-attachments-grid large">
                                                 {rfi.images.map((img, idx) => (
                                                     <a key={idx} href={img} target="_blank" rel="noopener noreferrer" className="rfi-attachment-thumb">
-                                                        <img src={getThumbnailUrl(img, { width: 200, height: 200 })} alt={`Attachment ${idx + 1}`} />
+                                                        <img 
+                                                            src={img} 
+                                                            alt={`Attachment ${idx + 1}`}
+                                                            onError={(e) => {
+                                                                // Fallback: if original fails, try thumbnail transform
+                                                                const thumbUrl = getThumbnailUrl(img, { width: 200, height: 200 });
+                                                                if (e.target.src !== thumbUrl) {
+                                                                    e.target.src = thumbUrl;
+                                                                }
+                                                            }}
+                                                        />
                                                     </a>
                                                 ))}
                                             </div>

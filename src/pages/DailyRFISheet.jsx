@@ -491,18 +491,19 @@ export default function DailyRFISheet() {
             case 'review_date':
                 return <td key={col.field_key} style={style} data-label="Review Date">{rfi.reviewedAt ? formatDateDisplay(rfi.reviewedAt.split('T')[0]) : '—'}</td>;
             case 'assigned_to':
+                const consultantDisplayName = rfi.reviewerName || rfi.assigneeName;
                 return (
                     <td key={col.field_key} style={style} data-label="Assigned To">
                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <span style={{ 
-                                background: rfi.assigneeName ? 'var(--clr-bg-secondary)' : 'transparent',
-                                padding: rfi.assigneeName ? '4px 8px' : '0',
+                                background: consultantDisplayName ? 'var(--clr-bg-secondary)' : 'transparent',
+                                padding: consultantDisplayName ? '4px 8px' : '0',
                                 borderRadius: '6px',
                                 fontSize: '0.85rem',
                                 color: 'var(--clr-text-main)',
                                 fontWeight: 500
                             }}>
-                                {rfi.assigneeName || 'Auto'}
+                                {consultantDisplayName || 'Auto'}
                             </span>
                         </div>
                     </td>

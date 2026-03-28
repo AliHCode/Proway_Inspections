@@ -873,13 +873,17 @@ export default function ReviewQueue() {
                                                     </td>
                                                 ))}
                                                 <td className="col-assign" data-label="Assigned To">
-                                                    {(rfi.assigneeName || rfi.reviewerName) ? (
-                                                        <span className={`assign-badge ${(rfi.assignedTo === user.id || rfi.reviewedBy === user.id) ? 'is-me' : ''}`}>
-                                                            {(rfi.assignedTo === user.id || rfi.reviewedBy === user.id) ? <><UserPlus size={14} className="badge-icon" /> You</> : (rfi.assigneeName || rfi.reviewerName)}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-muted">— Auto —</span>
-                                                    )}
+                                                    {(() => {
+                                                        // Always show the consultant name: prefer reviewerName (consultant who acted), then assigneeName (originally assigned consultant when still pending)
+                                                        const consultantName = rfi.reviewerName || rfi.assigneeName;
+                                                        const isMe = rfi.reviewedBy === user.id || (rfi.status === 'pending' && rfi.assignedTo === user.id);
+                                                        if (!consultantName) return <span className="text-muted">— Auto —</span>;
+                                                        return (
+                                                            <span className={`assign-badge ${isMe ? 'is-me' : ''}`}>
+                                                                {isMe ? <><UserPlus size={14} className="badge-icon" /> You</> : consultantName}
+                                                            </span>
+                                                        );
+                                                    })()}
                                                 </td>
                                                 <td className="col-status" data-label="Submission Date">{formatDateDisplay(rfi.originalFiledDate)}</td>
                                             </tr>
