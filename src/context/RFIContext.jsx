@@ -24,6 +24,7 @@ import { buildNotificationOpenPath } from '../utils/notificationLinks';
 const RFIContext = createContext(null);
 const NOTIFICATION_PROMPT_SEEN_KEY = 'proway_notification_prompt_seen_v1';
 const DISMISSED_NOTIFICATIONS_KEY = 'proway_dismissed_notifications_v1';
+const RFI_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000; // 12 hours
 
 
 function normalizeRfiRecord(rfi = {}) {
@@ -60,6 +61,45 @@ function normalizeRfisArray(items = []) {
 
 function normalizeMentionKey(value = '') {
     return String(value).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Converts a raw DB row (snake_case) to the app's camelCase RFI format.
+ * Accepts the Supabase JOIN nested objects (r.filer, r.reviewer, r.assignee)
+ * OR a flat userMap keyed by UUID — whichever is available.
+ */
+function formatDbRow(r, userMap = {}) {
+    const filer    = r.filer    || userMap[r.filed_by]    || {};
+    const reviewer = r.reviewer || userMap[r.reviewed_by] || {};
+    const assignee = r.assignee || userMap[r.assigned_to] || {};
+    return {
+        id:                r.id,
+        serialNo:          r.serial_no,
+        projectId:         r.project_id,
+        description:       r.description,
+        location:          r.location,
+        inspectionType:    r.inspection_type,
+        filedBy:           r.filed_by,
+        filerName:         filer.name        || '—',
+        filerCompany:      filer.company     || '',
+        filerAvatarUrl:    filer.avatar_url  || null,
+        filedDate:         r.filed_date,
+        status:            r.status,
+        reviewedBy:        r.reviewed_by,
+        reviewerName:      reviewer.name       || '',
+        reviewerAvatarUrl: reviewer.avatar_url || null,
+        reviewedAt:        r.reviewed_at,
+        remarks:           r.remarks,
+        carryoverCount:    r.carryover_count,
+        carryoverTo:       r.carryover_to,
+        images:            r.images || [],
+        assignedTo:        r.assigned_to,
+        assigneeName:      assignee.name       || '',
+        assigneeAvatarUrl: assignee.avatar_url || null,
+        parentId:          r.parent_id,
+        createdAt:         r.created_at,
+        customFields:      r.custom_fields || {},
+    };
 }
 
 function canUserEditRfiRecord(rfi, currentUser) {
@@ -135,6 +175,10 @@ export function RFIProvider({ children }) {
     const fetchingConsultantsRef = useRef(null);
     const fetchingContractorsRef = useRef(null);
     const lastRfiFetchRef = useRef(0);
+    // Shared profile cache for Realtime event handlers (avoids extra DB queries)
+    const userMapRef = useRef({});
+    // Tracks whether the Realtime WebSocket is currently connected
+    const realtimeConnectedRef = useRef(false);
 
     
     // Derived filtered notifications
@@ -146,7 +190,16 @@ export function RFIProvider({ children }) {
         try {
             const cached = await getRfiCache(user.id, projectId);
             if (!cached || !cached.rfis) return false;
-            
+
+            // Reject stale cache — force a fresh DB fetch after 12 hours
+            if (cached.cachedAt) {
+                const age = Date.now() - new Date(cached.cachedAt).getTime();
+                if (age > RFI_CACHE_MAX_AGE_MS) {
+                    console.warn('RFI cache expired (>12 h) — forcing fresh fetch');
+                    return false;
+                }
+            }
+
             const normalized = normalizeRfisArray(cached.rfis);
             if (normalized.length === 0) return false;
             setRfis(normalized);
@@ -267,64 +320,29 @@ export function RFIProvider({ children }) {
 
         async function performFetch(retryCount = 0) {
             try {
+                // Single query with profile JOINs — eliminates the second DB round-trip
                 const { data, error } = await supabase
                     .from('rfis')
-                    .select('*')
+                    .select(`
+                        *,
+                        filer:filed_by(id, name, company, avatar_url),
+                        reviewer:reviewed_by(id, name, avatar_url),
+                        assignee:assigned_to(id, name, avatar_url)
+                    `)
                     .eq('project_id', activeProject.id)
                     .order('serial_no', { ascending: false });
 
                 if (error) throw error;
 
-                // Build a user map for faster lookup
-                const userIds = new Set();
+                // Populate the shared profile cache so Realtime handlers
+                // can resolve names without any extra DB query.
                 data.forEach(r => {
-                    if (r.filed_by) userIds.add(r.filed_by);
-                    if (r.reviewed_by) userIds.add(r.reviewed_by);
-                    if (r.assigned_to) userIds.add(r.assigned_to);
+                    if (r.filer)    userMapRef.current[r.filed_by]    = r.filer;
+                    if (r.reviewer) userMapRef.current[r.reviewed_by] = r.reviewer;
+                    if (r.assignee) userMapRef.current[r.assigned_to] = r.assignee;
                 });
 
-                let userMap = {};
-                if (userIds.size > 0) {
-                    const { data: profilesData } = await supabase
-                        .from('profiles')
-                        .select('id, name, company, avatar_url')
-                        .in('id', Array.from(userIds));
-
-                    if (profilesData) {
-                        profilesData.forEach(p => {
-                            userMap[p.id] = p;
-                        });
-                    }
-                }
-
-                const formatted = data.map((r) => ({
-                    id: r.id,
-                    serialNo: r.serial_no,
-                    projectId: r.project_id,
-                    description: r.description,
-                    location: r.location,
-                    inspectionType: r.inspection_type,
-                    filedBy: r.filed_by,
-                    filerName: userMap[r.filed_by]?.name || '—',
-                    filerCompany: userMap[r.filed_by]?.company || '',
-                    filerAvatarUrl: userMap[r.filed_by]?.avatar_url || null,
-                    filedDate: r.filed_date,
-                    status: r.status,
-                    reviewedBy: r.reviewed_by,
-                    reviewerName: userMap[r.reviewed_by]?.name || '',
-                    reviewerAvatarUrl: userMap[r.reviewed_by]?.avatar_url || null,
-                    reviewedAt: r.reviewed_at,
-                    remarks: r.remarks,
-                    carryoverCount: r.carryover_count,
-                    carryoverTo: r.carryover_to,
-                    images: r.images || [],
-                    assignedTo: r.assigned_to,
-                    assigneeName: userMap[r.assigned_to]?.name || '',
-                    assigneeAvatarUrl: userMap[r.assigned_to]?.avatar_url || null,
-                    parentId: r.parent_id,
-                    createdAt: r.created_at,
-                    customFields: r.custom_fields || {},
-                }));
+                const formatted = data.map(r => formatDbRow(r, userMapRef.current));
                 const normalized = normalizeRfisArray(formatted || []);
                 setRfis(normalized);
                 setMinDate(getEarliestDate(normalized));
@@ -537,23 +555,68 @@ export function RFIProvider({ children }) {
             syncPendingConsultantActions();
         }
 
-        // Subscribe to real-time changes for RFIs — scoped to active project
+        // Subscribe to Realtime RFI changes — server-side filter so ONLY
+        // events for this project are delivered over the WebSocket.
+        // On each event we surgically patch local state instead of
+        // re-fetching the entire table.
         const rfiSubscription = supabase
             .channel(`rfis:proj:${activeProject?.id || 'none'}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'rfis' }, payload => {
-                // Ignore events that belong to a different project
-                if (activeProject?.id && payload.new?.project_id && payload.new.project_id !== activeProject.id) return;
-                console.log('Real-time RFI update:', payload);
-                if (payload.eventType === 'INSERT') {
-                    // console.log('New RFI submitted');
-                } else if (payload.eventType === 'UPDATE') {
-                    // console.log('RFI updated');
-                }
-                fetchAllRFIs(); // Simplest way to ensure data consistency
-            })
-            .subscribe();
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'rfis',
+                filter: `project_id=eq.${activeProject?.id}`,
+            }, async (payload) => {
+                const { eventType, new: newRow, old: oldRow } = payload;
 
-        // Subscribe to real-time changes for Notifications (only for this user)
+                // ── DELETE: remove the row from state ────────────────
+                if (eventType === 'DELETE') {
+                    setRfis(prev => prev.filter(r => r.id !== oldRow?.id));
+                    return;
+                }
+
+                if (!newRow?.id) return;
+
+                // ── Resolve any user profiles we don't have cached yet ─
+                // Usually 0 extra queries — userMapRef is warm from the
+                // last full fetch.
+                const neededIds = [newRow.filed_by, newRow.reviewed_by, newRow.assigned_to]
+                    .filter(id => id && !userMapRef.current[id]);
+
+                if (neededIds.length > 0) {
+                    const { data: profilesData } = await supabase
+                        .from('profiles')
+                        .select('id, name, company, avatar_url')
+                        .in('id', neededIds);
+                    if (profilesData) {
+                        profilesData.forEach(p => { userMapRef.current[p.id] = p; });
+                    }
+                }
+
+                const normalized = normalizeRfiRecord(formatDbRow(newRow, userMapRef.current));
+
+                // ── UPDATE: replace matching entry in state ──────────
+                if (eventType === 'UPDATE') {
+                    setRfis(prev => prev.map(r => r.id === normalized.id ? normalized : r));
+                    return;
+                }
+
+                // ── INSERT: prepend, replacing any optimistic placeholder ─
+                setRfis(prev => {
+                    const exists = prev.some(r => r.id === normalized.id);
+                    if (exists) return prev.map(r => r.id === normalized.id ? normalized : r);
+                    // Remove any offline placeholder and prepend real record
+                    const withoutPlaceholder = prev.filter(
+                        r => !(r.pendingSync && r.customFields?.rfi_no === normalized.customFields?.rfi_no)
+                    );
+                    return [normalized, ...withoutPlaceholder];
+                });
+            })
+            .subscribe((status) => {
+                realtimeConnectedRef.current = (status === 'SUBSCRIBED');
+            });
+
+        // Notifications — still uses fetchNotifications on INSERT
         let notifSubscription = null;
         if (user) {
             notifSubscription = supabase
@@ -564,11 +627,9 @@ export function RFIProvider({ children }) {
                     table: 'notifications',
                     filter: `user_id=eq.${user.id}`
                 }, payload => {
-                    console.log('New notification:', payload);
+                    if (import.meta.env.DEV) console.log('New notification:', payload);
                     toast(payload.new.title, { icon: '🔔' });
                     fetchNotifications();
-                    // Show native browser notification when the page is not visible
-                    // (covers background tabs, minimised browser, mobile home screen)
                     if (
                         (document.visibilityState === 'hidden' || !document.hasFocus()) &&
                         pushSupportStatus() !== 'supported'
@@ -583,25 +644,45 @@ export function RFIProvider({ children }) {
                 .subscribe();
         }
 
+        // Polling is now a safety-net only:
+        // - If Realtime is connected → skip RFI refetch (Realtime handles it surgically)
+        // - If Realtime is down → fall back to a full refetch every 5 min
         const refreshInterval = setInterval(() => {
-            fetchAllRFIs();
+            if (!realtimeConnectedRef.current) {
+                fetchAllRFIs(); // Realtime disconnected — catch up
+            }
             if (user) fetchNotifications();
             if (navigator.onLine) {
                 syncPendingRFIs();
                 syncPendingConsultantActions();
             }
-        }, 60000);
+        }, 5 * 60 * 1000); // 5 minutes (was 60 seconds)
 
         const handleOnline = () => {
             toast('Back online. Syncing pending work...', { icon: '🌐' });
+            fetchAllRFIs(); // Catch up on changes missed while offline
             syncPendingRFIs();
             syncPendingConsultantActions();
         };
         window.addEventListener('online', handleOnline);
 
+        // When the user switches back to this tab or reopens the PWA from the
+        // background, do a fresh fetch so stale cached data is replaced immediately.
+        // This covers: switching back from another app on mobile, long idle tabs,
+        // and PWA resume from home screen.
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchAllRFIs();
+                if (user) fetchNotifications();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+
         return () => {
             clearInterval(refreshInterval);
             window.removeEventListener('online', handleOnline);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
             supabase.removeChannel(rfiSubscription);
             if (notifSubscription) supabase.removeChannel(notifSubscription);
         };

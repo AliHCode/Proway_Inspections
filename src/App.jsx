@@ -25,10 +25,12 @@ import ProfilePage from './pages/ProfilePage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import SupportPage from './pages/SupportPage';
 import SubscriptionGuard from './components/SubscriptionGuard';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 function ProtectedRoute({ children, allowedRoles }) {
-    const { user, loading } = useAuth();
-    if (loading) return <LoadingSpinner />;
+    const { user, authResolved } = useAuth();
+    if (!authResolved) return <LoadingSpinner />;
     if (!user) return <Navigate to="/" replace />;
     if (allowedRoles && !allowedRoles.includes(user.role)) {
         const home = user.role === 'admin' ? '/admin' : user.role === 'contractor' ? '/contractor' : user.role === 'consultant' ? '/consultant' : '/';
@@ -38,9 +40,9 @@ function ProtectedRoute({ children, allowedRoles }) {
 }
 
 function AppRoutes() {
-    const { user, loading } = useAuth();
-    const { projects, loadingProjects } = useProject();
-    if (loading || (loadingProjects && projects.length === 0)) return <LoadingSpinner />;
+    const { user, authResolved } = useAuth();
+    const { projects, projectsResolved } = useProject();
+    if (!authResolved || !projectsResolved) return <LoadingSpinner />;
 
     return (
         <Routes>
@@ -65,6 +67,8 @@ function AppRoutes() {
             <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
             <Route path="/project-blocked" element={<SubscriptionBlocked />} />
             <Route path="/notification-open" element={<NotificationRedirect />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );

@@ -34,64 +34,76 @@ function setManualLogoutFlag(value) {
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    // authResolved = true as soon as we know the initial auth state (from cache or network).
+    // This is what the global spinner gates on — so cache-restored sessions show the app instantly.
+    const [authResolved, setAuthResolved] = useState(false);
     const [mfaFactors, setMfaFactors] = useState([]);
     const initialized = useRef(false);
     const isFetchingProfileRef = useRef(null); // Tracks the ID being fetched
+    const userRef = useRef(null); // Keep a ref to current user for event handlers
+
+    // Keep userRef in sync
+    useEffect(() => {
+        userRef.current = user;
+    }, [user]);
 
     useEffect(() => {
         if (initialized.current) return;
         initialized.current = true;
+
+        // ── Visibilitychange: prevent stuck spinner when tab resumes from background ──
+        function handleVisibilityChange() {
+            if (document.visibilityState === 'visible' && userRef.current) {
+                // App came back from background and we already have a user — clear any
+                // lingering loading state so the UI doesn't stay frozen on a spinner.
+                setLoading(false);
+                setAuthResolved(true);
+                // Silently re-verify the session in the background (no spinner shown)
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    if (session?.user) {
+                        // Session is still valid — quietly refresh the profile if needed
+                        isFetchingProfileRef.current = null; // allow next fetch
+                        fetchProfile(session.user.id, { allowRetry: false, authUser: session.user });
+                    }
+                });
+            }
+        }
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         // Listen for changes on auth state (logged in, signed out, etc.)
         // This also handles the INITIAL_SESSION by default.
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             if (session?.user) {
                 setManualLogoutFlag(false);
-                setupProfileSubscription(session.user.id);
+
+                // ── Fast-path: restore from cache immediately so the spinner disappears ──
+                // authResolved is set to true here — App.jsx will stop showing the spinner
+                // while fetchProfile runs in the background.
                 const restored = restoreCachedProfile(session.user.id);
-                fetchProfile(session.user.id, { allowRetry: true, authUser: session.user });
-            } else {
-                if (profileSubscription) {
-                    profileSubscription.unsubscribe();
-                    profileSubscription = null;
+                if (restored) {
+                    setAuthResolved(true);
                 }
 
+                // Always fetch the live profile (silently updates in background if cache hit)
+                // Reset the guard so tab-resume / token-refresh events aren't blocked
+                if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+                    isFetchingProfileRef.current = null;
+                }
+                fetchProfile(session.user.id, { allowRetry: true, authUser: session.user });
+            } else {
                 if (event === 'SIGNED_OUT' || wasManualLogout()) {
                     setUser(null);
                 } else if (!restoreCachedProfile()) {
                     setUser(null);
                 }
                 setLoading(false);
+                setAuthResolved(true);
             }
         });
 
-        let profileSubscription = null;
-        function setupProfileSubscription(userId) {
-            if (profileSubscription) profileSubscription.unsubscribe();
-            
-            profileSubscription = supabase
-                .channel(`public:profiles:id=eq.${userId}`)
-                .on('postgres_changes', {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'profiles',
-                    filter: `id=eq.${userId}`
-                }, payload => {
-                    const dbSessionId = payload.new.current_session_id;
-                    const localId = getLocalInstanceId();
-                    
-                    if (dbSessionId && dbSessionId !== localId) {
-                        console.warn('Session invalidated: Logged in from another device.');
-                        logout();
-                        alert('You have been logged out because your account was accessed from another device.');
-                    }
-                })
-                .subscribe();
-        };
-
         return () => {
             subscription.unsubscribe();
-            if (profileSubscription) profileSubscription.unsubscribe();
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
     }, []);
 
@@ -148,10 +160,12 @@ export function AuthProvider({ children }) {
         if (!navigator.onLine) {
             if (restoreCachedProfile(userId)) {
                 setLoading(false);
+                setAuthResolved(true);
                 return;
             }
             // No valid cache; leave loading=false without logging the user out
             setLoading(false);
+            setAuthResolved(true);
             return;
         }
 
@@ -201,6 +215,7 @@ export function AuthProvider({ children }) {
                     localStorage.removeItem(PROFILE_CACHE_KEY);
                     setUser(null);
                     setLoading(false);
+                    setAuthResolved(true);
                     return;
                 }
                 // Block archived accounts (card hidden by admin — treated same as deactivated)
@@ -210,6 +225,7 @@ export function AuthProvider({ children }) {
                     localStorage.removeItem(PROFILE_CACHE_KEY);
                     setUser(null);
                     setLoading(false);
+                    setAuthResolved(true);
                     return;
                 }
                 // Rejected users — keep them signed in so LoginPage shows rejection screen
@@ -222,11 +238,11 @@ export function AuthProvider({ children }) {
                 if (data.role === USER_ROLES.REJECTED) {
                     setUser(fullUser);
                     setLoading(false);
+                    setAuthResolved(true);
                     return;
                 }
-                // Ensure the database knows about our current unique instance ID
+                // Fire-and-forget: update session_id for record-keeping (no longer used to force logout)
                 const localId = getLocalInstanceId();
-                // Fire-and-forget: update session_id without blocking the user from seeing the dashboard
                 if (data.current_session_id !== localId) {
                     supabase
                         .from('profiles')
@@ -236,7 +252,6 @@ export function AuthProvider({ children }) {
                         .catch((e) => console.warn('session_id update failed silently:', e));
                 }
 
-                // Ensure auth.user structure is combined with profile for easy usage
                 setUser(fullUser);
             } else {
                 if (!restoreCachedProfile(userId)) {
@@ -248,6 +263,7 @@ export function AuthProvider({ children }) {
             // Network error while online? Fallback to cache so we don't log user out
             if (restoreCachedProfile(userId)) {
                 setLoading(false);
+                setAuthResolved(true);
                 return;
             }
         } finally {
@@ -255,6 +271,7 @@ export function AuthProvider({ children }) {
                 isFetchingProfileRef.current = null;
             }
             setLoading(false);
+            setAuthResolved(true);
             if (userId) {
                 supabase.auth.mfa.listFactors().then(({ data, error }) => {
                     if (!error && data) {
@@ -356,7 +373,7 @@ export function AuthProvider({ children }) {
         }
         await supabase.auth.signOut();
         setMfaFactors([]);
-        // Listener sets loading false and user null automatically
+        // onAuthStateChange listener sets loading false, authResolved true, and user null
     }
 
     // --- MFA HELPERS ---
@@ -447,7 +464,8 @@ export function AuthProvider({ children }) {
     return (
         <AuthContext.Provider value={{ 
             user, 
-            loading, 
+            loading,
+            authResolved,
             login, 
             register, 
             logout,

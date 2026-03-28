@@ -9,12 +9,12 @@ import LoadingSpinner from './LoadingSpinner';
  * Admins are always allowed through.
  */
 export default function SubscriptionGuard({ children }) {
-    const { user, loading: authLoading } = useAuth();
+    const { user, authResolved } = useAuth();
     const { activeProject, checkProjectAccess, loadingProjects, projectsResolved } = useProject();
 
-    // We only block if genuinely loading without an offline cache active.
+    // Gate on authResolved (set instantly from cache) — not the raw loading flag.
     // If we have an activeProject from cache, we let the app render immediately.
-    if (authLoading || (loadingProjects && !activeProject)) {
+    if (!authResolved || (loadingProjects && !activeProject)) {
         return <LoadingSpinner />;
     }
 
