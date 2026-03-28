@@ -850,15 +850,29 @@ export function RFIProvider({ children }) {
 
             if (insertedData?.[0]) {
                 const data = insertedData[0];
+
+                // Populate the user map so the normalized record has correct names
+                if (user) userMapRef.current[user.id] = { id: user.id, name: user.name, company: user.company, avatar_url: user.avatar_url };
+
+                // Surgically merge the new RFI into state instead of doing a
+                // full fetchAllRFIs(). This avoids the "blink" where the
+                // Realtime INSERT adds the row, then fetchAllRFIs replaces the
+                // entire array a moment later causing a re-render flash.
+                const normalized = normalizeRfiRecord(formatDbRow(data, userMapRef.current));
+                setRfis(prev => {
+                    const exists = prev.some(r => r.id === normalized.id);
+                    if (exists) return prev.map(r => r.id === normalized.id ? normalized : r);
+                    return [normalized, ...prev];
+                });
+
                 await logAuditEvent(data.id, 'created', { description, location });
                 await notifyConsultantsAboutNewRFI(data.id, data.custom_fields?.rfi_no || data.serial_no, data.location, data.filed_by, data.assigned_to);
                 showNativeNotification('RFI Submitted', `RFI #${data.custom_fields?.rfi_no || data.serial_no} submitted successfully.`, data.id);
                 if (assignedTo) {
-                    await logAuditEvent(insertedData[0].id, 'assigned', { assignee: assignedTo });
+                    await logAuditEvent(data.id, 'assigned', { assignee: assignedTo });
                 }
             }
 
-            await fetchAllRFIs();
             await refreshPendingSyncCount();
             return { queued: false };
         } catch (error) {
