@@ -3103,6 +3103,7 @@ input:checked+.premium-slider:before {
   font-family: var(--font-main);
   font-size: 0.875rem;
   transition: var(--transition-fast);
+  text-align: inherit;
 }
 
 .cell-input:hover,

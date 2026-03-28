@@ -452,8 +452,8 @@ export default function DailyRFISheet() {
                 );
             case 'rfi_no':
                 return (
-                    <td key={col.field_key} style={style} data-label="RFI #">
-                        <div style={{ color: 'var(--clr-primary)', fontWeight: '500' }}>
+                    <td key={col.field_key} style={{ color: 'var(--clr-primary)', ...style }} data-label="RFI #">
+                        <div style={{ fontWeight: '500' }}>
                             {rfi.customFields?.rfi_no || '—'}
                         </div>
                     </td>
