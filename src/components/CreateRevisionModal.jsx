@@ -4,8 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { useProject } from '../context/ProjectContext';
 import { INSPECTION_TYPES } from '../utils/constants';
 import { getToday } from '../utils/rfiLogic';
-import { X, Send, Paperclip, AlertCircle, MessageSquare, Info, MapPin, Layers, User, Trash2, Camera, RefreshCw } from 'lucide-react';
+import { X, Send, Paperclip, AlertCircle, MessageSquare, Info, MapPin, Layers, User, Trash2, Camera, RefreshCw, Brush, Upload } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import FieldMarkupStudio from './FieldMarkupStudio';
 
 export default function CreateRevisionModal({ parentRfi, onClose, onSuccess }) {
     const { user } = useAuth();
@@ -34,6 +35,11 @@ export default function CreateRevisionModal({ parentRfi, onClose, onSuccess }) {
     });
 
     const [files, setFiles] = useState([]);
+    const [markupIndex, setMarkupIndex] = useState(null);
+    const markupImage = markupIndex !== null ? files[markupIndex] : null;
+
+    function getPreviewUrl(file) { return typeof file === 'string' ? file : URL.createObjectURL(file); }
+    function replaceFile(index, newFile) { setFiles(prev => prev.map((f, i) => i === index ? newFile : f)); }
 
     const handleFileChange = (e) => {
         if (e.target.files) {
@@ -243,19 +249,30 @@ export default function CreateRevisionModal({ parentRfi, onClose, onSuccess }) {
                                 </label>
 
                                 {files.length > 0 && (
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '1rem', marginTop: '1.25rem' }}>
-                                        {files.map((f, i) => (
-                                            <div key={i} style={{ position: 'relative', backgroundColor: '#fff', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
-                                                <button 
-                                                    type="button" 
-                                                    onClick={() => removeFile(i)} 
-                                                    style={{ position: 'absolute', top: '-8px', right: '-8px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
-                                                >
-                                                    <X size={12} />
-                                                </button>
-                                            </div>
-                                        ))}
+                                    <div className="ram-thumbs" style={{ marginTop: '1.25rem' }}>
+                                        {files.map((f, i) => {
+                                            const isImage = f.type ? f.type.startsWith('image/') : false;
+                                            return isImage ? (
+                                                <div key={i} className="ram-thumb-wrap">
+                                                    <img src={getPreviewUrl(f)} alt={`Attachment ${i + 1}`} className="ram-thumb" />
+                                                    <div className="ram-thumb-overlay">
+                                                        <button type="button" className="ram-thumb-btn" onClick={() => setMarkupIndex(i)}><Brush size={13} /></button>
+                                                        <button type="button" className="ram-thumb-btn ram-thumb-del" onClick={() => removeFile(i)}><X size={13} /></button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div key={i} style={{ position: 'relative', backgroundColor: '#fff', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'center' }}>
+                                                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => removeFile(i)} 
+                                                        style={{ position: 'absolute', top: '-8px', right: '-8px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                                                    >
+                                                        <X size={12} />
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
@@ -293,7 +310,11 @@ export default function CreateRevisionModal({ parentRfi, onClose, onSuccess }) {
                     .revision-sidebar { border-bottom: 1px solid #e2e8f0 !important; }
                 }
             `}} />
+            
+            {markupIndex !== null && markupImage && (
+                <FieldMarkupStudio image={markupImage} onClose={() => setMarkupIndex(null)}
+                    onSave={annotatedFile => { replaceFile(markupIndex, annotatedFile); setMarkupIndex(null); }} />
+            )}
         </div>
-
     );
 }
