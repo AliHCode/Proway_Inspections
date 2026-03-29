@@ -40,9 +40,12 @@ export default function ContractorDashboard() {
         return 'Good Evening';
     };
 
+    // Pre-compute a Set of superseded parent IDs to optimize O(N^2) filtering down to O(N)
+    const supersededIds = useMemo(() => new Set(rfis.map(child => child.parentId).filter(Boolean)), [rfis]);
+
     // Get all RFIs by this contractor (latest thread version only)
     const allMyRfis = useMemo(() => {
-        const filtered = rfis.filter((r) => r.filedBy === user.id && !rfis.some(child => child.parentId === r.id));
+        const filtered = rfis.filter((r) => r.filedBy === user.id && !supersededIds.has(r.id));
         return filtered.sort((a, b) => {
             const aIsToday = a.filedDate === today || a.carryoverTo === today;
             const bIsToday = b.filedDate === today || b.carryoverTo === today;
@@ -66,7 +69,7 @@ export default function ContractorDashboard() {
 
     // Action Required (Unresolved rejections assigned to me)
     const actionRequiredRfis = rfis.filter(
-        (r) => r.status === 'rejected' && r.assignedTo === user.id && !rfis.some(child => child.parentId === r.id)
+        (r) => r.status === 'rejected' && r.assignedTo === user.id && !supersededIds.has(r.id)
     );
 
     const reportRfis = allMyRfis.filter(r =>

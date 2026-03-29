@@ -49,11 +49,13 @@ export default function DailyRFISheet() {
 
     const { newRfis } = getRFIsForDate(currentDate);
 
+    const supersededIds = useMemo(() => new Set(rfis.map(child => child.parentId).filter(Boolean)), [rfis]);
+
     const activeRejectedRfis = useMemo(() => {
         let items = (rfis || []).filter(r => 
             r.filedBy === user.id && 
             (r.status === RFI_STATUS.REJECTED || r.status === RFI_STATUS.CONDITIONAL_APPROVE) &&
-            !rfis.some(child => child.parentId === r.id)
+            !supersededIds.has(r.id)
         );
 
         if (!showAllRejected) {
@@ -68,7 +70,7 @@ export default function DailyRFISheet() {
     const dailyRfis = newRfis.filter(r => 
         r.filedBy === user.id && 
         r.status !== RFI_STATUS.CANCELLED &&
-        !rfis.some(child => child.parentId === r.id)
+        !supersededIds.has(r.id)
     ).sort((a,b) => a.serialNo - b.serialNo);
 
     // Determine unique previously used locations and descriptions for suggestions dynamically

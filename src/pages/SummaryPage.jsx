@@ -251,9 +251,12 @@ export default function SummaryPage() {
     }
 
     const dateFiltered = useMemo(() => {
+        // Pre-compute a Set of superseded parent IDs for O(1) lookup
+        const supersededIds = new Set(rfis.map(child => child.parentId).filter(Boolean));
+
         return rfis.filter(r => {
             // Filter out superseded RFIs
-            const isSuperseded = rfis.some(child => child.parentId === r.id);
+            const isSuperseded = supersededIds.has(r.id);
             if (isSuperseded) return false;
 
             const fDate = r.filedDate;
