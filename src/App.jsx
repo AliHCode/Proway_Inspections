@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProjectProvider, useProject } from './context/ProjectContext';
@@ -42,7 +43,14 @@ function ProtectedRoute({ children, allowedRoles }) {
 function AppRoutes() {
     const { user, authResolved } = useAuth();
     const { projects, projectsResolved } = useProject();
-    if (!authResolved || !projectsResolved) return <LoadingSpinner />;
+
+    // ── LOADING GATE ─────────────────────────────────────────────────────
+    // If we have a cached user (authResolved=false) but haven't verified them yet, 
+    // or if we are still fetching projects for a newly logged-in user, show the spinner.
+    // For BRAND NEW users, authResolved will be true instantly on mount.
+    if (!authResolved || (user && !projectsResolved)) {
+        return <LoadingSpinner />;
+    }
 
     return (
         <Routes>

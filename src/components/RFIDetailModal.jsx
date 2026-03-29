@@ -10,7 +10,18 @@ import { useAuth } from '../context/AuthContext';
 import { useProject } from '../context/ProjectContext';
 import { RFI_STATUS } from '../utils/constants';
 
-export default function RFIDetailModal({ rfi, projectFields = [], orderedColumns = [], onClose, externalScrollTrigger }) {
+export default function RFIDetailModal({ 
+    rfi, 
+    projectFields = [], 
+    orderedColumns = [], 
+    onClose, 
+    externalScrollTrigger,
+    // Decision Actions
+    onApprove,
+    onConditional,
+    onReject,
+    onCancel
+}) {
     const [activeTab, setActiveTab] = useState('review');
     const [tabScrollTrigger, setTabScrollTrigger] = useState(0);
     const { rfis, updateRFI, claimRFI } = useRFI();
@@ -154,6 +165,68 @@ export default function RFIDetailModal({ rfi, projectFields = [], orderedColumns
                                             >
                                                 <Hand size={18} /> Claim Inspection
                                             </button>
+                                        </div>
+                                    )}
+
+                                    {/* Action Center for Claimed/Assigned Consultant */}
+                                    {user?.role === 'consultant' && (rfi.assignedTo === user.id || assignmentMode === 'open') && (
+                                        <div className="consultant-action-center" style={{ marginTop: '1.5rem', borderTop: '1px solid var(--clr-border)', paddingTop: '1.25rem' }}>
+                                            <div style={{ textAlign: 'center', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--clr-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                Decision Action Center
+                                            </div>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', justifyContent: 'center' }}>
+                                                {rfi.status === RFI_STATUS.PENDING ? (
+                                                    <>
+                                                        <button 
+                                                            className="btn btn-approve-full" 
+                                                            onClick={onApprove}
+                                                            style={{ backgroundColor: 'var(--clr-success)', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
+                                                        >
+                                                            <CheckCircle size={18} /> Approve
+                                                        </button>
+                                                        <button 
+                                                            className="btn btn-approve-cond" 
+                                                            onClick={onConditional}
+                                                            style={{ backgroundColor: 'var(--clr-warning)', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
+                                                        >
+                                                            <CheckCircle size={18} /> Cond. Approve
+                                                        </button>
+                                                        <button 
+                                                            className="btn btn-reject-full" 
+                                                            onClick={onReject}
+                                                            style={{ backgroundColor: 'var(--clr-danger)', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
+                                                        >
+                                                            <XCircle size={18} /> Reject
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    /* Verification Pending Case */
+                                                    <>
+                                                        <button 
+                                                            className="btn btn-approve-full" 
+                                                            onClick={onApprove}
+                                                            style={{ backgroundColor: 'var(--clr-success)', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
+                                                        >
+                                                            <CheckCircle size={18} /> Verify & Approve
+                                                        </button>
+                                                        <button 
+                                                            className="btn btn-reject-full" 
+                                                            onClick={onReject}
+                                                            style={{ backgroundColor: 'var(--clr-danger)', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
+                                                        >
+                                                            <XCircle size={18} /> Deny Proof
+                                                        </button>
+                                                    </>
+                                                )}
+                                                
+                                                <button 
+                                                    className="btn btn-cancel-terminal" 
+                                                    onClick={onCancel}
+                                                    style={{ backgroundColor: '#4b5563', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
+                                                >
+                                                    <Ban size={18} /> Cancel
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
