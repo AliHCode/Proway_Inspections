@@ -403,7 +403,7 @@ export default function DailyRFISheet() {
     }, [scrollNonce]);
 
     function scrollToPageBottom() {
-        setShowNewRfiEntry(true);
+        if (newRows.length === 0) addRow();
         setScrollNonce(n => n + 1);
     }
 
@@ -778,7 +778,7 @@ export default function DailyRFISheet() {
                     <h2 className="section-title">
                         {activeTab === 'daily' ? 'Filed RFIs' : 'Rejected RFIs'}
                     </h2>
-                    {currentRfis.length === 0 ? (
+                    {currentRfis.length === 0 && newRows.length === 0 ? (
                         <div className="empty-state">
                             <div className="empty-state-icon" style={{ marginBottom: '0.25rem', opacity: 0.35 }}>
                                 <ClipboardList size={28} strokeWidth={1.5} />
@@ -787,6 +787,11 @@ export default function DailyRFISheet() {
                             <p style={{ fontSize: '0.8rem', color: 'var(--clr-text-muted)', margin: '0' }}>
                                 {activeTab === 'daily' ? 'Sync today\'s items.' : 'No rejected items.'}
                             </p>
+                            {activeTab === 'daily' && currentDate === getToday() && (
+                                <button className="btn btn-primary" onClick={addRow} style={{ marginTop: '1rem' }}>
+                                    <Plus size={16} /> File New RFI
+                                </button>
+                            )}
                         </div>
                     ) : (
                         <div className="rfi-table-wrapper">
@@ -799,6 +804,7 @@ export default function DailyRFISheet() {
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    {/* Filed RFIs */}
                                     {currentRfis.map((rfi, idx) => (
                                         <tr
                                             key={rfi.id}
@@ -808,8 +814,49 @@ export default function DailyRFISheet() {
                                             {displayTableColumns.map(col => renderDisplayCell(rfi, col, idx, false))}
                                         </tr>
                                     ))}
+
+                                    {/* New Entry Rows (Inline) */}
+                                    {activeTab === 'daily' && currentDate === getToday() && newRows.map((row, idx) => (
+                                        <tr key={row.tempId} className="new-rfi-row-entry">
+                                            {displayTableColumns.map(col => renderNewEntryCell(row, col, idx))}
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
+
+                            {/* Spreadsheet Actions */}
+                            {activeTab === 'daily' && currentDate === getToday() && (
+                                <div className="integrated-sheet-actions" style={{ 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between', 
+                                    alignItems: 'center', 
+                                    padding: '1rem',
+                                    background: '#f8fafc',
+                                    borderTop: '1px solid #e2e8f0',
+                                    borderBottomLeftRadius: '12px',
+                                    borderBottomRightRadius: '12px'
+                                }}>
+                                    <button className="btn btn-ghost" onClick={addRow} disabled={isSubmitting}>
+                                        <Plus size={16} /> Add Another Row
+                                    </button>
+                                    
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                        {submitMessage && (
+                                            <span style={{ 
+                                                fontSize: '0.85rem', 
+                                                color: submitMessage.includes('✅') ? 'var(--clr-success)' : 'var(--clr-danger)',
+                                                fontWeight: '500'
+                                            }}>
+                                                {submitMessage}
+                                            </span>
+                                        )}
+                                        <button className="btn btn-primary" onClick={handleSubmit} disabled={isSubmitting || newRows.length === 0}>
+                                            {isSubmitting ? <RefreshCw size={16} className="spin" /> : <Send size={16} />}
+                                            {isSubmitting ? 'Submitting...' : `Submit ${newRows.length} RFI${newRows.length > 1 ? 's' : ''}`}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                     {isFullscreen && (
@@ -819,104 +866,7 @@ export default function DailyRFISheet() {
                     )}
                 </div>
 
-                {/* New RFI Entry (Spreadsheet-like) - Only in Daily Tab and Only on Today's Date */}
-                {activeTab === 'daily' && currentDate === getToday() && (
-                    <div className="sheet-section new-entry-section">
-                    <div className="new-entry-launcher">
-                        <div className="new-entry-launcher-copy">
-                            <span className="new-entry-kicker">RFI Workspace</span>
-                            <h2 className="new-entry-title">New RFIs</h2>
-                            <p className="new-entry-subtitle">Use grid mode to file requests.</p>
-                        </div>
-                        <button
-                            className="btn btn-primary"
-                            onClick={() => setShowNewRfiEntry((prev) => !prev)}
-                            type="button"
-                        >
-                            <Plus size={16} /> {showNewRfiEntry ? 'Close Entry Grid' : 'Open Entry Grid'}
-                        </button>
-                    </div>
 
-                    {!showNewRfiEntry && (
-                        <div className="new-entry-placeholder">
-                            Grid hidden. Click <strong>Open Entry Grid</strong>.
-                        </div>
-                    )}
-
-                    {showNewRfiEntry && (
-                        <>
-                            {/* Datalists are generated dynamically within the cell inputs */}
-
-                            <datalist id="description-suggestions">
-                                {uniqueDescriptions.map((desc, idx) => (
-                                    <option key={idx} value={desc} />
-                                ))}
-                            </datalist>
-
-                            {Object.entries(uniqueCustomFields).map(([key, values]) => (
-                                <datalist key={`custom-${key}`} id={`custom-${key}-suggestions`}>
-                                    {values.map((val, idx) => <option key={idx} value={val} />)}
-                                </datalist>
-                            ))}
-
-                            <div id="new-rfi-entry-grid" className="rfi-table-wrapper" style={{ marginTop: '1rem' }}>
-                                <table className="rfi-table editable">
-                                    <thead>
-                                        <tr>
-                                            {newEntryColumns.map(col => {
-                                                const style = getTableColumnStyle(col.field_key);
-                                                let label = col.field_name || (col.field_key.charAt(0).toUpperCase() + col.field_key.slice(1).replace(/_/g, ' '));
-                                                // Identify if the field should be marked as required
-                                                const isRequired = col.is_required || col.field_key === 'description' || col.field_key === 'location';
-                                                if (isRequired) label += ' *';
-                                                return <th key={col.field_key} style={style}>{label}</th>;
-                                            })}
-                                            {assignmentMode === 'direct' && <th key="assign_to" className="col-assign" style={getTableColumnStyle('assigned_to')}>Assign To</th>}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {newRows.map((row, idx) => (
-                                            <tr key={row.tempId}>
-                                                {newEntryColumns.map(col => renderNewEntryCell(row, col, idx))}
-                                                {assignmentMode === 'direct' && (
-                                                    <td key="assign_to" className="col-assign" style={getTableColumnStyle('assigned_to')}>
-                                                        <select
-                                                            className="cell-select"
-                                                            value={row.assignedTo}
-                                                            onChange={(e) => updateRow(row.tempId, 'assignedTo', e.target.value)}
-                                                        >
-                                                            <option value="">— Auto —</option>
-                                                            {consultants.map((c) => (
-                                                                <option key={c.id} value={c.id}>{c.name}</option>
-                                                            ))}
-                                                        </select>
-                                                    </td>
-                                                )}
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div className="sheet-actions">
-                                <button className="btn btn-ghost" onClick={addRow} disabled={isSubmitting}>
-                                    <Plus size={16} /> Add Row
-                                </button>
-                                <button className="btn btn-primary" onClick={handleSubmit} disabled={isSubmitting}>
-                                    {isSubmitting ? <RefreshCw size={16} className="spin" /> : <Send size={16} />}
-                                    {isSubmitting ? 'Submitting...' : 'Submit RFIs'}
-                                </button>
-                            </div>
-
-                            {submitMessage && (
-                                <div className={`submit-message ${submitMessage.includes('✅') ? 'success' : 'error'}`}>
-                                    {submitMessage}
-                                </div>
-                            )}
-                        </>
-                    )}
-                </div>
-                )}
             </main>
 
             {/* Lightbox for Contractor Uploads - Moved outside main to avoid transform clipping */}
