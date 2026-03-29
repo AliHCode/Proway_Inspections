@@ -28,6 +28,7 @@ export default function ReviewQueue() {
     const [rejectTarget, setRejectTarget] = useState(null);
     const [cancelTarget, setCancelTarget] = useState(null);
     const [detailTarget, setDetailTarget] = useState(null);
+    const [actionSheetTarget, setActionSheetTarget] = useState(null);
     const [filterOptions, setFilterOptions] = useState({
         status: 'all', // all, to_review, approved, conditional, rejected
         showOnlyMe: false
@@ -539,156 +540,35 @@ export default function ReviewQueue() {
                 return null;
             }
         }
-        // For claim mode: if we reach here, user is the claimer or reviewer
 
-        if (rfi.status === 'verification_pending') {
+        // If not pending/verifying, we usually don't show the quick-action button
+        const isActionable = rfi.status === 'pending' || rfi.status === 'verification_pending' || rfi.status === 'info_requested';
+
+        if (!isActionable) {
             return (
-                <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
                     <button
                         onClick={() => {
-                            setApproveMode('full');
-                            setApproveTarget(rfi);
-                            setRejectTarget(null);
-                            setDetailTarget(null);
+                            setDetailTarget(rfi);
+                            setScrollTrigger(prev => prev + 1);
                         }}
-                        title="Approve Proof"
-                        className="btn btn-sm"
-                        style={{
-                            background: 'var(--clr-success-bg)', color: 'var(--clr-success)', border: '1px solid var(--clr-success)',
-                            borderRadius: '8px', padding: '5px 8px', fontSize: '0.75rem', display: 'flex', gap: '3px', alignItems: 'center', fontWeight: 'bold', cursor: 'pointer'
-                        }}
+                        className="btn-review-mini"
+                        title="View Details"
                     >
-                        <CheckCircle size={14} /> Verify
-                    </button>
-                    <button
-                        onClick={() => {
-                            setRejectTarget(rfi);
-                            setDetailTarget(null);
-                        }}
-                        title="Deny Proof"
-                        className="btn btn-sm"
-                        style={{
-                            background: 'var(--clr-danger-bg)', color: 'var(--clr-danger)', border: '1px solid var(--clr-danger)',
-                            borderRadius: '8px', padding: '5px 8px', fontSize: '0.75rem', display: 'flex', gap: '3px', alignItems: 'center', fontWeight: 'bold', cursor: 'pointer'
-                        }}
-                    >
-                        <XCircle size={14} /> Deny
+                        <ClipboardList size={16} /> Details
                     </button>
                 </div>
             );
         }
 
-        const showFullApprove = rfi.status !== 'approved';
-        const showConditionalApprove = rfi.status !== 'conditional_approve';
-        const showRejectAction = rfi.status !== 'rejected';
-        const showCancelAction = rfi.status !== 'cancelled';
-
         return (
-            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', alignItems: 'center' }}>
-                {showFullApprove && (
-                    <button
-                        onClick={() => {
-                            setApproveMode('full');
-                            setApproveTarget(rfi);
-                            setRejectTarget(null);
-                            setDetailTarget(null);
-                        }}
-                        title="Approve"
-                        style={{
-                            background: 'transparent', border: '1.5px solid #d1d5db',
-                            borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: '3px',
-                            color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
-                            fontFamily: 'inherit', transition: 'all 0.15s',
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-success)'; e.currentTarget.style.color = 'var(--clr-success)'; e.currentTarget.style.background = 'var(--clr-success-bg)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
-                    >
-                        <CheckCircle size={15} />
-                    </button>
-                )}
-                {showConditionalApprove && (
-                    <button
-                        onClick={() => {
-                            setApproveMode('conditional');
-                            setApproveTarget(rfi);
-                            setRejectTarget(null);
-                            setDetailTarget(null);
-                        }}
-                        title="Conditional Approve"
-                        style={{
-                            background: 'transparent', border: '1.5px solid #d1d5db',
-                            borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: '3px',
-                            color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
-                            fontFamily: 'inherit', transition: 'all 0.15s',
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-warning)'; e.currentTarget.style.color = 'var(--clr-warning)'; e.currentTarget.style.background = 'var(--clr-warning-bg)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
-                    >
-                        <CheckCircle size={15} />
-                        <span style={{ fontSize: '10px', fontWeight: 700 }}>COND.</span>
-                    </button>
-                )}
-                {showRejectAction && (
-                    <button
-                        onClick={() => {
-                            setRejectTarget(rfi);
-                            setDetailTarget(null);
-                        }}
-                        title="Reject"
-                        style={{
-                            background: 'transparent', border: '1.5px solid #d1d5db',
-                            borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: '3px',
-                            color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
-                            fontFamily: 'inherit', transition: 'all 0.15s',
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-danger)'; e.currentTarget.style.color = 'var(--clr-danger)'; e.currentTarget.style.background = 'var(--clr-danger-bg)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
-                    >
-                        <XCircle size={15} />
-                    </button>
-                )}
-                {showCancelAction && (
-                    <button
-                        onClick={() => {
-                            setCancelTarget(rfi);
-                            setDetailTarget(null);
-                        }}
-                        title="Cancel (Terminal)"
-                        style={{
-                            background: 'transparent', border: '1.5px solid #d1d5db',
-                            borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: '3px',
-                            color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
-                            fontFamily: 'inherit', transition: 'all 0.15s',
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = '#4b5563'; e.currentTarget.style.color = '#4b5563'; e.currentTarget.style.background = '#f3f4f6'; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
-                    >
-                        <Ban size={15} />
-                    </button>
-                )}
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <button
-                    onClick={() => {
-                        setDetailTarget(rfi);
-                        setRejectTarget(null);
-                        setScrollTrigger(prev => prev + 1);
-                        setTimeout(() => scrollToPageBottom(), 80);
-                    }}
-                    title="View Review & Details"
-                    style={{
-                        background: 'transparent', border: '1.5px solid #d1d5db',
-                        borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', gap: '3px',
-                        color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
-                        fontFamily: 'inherit', transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#9ca3af'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = '#f9fafb'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+                    onClick={() => setActionSheetTarget(rfi)}
+                    className="btn-review-main"
+                    title="Review RFI"
                 >
-                    <ClipboardList size={15} />
+                    Review <Maximize2 size={14} style={{ marginLeft: '4px', opacity: 0.7 }} />
                 </button>
             </div>
         );
@@ -1236,6 +1116,39 @@ export default function ReviewQueue() {
                     </div>
                 </div>
             )}
+
+            {/* Bottom Action Sheet (RFI Decision Center) */}
+            <div 
+                className={`action-sheet-overlay ${actionSheetTarget ? 'open' : ''}`}
+                onClick={() => setActionSheetTarget(null)}
+            />
+            {actionSheetTarget && (
+                <div className="action-sheet-panel">
+                    <div className="sheet-handle"></div>
+                    <div className="action-sheet-header">
+                        <h3 className="action-sheet-title">RFI #{actionSheetTarget.customFields?.rfi_no || actionSheetTarget.serialNo}</h3>
+                        <p className="action-sheet-subtitle">{actionSheetTarget.location}</p>
+                    </div>
+                    
+                    <div className="action-sheet-grid">
+                        <button className="sheet-btn sheet-btn-approve" onClick={() => { setApproveMode('full'); setApproveTarget(actionSheetTarget); setActionSheetTarget(null); }}>
+                            <CheckCircle size={24} /> Approve
+                        </button>
+                        <button className="sheet-btn sheet-btn-cond" onClick={() => { setApproveMode('conditional'); setApproveTarget(actionSheetTarget); setActionSheetTarget(null); }}>
+                            <CheckCircle size={24} /> <span style={{fontSize: '0.7rem'}}>COND. APPROVE</span>
+                        </button>
+                        <button className="sheet-btn sheet-btn-reject" onClick={() => { setRejectTarget(actionSheetTarget); setActionSheetTarget(null); }}>
+                            <XCircle size={24} /> Reject
+                        </button>
+                        <button className="sheet-btn sheet-btn-cancel" onClick={() => { setCancelTarget(actionSheetTarget); setActionSheetTarget(null); }}>
+                            <Ban size={24} /> Cancel
+                        </button>
+                        <button className="sheet-btn sheet-btn-details full-width" onClick={() => { setDetailTarget(actionSheetTarget); setActionSheetTarget(null); }}>
+                            <ClipboardList size={20} /> View Full Details & Review History
+                        </button>
+                    </div>
+                </div>
+            )}
             <style>
                 {`
                 @keyframes slideUp {
@@ -1380,6 +1293,135 @@ export default function ReviewQueue() {
                         padding: 0.5rem 1rem !important;
                         font-size: 0.8rem !important;
                     }
+                }
+
+                /* Action Sheet Styles */
+                .action-sheet-overlay {
+                    position: fixed;
+                    inset: 0;
+                    background: rgba(15, 23, 42, 0.4);
+                    backdrop-filter: blur(4px);
+                    -webkit-backdrop-filter: blur(4px);
+                    z-index: 2000;
+                    opacity: 0;
+                    visibility: hidden;
+                    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+                .action-sheet-overlay.open {
+                    opacity: 1;
+                    visibility: visible;
+                }
+                .action-sheet-panel {
+                    position: fixed;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    background: #fff;
+                    border-top-left-radius: 24px;
+                    border-top-right-radius: 24px;
+                    padding: 24px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+                    z-index: 2001;
+                    transform: translateY(100%);
+                    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+                    box-shadow: 0 -10px 40px rgba(0,0,0,0.15);
+                    max-width: 600px;
+                    margin: 0 auto;
+                }
+                .action-sheet-overlay.open + .action-sheet-panel {
+                    transform: translateY(0);
+                }
+                .action-sheet-header {
+                    margin-bottom: 24px;
+                    text-align: center;
+                }
+                .sheet-handle {
+                    width: 40px;
+                    height: 5px;
+                    background: #e2e8f0;
+                    border-radius: 5px;
+                    margin: -10px auto 15px;
+                }
+                .action-sheet-title {
+                    font-size: 1.1rem;
+                    font-weight: 700;
+                    color: #0f172a;
+                    margin-bottom: 4px;
+                }
+                .action-sheet-subtitle {
+                    font-size: 0.85rem;
+                    color: #64748b;
+                }
+                .action-sheet-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 12px;
+                }
+                .sheet-btn {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                    padding: 18px 12px;
+                    border-radius: 16px;
+                    border: 1px solid transparent;
+                    font-size: 0.85rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    -webkit-tap-highlight-color: transparent;
+                }
+                .sheet-btn.full-width {
+                    grid-column: span 2;
+                    flex-direction: row;
+                    padding: 14px;
+                }
+                .sheet-btn-approve { background: #ecfdf5; color: #059669; border-color: #d1fae5; }
+                .sheet-btn-approve:active { background: #d1fae5; transform: scale(0.97); }
+                
+                .sheet-btn-cond { background: #fffbeb; color: #d97706; border-color: #fef3c7; }
+                .sheet-btn-cond:active { background: #fef3c7; transform: scale(0.97); }
+                
+                .sheet-btn-reject { background: #fef2f2; color: #dc2626; border-color: #fee2e2; }
+                .sheet-btn-reject:active { background: #fee2e2; transform: scale(0.97); }
+                
+                .sheet-btn-cancel { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+                .sheet-btn-cancel:active { background: #f1f5f9; transform: scale(0.97); }
+                
+                .sheet-btn-details { background: #eff6ff; color: #2563eb; border-color: #dbeafe; }
+                .sheet-btn-details:active { background: #dbeafe; transform: scale(0.97); }
+
+                .btn-review-main {
+                    background: #f8fafc;
+                    border: 1.5px solid #e2e8f0;
+                    color: #475569;
+                    font-weight: 600;
+                    padding: 6px 14px;
+                    border-radius: 10px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 2px;
+                    font-size: 0.85rem;
+                    transition: all 0.2s;
+                }
+                .btn-review-main:hover {
+                    background: #fff;
+                    border-color: #cbd5e1;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                    transform: translateY(-1px);
+                }
+                .btn-review-mini {
+                    background: transparent;
+                    border: 1px solid #e2e8f0;
+                    color: #64748b;
+                    padding: 4px 10px;
+                    border-radius: 8px;
+                    font-size: 0.75rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    cursor: pointer;
                 }
                 `}
             </style>
