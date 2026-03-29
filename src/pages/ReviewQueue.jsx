@@ -508,8 +508,43 @@ export default function ReviewQueue() {
                     </div>
                 );
             }
-            // If claimed by someone else, show nothing
+            // If claimed by someone else, show "Claimed by" badge for consultants
             if (rfi.assignedTo && rfi.assignedTo !== user.id && rfi.reviewedBy !== user.id) {
+                if (user?.role === 'consultant') {
+                    const claimerName = rfi.assigneeName || 'Another Consultant';
+                    return (
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center' }}>
+                            <span style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                background: '#f1f5f9', color: '#64748b', fontSize: '0.75rem',
+                                fontWeight: 600, padding: '4px 10px', borderRadius: '6px',
+                                border: '1px solid #e2e8f0', whiteSpace: 'nowrap'
+                            }}>
+                                🔒 Claimed by {claimerName}
+                            </span>
+                            <button
+                                onClick={() => {
+                                    setDetailTarget(rfi);
+                                    setRejectTarget(null);
+                                    setScrollTrigger(prev => prev + 1);
+                                    setTimeout(() => scrollToPageBottom(), 80);
+                                }}
+                                title="View Details (Read Only)"
+                                style={{
+                                    background: 'transparent', border: '1.5px solid #d1d5db',
+                                    borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', gap: '3px',
+                                    color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
+                                    fontFamily: 'inherit', transition: 'all 0.15s',
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.borderColor = '#9ca3af'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = '#f9fafb'; }}
+                                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+                            >
+                                <ClipboardList size={15} />
+                            </button>
+                        </div>
+                    );
+                }
                 return null;
             }
         }
