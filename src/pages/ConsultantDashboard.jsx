@@ -71,67 +71,20 @@ export default function ConsultantDashboard() {
         .slice(-7);
 
     return (
-        <div className="page-wrapper premium-dashboard" style={{ background: '#f8fafc' }}>
+        <div className="page-wrapper premium-dashboard">
             <Header />
-            <main className="dashboard-page" style={{ paddingTop: '80px', maxWidth: '1440px', margin: '0 auto' }}>
-                <header className="premium-header" style={{ 
-                    marginBottom: '2rem', 
-                    padding: '2rem', 
-                    background: 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
-                    borderRadius: '24px',
-                    border: '1px solid #e2e8f0',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
-                }}>
+            <main className="dashboard-page">
+                <header className="premium-header">
                     <div className="welcome-monochrome-container">
-                        <span className="welcome-label-mono" style={{ 
-                            fontSize: '0.85rem', 
-                            fontWeight: 700, 
-                            color: 'var(--clr-text-secondary)', 
-                            textTransform: 'uppercase', 
-                            letterSpacing: '0.1em' 
-                        }}>{getGreeting()}</span>
-                        <h1 className="welcome-user-mono" style={{ 
-                            fontSize: '2.25rem', 
-                            fontWeight: 900, 
-                            color: 'var(--clr-brand-primary)', 
-                            margin: '4px 0',
-                            letterSpacing: '-0.02em'
-                        }}>{user?.name?.split(' ')[0] || 'Consultant'}</h1>
+                        <span className="welcome-label-mono">{getGreeting()}</span>
+                        <h1 className="welcome-user-mono">{user?.name?.split(' ')[0] || 'Consultant'}</h1>
                     </div>
-                    <div className="premium-actions" style={{ display: 'flex', gap: '1rem' }}>
-                        <button className="btn-command" onClick={() => navigate('/consultant/review')} style={{
-                            background: '#0f172a',
-                            color: '#fff',
-                            border: 'none',
-                            padding: '12px 24px',
-                            borderRadius: '14px',
-                            fontWeight: 700,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            cursor: 'pointer',
-                            boxShadow: '0 10px 15px -3px rgba(15, 23, 42, 0.3)',
-                            transition: 'all 0.2s'
-                        }}>
-                            <FileSearch size={20} strokeWidth={2.5} /> Review RFIs
+                    <div className="premium-actions" style={{ display: 'flex', gap: '0.75rem' }}>
+                        <button className="btn-command" onClick={() => navigate('/consultant/review')}>
+                            <FileSearch size={18} strokeWidth={2.5} /> Review RFIs
                         </button>
-                        <button className="btn-journey" onClick={() => navigate('/consultant/rejection-journey')} style={{
-                            background: '#fff',
-                            color: '#475569',
-                            border: '1.5px solid #e2e8f0',
-                            padding: '12px 24px',
-                            borderRadius: '14px',
-                            fontWeight: 700,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                        }}>
-                            <GitBranch size={20} /> Rejection Journey
+                        <button className="btn btn-ghost" style={{ backgroundColor: 'rgba(255,255,255,0.5)', backdropFilter: 'blur(4px)', fontSize: '0.85rem' }} onClick={() => navigate('/consultant/rejection-journey')}>
+                            <GitBranch size={16} /> Rejection Journey
                         </button>
                     </div>
                 </header>

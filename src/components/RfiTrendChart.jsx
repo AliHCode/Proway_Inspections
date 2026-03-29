@@ -37,56 +37,43 @@ export default function RfiTrendChart({ data }) {
                             <stop offset="5%" stopColor="var(--clr-brand-primary)" stopOpacity={0.2} />
                             <stop offset="95%" stopColor="var(--clr-brand-primary)" stopOpacity={0} />
                         </linearGradient>
-                        {/* Glow Filter */}
-                        <filter id="shadow" height="200%">
-                            <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
-                            <feOffset dx="0" dy="4" result="offsetblur" />
-                            <feComponentTransfer>
-                                <feFuncA type="linear" slope="0.3" />
-                            </feComponentTransfer>
-                            <feMerge>
-                                <feMergeNode />
-                                <feMergeNode in="SourceGraphic" />
-                            </feMerge>
-                        </filter>
                     </defs>
                     <XAxis
                         dataKey="date"
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 500 }}
-                        dy={15}
+                        tick={{ fontSize: 12, fill: '#94a3b8' }}
+                        dy={10}
                     />
                     <YAxis
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 500 }}
+                        tick={{ fontSize: 12, fill: '#94a3b8' }}
                         width={30}
                     />
                     <Tooltip
-                        cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }}
+                        cursor={{ stroke: 'var(--clr-border)', strokeWidth: 1 }}
                         contentStyle={{
-                            borderRadius: '16px',
-                            border: '1px solid rgba(226, 232, 240, 0.8)',
-                            background: 'rgba(255, 255, 255, 0.9)',
-                            backdropFilter: 'blur(8px)',
+                            borderRadius: '12px',
+                            border: '1px solid var(--clr-border)',
+                            background: 'var(--clr-bg-elevated)',
                             color: 'var(--clr-text-main)',
-                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                            fontSize: '13px',
-                            padding: '10px 14px'
+                            boxShadow: 'var(--shadow-lg)',
+                            fontSize: '14px',
+                            padding: '8px 12px'
                         }}
+                        itemStyle={{ color: 'var(--clr-text-main)' }}
                     />
                     <Area
                         type="monotone"
                         dataKey="value"
                         name="RFIs"
                         stroke="var(--clr-brand-primary)"
-                        strokeWidth={4}
+                        strokeWidth={3}
                         fillOpacity={1}
                         fill="url(#colorValue)"
-                        filter="url(#shadow)"
-                        dot={{ r: 5, fill: 'var(--clr-brand-primary)', stroke: '#fff', strokeWidth: 2, fillOpacity: 1 }}
-                        activeDot={{ r: 7, fill: 'var(--clr-brand-primary)', stroke: '#fff', strokeWidth: 3 }}
+                        dot={{ r: 4, fill: 'var(--clr-brand-primary)', stroke: 'var(--clr-bg-elevated)', strokeWidth: 2, fillOpacity: 1 }}
+                        activeDot={{ r: 5, fill: 'var(--clr-brand-primary)', stroke: 'var(--clr-bg-elevated)', strokeWidth: 2 }}
                         animationDuration={1500}
                     />
                 </AreaChart>
