@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
-import { X, Calendar, MapPin, Tag, MessageSquare, History, List, Upload, CheckCircle, ClipboardList, XCircle } from 'lucide-react';
+import { X, Calendar, MapPin, Tag, MessageSquare, History, List, Upload, CheckCircle, ClipboardList, XCircle, Hand } from 'lucide-react';
 import ThreadedComments from './ThreadedComments';
 import AuditLog from './AuditLog';
 import StatusBadge from './StatusBadge';
@@ -7,12 +7,14 @@ import UserAvatar from './UserAvatar';
 import { formatDateDisplay, getThumbnailUrl } from '../utils/rfiLogic';
 import { useRFI } from '../context/RFIContext';
 import { useAuth } from '../context/AuthContext';
+import { useProject } from '../context/ProjectContext';
 import { RFI_STATUS } from '../utils/constants';
 
 export default function RFIDetailModal({ rfi, projectFields = [], orderedColumns = [], onClose, externalScrollTrigger }) {
     const [activeTab, setActiveTab] = useState('review');
     const [tabScrollTrigger, setTabScrollTrigger] = useState(0);
-    const { rfis, updateRFI } = useRFI();
+    const { rfis, updateRFI, claimRFI } = useRFI();
+    const { assignmentMode } = useProject();
     const { user } = useAuth();
     const fileInputRef = useRef(null);
     const [resolveFile, setResolveFile] = useState(null);
@@ -137,6 +139,19 @@ export default function RFIDetailModal({ rfi, projectFields = [], orderedColumns
                                         <span>Awaiting Review</span>
                                     </div>
                                     <p className="verdict-helper">This RFI is currently in the queue and has not been reviewed by a consultant yet.</p>
+                                    
+                                    {assignmentMode === 'claim' && !rfi.assignedTo && user?.role === 'consultant' && (
+                                        <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center' }}>
+                                            <button
+                                                className="btn btn-claim"
+                                                onClick={() => { claimRFI(rfi.id, user.id); onClose(); }}
+                                                title="Claim this RFI for review"
+                                                style={{ padding: '0.6rem 1.2rem', fontSize: '0.9rem' }}
+                                            >
+                                                <Hand size={18} /> Claim Inspection
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div className={`rfi-verdict-card ${rfi.status.toLowerCase()}`}>

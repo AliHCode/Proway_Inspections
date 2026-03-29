@@ -199,7 +199,7 @@ export default function DailyRFISheet() {
                     filedBy: user.id,
                     filedDate: currentDate,
                     images: row.images,
-                    assignedTo: row.assignedTo || null,
+                    assignedTo: assignmentMode === 'direct' ? (row.assignedTo || null) : null,
                     parentId: row.parentId || null,
                     customFields: Object.keys(row.customFields).length > 0 ? row.customFields : null,
                 });
@@ -434,8 +434,8 @@ export default function DailyRFISheet() {
             cols = cols.filter(c => c.field_key !== 'remarks' && c.field_key !== 'attachments' && c.field_key !== 'inspection_type');
         }
 
-        // Add "Assigned To" at the very end if not already present
-        if (!cols.find(c => c.field_key === 'assigned_to')) {
+        // Add "Assigned To" at the very end if not already present, but only for direct mode
+        if (assignmentMode === 'direct' && !cols.find(c => c.field_key === 'assigned_to')) {
             cols.push({ field_key: 'assigned_to', field_name: 'Assigned To' });
         }
         return cols;

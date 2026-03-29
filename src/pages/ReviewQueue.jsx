@@ -876,7 +876,7 @@ export default function ReviewQueue() {
                                         {visibleColumns.map((col) => (
                                             <th key={col.id || col.field_key} style={getTableColumnStyle(col.field_key)}>{col.field_name}</th>
                                         ))}
-                                        <th className="col-assign">Assigned To</th>
+                                        {assignmentMode === 'direct' && <th className="col-assign">Assigned To</th>}
                                         <th className="col-status">SUBMISSION DATE</th>
                                     </tr>
                                 </thead>
@@ -907,34 +907,36 @@ export default function ReviewQueue() {
                                                         {renderReviewOrderedCell(rfi, col, isCarryover, index)}
                                                     </td>
                                                 ))}
-                                                <td className="col-assign" data-label="Assigned To">
-                                                    {(() => {
-                                                        const consultantName = rfi.reviewerName || rfi.assigneeName;
-                                                        const isMe = rfi.reviewedBy === user.id || (rfi.status === 'pending' && rfi.assignedTo === user.id);
-                                                        
-                                                        if (assignmentMode === 'open') {
-                                                            if (consultantName) {
-                                                                return <span className={`assign-badge ${isMe ? 'is-me' : ''}`}>{isMe ? <><UserPlus size={14} className="badge-icon" /> You</> : consultantName}</span>;
+                                                {assignmentMode === 'direct' && (
+                                                    <td className="col-assign" data-label="Assigned To">
+                                                        {(() => {
+                                                            const consultantName = rfi.reviewerName || rfi.assigneeName;
+                                                            const isMe = rfi.reviewedBy === user.id || (rfi.status === 'pending' && rfi.assignedTo === user.id);
+                                                            
+                                                            if (assignmentMode === 'open') {
+                                                                if (consultantName) {
+                                                                    return <span className={`assign-badge ${isMe ? 'is-me' : ''}`}>{isMe ? <><UserPlus size={14} className="badge-icon" /> You</> : consultantName}</span>;
+                                                                }
+                                                                return <span className="assign-badge mode-open-badge">Open</span>;
                                                             }
-                                                            return <span className="assign-badge mode-open-badge">Open</span>;
-                                                        }
-                                                        
-                                                        if (assignmentMode === 'claim') {
-                                                            if (consultantName) {
-                                                                return <span className={`assign-badge ${isMe ? 'is-me' : ''}`}>{isMe ? <><UserPlus size={14} className="badge-icon" /> You</> : consultantName}</span>;
+                                                            
+                                                            if (assignmentMode === 'claim') {
+                                                                if (consultantName) {
+                                                                    return <span className={`assign-badge ${isMe ? 'is-me' : ''}`}>{isMe ? <><UserPlus size={14} className="badge-icon" /> You</> : consultantName}</span>;
+                                                                }
+                                                                return <span className="assign-badge mode-claim-badge">Unclaimed</span>;
                                                             }
-                                                            return <span className="assign-badge mode-claim-badge">Unclaimed</span>;
-                                                        }
-                                                        
-                                                        // Direct mode
-                                                        if (!consultantName) return <span className="text-muted">— Auto —</span>;
-                                                        return (
-                                                            <span className={`assign-badge ${isMe ? 'is-me' : ''}`}>
-                                                                {isMe ? <><UserPlus size={14} className="badge-icon" /> You</> : consultantName}
-                                                            </span>
-                                                        );
-                                                    })()}
-                                                </td>
+                                                            
+                                                            // Direct mode
+                                                            if (!consultantName) return <span className="text-muted">— Auto —</span>;
+                                                            return (
+                                                                <span className={`assign-badge ${isMe ? 'is-me' : ''}`}>
+                                                                    {isMe ? <><UserPlus size={14} className="badge-icon" /> You</> : consultantName}
+                                                                </span>
+                                                            );
+                                                        })()}
+                                                    </td>
+                                                )}
                                                 <td className="col-status" data-label="Submission Date">{formatDateDisplay(rfi.originalFiledDate)}</td>
                                             </tr>
                                         );
