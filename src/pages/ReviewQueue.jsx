@@ -515,13 +515,7 @@ export default function ReviewQueue() {
                     const claimerName = rfi.assigneeName || 'Another Consultant';
                     return (
                         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                            <span style={{
-                                display: 'inline-flex', alignItems: 'center', gap: '5px',
-                                background: '#f8fafc', color: '#64748b', fontSize: '0.75rem',
-                                fontWeight: 600, padding: '5px 12px', borderRadius: '8px',
-                                border: '1px solid #e2e8f0', whiteSpace: 'nowrap',
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                            }}>
+                            <span className="badge-ghost-locked">
                                 🔒 Claimed by {claimerName}
                             </span>
                         </div>
@@ -1393,35 +1387,77 @@ export default function ReviewQueue() {
 
                 .btn-review-main {
                     background: #f8fafc;
-                    border: 1.5px solid #e2e8f0;
+                    border: 1px solid #cbd5e1;
                     color: #475569;
                     font-weight: 600;
-                    padding: 6px 14px;
-                    border-radius: 10px;
+                    padding: 6px 16px;
+                    border-radius: 12px;
                     cursor: pointer;
                     display: flex;
                     align-items: center;
-                    gap: 2px;
+                    gap: 6px;
                     font-size: 0.85rem;
-                    transition: all 0.2s;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
                 }
                 .btn-review-main:hover {
                     background: #fff;
-                    border-color: #cbd5e1;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                    border-color: #64748b;
+                    color: #0f172a;
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
                     transform: translateY(-1px);
                 }
                 .btn-review-mini {
-                    background: transparent;
+                    background: #f1f5f9;
                     border: 1px solid #e2e8f0;
                     color: #64748b;
-                    padding: 4px 10px;
-                    border-radius: 8px;
+                    padding: 4px 12px;
+                    border-radius: 10px;
                     font-size: 0.75rem;
+                    font-weight: 600;
                     display: flex;
                     align-items: center;
-                    gap: 4px;
+                    gap: 5px;
                     cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .btn-review-mini:hover {
+                    background: #e2e8f0;
+                    color: #334155;
+                }
+
+                .btn-claim {
+                    background: #eff6ff !important;
+                    border: 1px solid #3b82f6 !important;
+                    color: #2563eb !important;
+                    font-weight: 700 !important;
+                    border-radius: 12px !important;
+                    padding: 6px 16px !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    gap: 6px !important;
+                    transition: all 0.2s !important;
+                    box-shadow: 0 1px 2px rgba(59, 130, 246, 0.1);
+                }
+                .btn-claim:hover {
+                    background: #dbeafe !important;
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+                }
+
+                .badge-ghost-locked {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    background: #fffbeb;
+                    color: #b45309;
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    padding: 6px 14px;
+                    border-radius: 12px;
+                    border: 1px solid #fde68a;
+                    white-space: nowrap;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
                 }
                 `}
             </style>
