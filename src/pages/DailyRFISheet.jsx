@@ -555,7 +555,7 @@ export default function DailyRFISheet() {
                                     <Plus size={14} />
                                 </button>
                             )}
-                            {rfi.status === RFI_STATUS.PENDING && canEditThisRfi && (
+                            {(rfi.status === RFI_STATUS.PENDING || rfi.status === RFI_STATUS.INFO_REQUESTED) && canEditThisRfi && (
                                 <>
                                     <button className="btn btn-sm btn-ghost" onClick={() => { setEditTarget(rfi); setDetailTarget(null); }} title="Edit RFI">
                                         <Brush size={14} />

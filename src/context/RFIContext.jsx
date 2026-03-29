@@ -111,16 +111,22 @@ function canUserEditRfiRecord(rfi, currentUser) {
     // 2. It's already been reviewed (to allow correction).
     // 3. It's unassigned.
     if (currentUser.role === 'consultant') {
-        if (rfi.status !== 'pending') return true;
+        if (rfi.status !== RFI_STATUS.PENDING) return true;
         if (!rfi.assignedTo) return true;
         return rfi.assignedTo === currentUser.id;
     }
 
+    // Contractor / Filer Permission: Allow editing if they filed it AND it's not yet acted upon (Pending/Info Requested)
+    const isFiler = rfi.filedBy === currentUser.id;
+    const isUnderReview = rfi.status === RFI_STATUS.PENDING || rfi.status === RFI_STATUS.INFO_REQUESTED;
+    if (isFiler && isUnderReview) return true;
+
+    // Fallback: If assigned to current user
     if (rfi.assignedTo) {
         return rfi.assignedTo === currentUser.id;
     }
 
-    return rfi.filedBy === currentUser.id;
+    return isFiler;
 }
 
 function canUserDiscussRfiRecord(rfi, user) {
