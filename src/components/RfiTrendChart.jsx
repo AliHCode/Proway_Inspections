@@ -1,11 +1,13 @@
 import {
-    BarChart,
-    Bar,
+    LineChart,
+    Line,
     XAxis,
     YAxis,
-    Cell,
+    CartesianGrid,
     Tooltip,
     ResponsiveContainer,
+    Area,
+    AreaChart,
 } from 'recharts';
 
 export default function RfiTrendChart({ data }) {
@@ -17,76 +19,77 @@ export default function RfiTrendChart({ data }) {
         );
     }
 
-    // Custom shape for Rounded Bars (Pill-style)
-    const RoundedBar = (props) => {
-        const { x, y, width, height, fill } = props;
-        const radius = Math.min(width, 20) / 2;
-        return (
-            <g>
-                <rect x={x} y={y} width={width} height={height} rx={radius} fill={fill} />
-            </g>
-        );
-    };
-
     return (
-        <div className="premium-card chart-container" style={{ 
-            width: '100%', 
-            height: '100%', 
-            minHeight: 320,
-            borderRadius: '24px',
-            padding: '2rem',
-            background: 'var(--clr-bg-card)',
-            boxShadow: '0 4px 20px -5px rgba(0,0,0,0.05)'
-        }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h3 style={{ fontSize: '1.1rem', color: 'var(--clr-text-main)', fontWeight: 700 }}>Weekly RFI Activity</h3>
-                <div style={{ padding: '6px 12px', background: '#f8fafc', borderRadius: '8px', fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>
-                    Last 7 Days
-                </div>
-            </div>
-            
-            <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+        <div className="premium-card chart-container" style={{ width: '100%', height: '100%', minHeight: 320 }}>
+            <h3 className="chart-title" style={{ fontSize: '1.25rem', color: 'var(--clr-text-main)', fontWeight: 700, marginBottom: '1.5rem' }}>Weekly RFI Activity</h3>
+            <ResponsiveContainer width="100%" height={240}>
+                <AreaChart
+                    data={data}
+                    margin={{
+                        top: 10,
+                        right: 10,
+                        left: 0,
+                        bottom: 0,
+                    }}
+                >
+                    <defs>
+                        <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="var(--clr-brand-primary)" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="var(--clr-brand-primary)" stopOpacity={0} />
+                        </linearGradient>
+                        {/* Glow Filter */}
+                        <filter id="shadow" height="200%">
+                            <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+                            <feOffset dx="0" dy="4" result="offsetblur" />
+                            <feComponentTransfer>
+                                <feFuncA type="linear" slope="0.3" />
+                            </feComponentTransfer>
+                            <feMerge>
+                                <feMergeNode />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                    </defs>
                     <XAxis
                         dataKey="date"
                         axisLine={false}
                         tickLine={false}
                         tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 500 }}
-                        dy={12}
+                        dy={15}
                     />
                     <YAxis
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 11, fill: '#cbd5e1' }}
+                        tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 500 }}
+                        width={30}
                     />
                     <Tooltip
-                        cursor={{ fill: '#f1f5f9', opacity: 0.5 }}
+                        cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }}
                         contentStyle={{
                             borderRadius: '16px',
-                            border: 'none',
-                            background: '#0f172a',
-                            color: '#fff',
-                            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)',
+                            border: '1px solid rgba(226, 232, 240, 0.8)',
+                            background: 'rgba(255, 255, 255, 0.9)',
+                            backdropFilter: 'blur(8px)',
+                            color: 'var(--clr-text-main)',
+                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
                             fontSize: '13px',
                             padding: '10px 14px'
                         }}
-                        itemStyle={{ color: '#fff' }}
-                        labelStyle={{ color: '#94a3b8', marginBottom: '4px', fontWeight: 600 }}
                     />
-                    <Bar 
-                        dataKey="value" 
-                        shape={<RoundedBar />} 
-                        barSize={32}
-                    >
-                        {data.map((entry, index) => (
-                            <Cell 
-                                key={`cell-${index}`} 
-                                // Highlight the last bar (Today) or peak? User photo shows "Sep" (latest) highlighted.
-                                fill={index === data.length - 1 ? 'var(--clr-slate-dark)' : 'var(--clr-sage)'} 
-                            />
-                        ))}
-                    </Bar>
-                </BarChart>
+                    <Area
+                        type="monotone"
+                        dataKey="value"
+                        name="RFIs"
+                        stroke="var(--clr-brand-primary)"
+                        strokeWidth={4}
+                        fillOpacity={1}
+                        fill="url(#colorValue)"
+                        filter="url(#shadow)"
+                        dot={{ r: 5, fill: 'var(--clr-brand-primary)', stroke: '#fff', strokeWidth: 2, fillOpacity: 1 }}
+                        activeDot={{ r: 7, fill: 'var(--clr-brand-primary)', stroke: '#fff', strokeWidth: 3 }}
+                        animationDuration={1500}
+                    />
+                </AreaChart>
             </ResponsiveContainer>
         </div>
     );

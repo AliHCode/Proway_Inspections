@@ -68,15 +68,6 @@
 
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* New Pastel Premium Palette (V100 - Dashboard Transformation) */
-  --clr-sage-lite: #f1f5f2;
-  --clr-sage: #e2e8f0;
-  --clr-slate-dark: #0f172a;
-  --clr-teal-soft: #ecfdf5;
-  --clr-amber-soft: #fffbeb;
-  --clr-blue-soft: #eff6ff;
-  --clr-rose-soft: #fef2f2;
 }
 
 

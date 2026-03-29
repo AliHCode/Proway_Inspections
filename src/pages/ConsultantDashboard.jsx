@@ -44,12 +44,12 @@ export default function ConsultantDashboard() {
         const pendingQueue = queue.all.length;
 
         return [
-            { name: 'Approved', value: approvedToday, color: '#10b981' }, // Emerald
-            { name: 'Cond. App', value: conditionallyApprovedToday, color: '#fbbf24' }, // Amber
-            { name: 'Pending', value: pendingQueue, color: '#3b82f6' }, // Blue
-            { name: 'Rejected', value: rejectedToday, color: '#f87171' }, // Rose/Red
-            { name: 'Info Req.', value: infoRequestedToday, color: '#94a3b8' }, // Slate
-            { name: 'Cancelled', value: cancelledToday, color: '#cbd5e1' }, // Light Slate
+            { name: 'Approved', value: approvedToday, color: 'var(--clr-success)' },
+            { name: 'Cond. Approved', value: conditionallyApprovedToday, color: '#14b8a6' },
+            { name: 'Pending', value: pendingQueue, color: 'var(--clr-warning)' },
+            { name: 'Rejected', value: rejectedToday, color: 'var(--clr-danger)' },
+            { name: 'Info Req.', value: infoRequestedToday, color: 'var(--clr-brand-secondary)' },
+            { name: 'Cancelled', value: cancelledToday, color: '#6b7280' },
         ];
     }, [rfis, today, queue.all.length]);
 
@@ -71,38 +71,67 @@ export default function ConsultantDashboard() {
         .slice(-7);
 
     return (
-        <div className="page-wrapper premium-dashboard">
+        <div className="page-wrapper premium-dashboard" style={{ background: '#f8fafc' }}>
             <Header />
-            <main className="dashboard-page" style={{ padding: '2rem', maxWidth: '1600px', margin: '0 auto' }}>
-                <header className="premium-header" style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                    <div className="welcome-block">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--clr-text-secondary)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '4px' }}>
-                            <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--clr-brand-primary)' }}></div>
-                            {getGreeting()}
-                        </div>
-                        <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--clr-slate-dark)', letterSpacing: '-0.03em' }}>
-                            {user?.name?.split(' ')[0] || 'Consultant'}. <span style={{ color: '#cbd5e1' }}>👋</span>
-                        </h1>
+            <main className="dashboard-page" style={{ paddingTop: '80px', maxWidth: '1440px', margin: '0 auto' }}>
+                <header className="premium-header" style={{ 
+                    marginBottom: '2rem', 
+                    padding: '2rem', 
+                    background: 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
+                    borderRadius: '24px',
+                    border: '1px solid #e2e8f0',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
+                }}>
+                    <div className="welcome-monochrome-container">
+                        <span className="welcome-label-mono" style={{ 
+                            fontSize: '0.85rem', 
+                            fontWeight: 700, 
+                            color: 'var(--clr-text-secondary)', 
+                            textTransform: 'uppercase', 
+                            letterSpacing: '0.1em' 
+                        }}>{getGreeting()}</span>
+                        <h1 className="welcome-user-mono" style={{ 
+                            fontSize: '2.25rem', 
+                            fontWeight: 900, 
+                            color: 'var(--clr-brand-primary)', 
+                            margin: '4px 0',
+                            letterSpacing: '-0.02em'
+                        }}>{user?.name?.split(' ')[0] || 'Consultant'}</h1>
                     </div>
                     <div className="premium-actions" style={{ display: 'flex', gap: '1rem' }}>
-                        <button 
-                            className="btn-command" 
-                            onClick={() => navigate('/consultant/review')}
-                            style={{ 
-                                background: 'var(--clr-slate-dark)', 
-                                color: '#fff', 
-                                border: 'none', 
-                                padding: '12px 24px', 
-                                borderRadius: '14px', 
-                                fontWeight: 700, 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '8px',
-                                boxShadow: '0 10px 20px -5px rgba(15, 23, 42, 0.3)',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            <FileSearch size={20} /> Review RFIs
+                        <button className="btn-command" onClick={() => navigate('/consultant/review')} style={{
+                            background: '#0f172a',
+                            color: '#fff',
+                            border: 'none',
+                            padding: '12px 24px',
+                            borderRadius: '14px',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            cursor: 'pointer',
+                            boxShadow: '0 10px 15px -3px rgba(15, 23, 42, 0.3)',
+                            transition: 'all 0.2s'
+                        }}>
+                            <FileSearch size={20} strokeWidth={2.5} /> Review RFIs
+                        </button>
+                        <button className="btn-journey" onClick={() => navigate('/consultant/rejection-journey')} style={{
+                            background: '#fff',
+                            color: '#475569',
+                            border: '1.5px solid #e2e8f0',
+                            padding: '12px 24px',
+                            borderRadius: '14px',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                        }}>
+                            <GitBranch size={20} /> Rejection Journey
                         </button>
                     </div>
                 </header>
