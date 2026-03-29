@@ -525,32 +525,154 @@ export default function ReviewQueue() {
         }
         // For claim mode: if we reach here, user is the claimer or reviewer
 
-        // ─── Simplified Action Cell ───
+        if (rfi.status === 'verification_pending') {
+            return (
+                <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', alignItems: 'center' }}>
+                    <button
+                        onClick={() => {
+                            setApproveMode('full');
+                            setApproveTarget(rfi);
+                            setRejectTarget(null);
+                            setDetailTarget(null);
+                        }}
+                        title="Approve Proof"
+                        className="btn btn-sm"
+                        style={{
+                            background: 'var(--clr-success-bg)', color: 'var(--clr-success)', border: '1px solid var(--clr-success)',
+                            borderRadius: '8px', padding: '5px 8px', fontSize: '0.75rem', display: 'flex', gap: '3px', alignItems: 'center', fontWeight: 'bold', cursor: 'pointer'
+                        }}
+                    >
+                        <CheckCircle size={14} /> Verify
+                    </button>
+                    <button
+                        onClick={() => {
+                            setRejectTarget(rfi);
+                            setDetailTarget(null);
+                        }}
+                        title="Deny Proof"
+                        className="btn btn-sm"
+                        style={{
+                            background: 'var(--clr-danger-bg)', color: 'var(--clr-danger)', border: '1px solid var(--clr-danger)',
+                            borderRadius: '8px', padding: '5px 8px', fontSize: '0.75rem', display: 'flex', gap: '3px', alignItems: 'center', fontWeight: 'bold', cursor: 'pointer'
+                        }}
+                    >
+                        <XCircle size={14} /> Deny
+                    </button>
+                </div>
+            );
+        }
+
+        const showFullApprove = rfi.status !== 'approved';
+        const showConditionalApprove = rfi.status !== 'conditional_approve';
+        const showRejectAction = rfi.status !== 'rejected';
+        const showCancelAction = rfi.status !== 'cancelled';
+
         return (
             <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', alignItems: 'center' }}>
-                <button 
-                    className="btn btn-sm btn-ghost" 
-                    onClick={() => { 
-                        setDetailTarget(rfi); 
-                        setApproveTarget(null); 
-                        setRejectTarget(null); 
+                {showFullApprove && (
+                    <button
+                        onClick={() => {
+                            setApproveMode('full');
+                            setApproveTarget(rfi);
+                            setRejectTarget(null);
+                            setDetailTarget(null);
+                        }}
+                        title="Approve"
+                        style={{
+                            background: 'transparent', border: '1.5px solid #d1d5db',
+                            borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '3px',
+                            color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
+                            fontFamily: 'inherit', transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-success)'; e.currentTarget.style.color = 'var(--clr-success)'; e.currentTarget.style.background = 'var(--clr-success-bg)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+                    >
+                        <CheckCircle size={15} />
+                    </button>
+                )}
+                {showConditionalApprove && (
+                    <button
+                        onClick={() => {
+                            setApproveMode('conditional');
+                            setApproveTarget(rfi);
+                            setRejectTarget(null);
+                            setDetailTarget(null);
+                        }}
+                        title="Conditional Approve"
+                        style={{
+                            background: 'transparent', border: '1.5px solid #d1d5db',
+                            borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '3px',
+                            color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
+                            fontFamily: 'inherit', transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-warning)'; e.currentTarget.style.color = 'var(--clr-warning)'; e.currentTarget.style.background = 'var(--clr-warning-bg)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+                    >
+                        <CheckCircle size={15} />
+                        <span style={{ fontSize: '10px', fontWeight: 700 }}>COND.</span>
+                    </button>
+                )}
+                {showRejectAction && (
+                    <button
+                        onClick={() => {
+                            setRejectTarget(rfi);
+                            setDetailTarget(null);
+                        }}
+                        title="Reject"
+                        style={{
+                            background: 'transparent', border: '1.5px solid #d1d5db',
+                            borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '3px',
+                            color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
+                            fontFamily: 'inherit', transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--clr-danger)'; e.currentTarget.style.color = 'var(--clr-danger)'; e.currentTarget.style.background = 'var(--clr-danger-bg)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+                    >
+                        <XCircle size={15} />
+                    </button>
+                )}
+                {showCancelAction && (
+                    <button
+                        onClick={() => {
+                            setCancelTarget(rfi);
+                            setDetailTarget(null);
+                        }}
+                        title="Cancel (Terminal)"
+                        style={{
+                            background: 'transparent', border: '1.5px solid #d1d5db',
+                            borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '3px',
+                            color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
+                            fontFamily: 'inherit', transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = '#4b5563'; e.currentTarget.style.color = '#4b5563'; e.currentTarget.style.background = '#f3f4f6'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+                    >
+                        <Ban size={15} />
+                    </button>
+                )}
+                <button
+                    onClick={() => {
+                        setDetailTarget(rfi);
+                        setRejectTarget(null);
                         setScrollTrigger(prev => prev + 1);
                         setTimeout(() => scrollToPageBottom(), 80);
-                    }} 
-                    title="Open Detailed Review"
-                    style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '5px', 
-                        padding: '6px 12px',
-                        background: 'var(--clr-bg-elevated)',
-                        border: '1px solid var(--clr-border)',
-                        color: 'var(--clr-brand-primary)',
-                        fontWeight: '600',
-                        fontSize: '0.8rem'
                     }}
+                    title="View Review & Details"
+                    style={{
+                        background: 'transparent', border: '1.5px solid #d1d5db',
+                        borderRadius: '8px', padding: '6px 10px', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '3px',
+                        color: '#6b7280', fontSize: '0.8rem', fontWeight: 500,
+                        fontFamily: 'inherit', transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#9ca3af'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = '#f9fafb'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--clr-border)'; e.currentTarget.style.color = 'var(--clr-text-muted)'; e.currentTarget.style.background = 'transparent'; }}
                 >
-                    <ClipboardList size={15} /> Review
+                    <ClipboardList size={15} />
                 </button>
             </div>
         );
