@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
-import { X, Calendar, MapPin, Tag, MessageSquare, History, List, Upload, CheckCircle, ClipboardList, XCircle, Hand } from 'lucide-react';
+import { X, Calendar, MapPin, Tag, MessageSquare, History, List, Upload, CheckCircle, ClipboardList, XCircle, Hand, Ban } from 'lucide-react';
 import ThreadedComments from './ThreadedComments';
 import AuditLog from './AuditLog';
 import StatusBadge from './StatusBadge';
