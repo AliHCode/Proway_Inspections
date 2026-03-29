@@ -44,12 +44,12 @@ export default function ConsultantDashboard() {
         const pendingQueue = queue.all.length;
 
         return [
-            { name: 'Approved', value: approvedToday, color: 'var(--clr-success)' },
-            { name: 'Cond. Approved', value: conditionallyApprovedToday, color: '#14b8a6' },
-            { name: 'Pending', value: pendingQueue, color: 'var(--clr-warning)' },
-            { name: 'Rejected', value: rejectedToday, color: 'var(--clr-danger)' },
-            { name: 'Info Req.', value: infoRequestedToday, color: 'var(--clr-brand-secondary)' },
-            { name: 'Cancelled', value: cancelledToday, color: '#6b7280' },
+            { name: 'Approved', value: approvedToday, color: '#10b981' }, // Emerald
+            { name: 'Cond. App', value: conditionallyApprovedToday, color: '#fbbf24' }, // Amber
+            { name: 'Pending', value: pendingQueue, color: '#3b82f6' }, // Blue
+            { name: 'Rejected', value: rejectedToday, color: '#f87171' }, // Rose/Red
+            { name: 'Info Req.', value: infoRequestedToday, color: '#94a3b8' }, // Slate
+            { name: 'Cancelled', value: cancelledToday, color: '#cbd5e1' }, // Light Slate
         ];
     }, [rfis, today, queue.all.length]);
 
@@ -73,18 +73,36 @@ export default function ConsultantDashboard() {
     return (
         <div className="page-wrapper premium-dashboard">
             <Header />
-            <main className="dashboard-page">
-                <header className="premium-header">
-                    <div className="welcome-monochrome-container">
-                        <span className="welcome-label-mono">{getGreeting()}</span>
-                        <h1 className="welcome-user-mono">{user?.name?.split(' ')[0] || 'Consultant'}</h1>
+            <main className="dashboard-page" style={{ padding: '2rem', maxWidth: '1600px', margin: '0 auto' }}>
+                <header className="premium-header" style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                    <div className="welcome-block">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--clr-text-secondary)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '4px' }}>
+                            <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--clr-brand-primary)' }}></div>
+                            {getGreeting()}
+                        </div>
+                        <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--clr-slate-dark)', letterSpacing: '-0.03em' }}>
+                            {user?.name?.split(' ')[0] || 'Consultant'}. <span style={{ color: '#cbd5e1' }}>👋</span>
+                        </h1>
                     </div>
-                    <div className="premium-actions" style={{ display: 'flex', gap: '0.75rem' }}>
-                        <button className="btn-command" onClick={() => navigate('/consultant/review')}>
-                            <FileSearch size={18} strokeWidth={2.5} /> Review RFIs
-                        </button>
-                        <button className="btn btn-ghost" style={{ backgroundColor: 'rgba(255,255,255,0.5)', backdropFilter: 'blur(4px)', fontSize: '0.85rem' }} onClick={() => navigate('/consultant/rejection-journey')}>
-                            <GitBranch size={16} /> Rejection Journey
+                    <div className="premium-actions" style={{ display: 'flex', gap: '1rem' }}>
+                        <button 
+                            className="btn-command" 
+                            onClick={() => navigate('/consultant/review')}
+                            style={{ 
+                                background: 'var(--clr-slate-dark)', 
+                                color: '#fff', 
+                                border: 'none', 
+                                padding: '12px 24px', 
+                                borderRadius: '14px', 
+                                fontWeight: 700, 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '8px',
+                                boxShadow: '0 10px 20px -5px rgba(15, 23, 42, 0.3)',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            <FileSearch size={20} /> Review RFIs
                         </button>
                     </div>
                 </header>
