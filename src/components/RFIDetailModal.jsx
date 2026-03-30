@@ -120,15 +120,6 @@ export default function RFIDetailModal({
                             <div className="rfi-title-row">
                                 <h2>RFI #{rfiNo}</h2>
                                 <StatusBadge status={rfi.status} />
-                                {rfi.status !== 'pending' && onEditDecision && (
-                                    <button 
-                                        className="btn-edit-decision-ghost" 
-                                        onClick={() => onEditDecision(rfi)}
-                                        title="Modify Decision"
-                                    >
-                                        <Edit3 size={14} /> Edit Decision
-                                    </button>
-                                )}
                             </div>
                             <p>{mergedData.description || mergedData.inspection_type || 'RFI Details'}</p>
                         </div>
@@ -216,6 +207,21 @@ export default function RFIDetailModal({
                                     )}
                                 </div>
                             )}
+
+                            {/* Prominent Edit Decision Button for Consultants */}
+                            {rfi.status !== RFI_STATUS.PENDING && rfi.status !== RFI_STATUS.VERIFICATION_PENDING && onEditDecision && user.role === 'consultant' && (
+                                <div className="edit-decision-prominent-container">
+                                    <button 
+                                        className="btn-edit-decision-prominent"
+                                        onClick={() => onEditDecision(rfi)}
+                                    >
+                                        <Edit3 size={20} />
+                                        <span>Change Final Decision</span>
+                                    </button>
+                                    <p className="edit-decision-hint">Want to change your verdict? This will reset the previous remarks and proof images.</p>
+                                </div>
+                            )}
+
                             {rfi.status === RFI_STATUS.CONDITIONAL_APPROVE && user.role === 'contractor' && (
                                 <div className="rfi-resolve-section-inline">
                                     <h4 className="resolve-title"><CheckCircle size={18} /> Resolve Conditions</h4>

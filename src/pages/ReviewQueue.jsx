@@ -1510,32 +1510,49 @@ export default function ReviewQueue() {
                     transform: scale(0.85);
                     margin: 0 -8px;
                 }
-                .btn-edit-decision-ghost {
-                    background: #f1f5f9;
-                    border: 1px solid #e2e8f0;
-                    color: #475569;
-                    padding: 4px 10px;
-                    border-radius: 8px;
-                    font-size: 0.7rem;
-                    font-weight: 700;
+                .edit-decision-prominent-container {
+                    margin-top: 2rem;
+                    padding-top: 1.5rem;
+                    border-top: 1px dashed #e2e8f0;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 0.75rem;
+                    width: 100%;
+                }
+                .btn-edit-decision-prominent {
                     display: flex;
                     align-items: center;
-                    gap: 6px;
+                    justify-content: center;
+                    gap: 10px;
+                    background: #f8fafc;
+                    border: 2px solid #e2e8f0;
+                    color: #475569;
+                    padding: 0.75rem 2rem;
+                    border-radius: 12px;
+                    font-size: 1rem;
+                    font-weight: 700;
                     cursor: pointer;
-                    transition: all 0.2s;
-                    margin-left: 8px;
-                    text-transform: uppercase;
+                    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                    width: auto;
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
                 }
-                .btn-edit-decision-ghost:hover {
-                    background: #e2e8f0;
-                    color: #0f172a;
+                .btn-edit-decision-prominent:hover {
+                    background: #f1f5f9;
                     border-color: #cbd5e1;
+                    color: #0f172a;
+                    transform: translateY(-2px);
+                    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
                 }
-                .action-sheet-grid .sheet-btn {
-                    transition: opacity 0.3s, transform 0.3s;
+                .btn-edit-decision-prominent:active {
+                    transform: translateY(0);
                 }
-                .action-sheet-grid .sheet-btn-details.full-width {
-                    grid-column: 1 / -1;
+                .edit-decision-hint {
+                    font-size: 0.75rem;
+                    color: #94a3b8;
+                    font-style: italic;
+                    text-align: center;
+                    max-width: 300px;
                 }
                 .action-sheet-grid {
                     display: grid;
