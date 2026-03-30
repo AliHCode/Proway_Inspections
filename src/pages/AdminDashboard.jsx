@@ -456,6 +456,7 @@ export default function AdminDashboard() {
     const [isReordering, setIsReordering] = useState(false);
     const [columnWidthsDraft, setColumnWidthsDraft] = useState({});
     const [columnStylesDraft, setColumnStylesDraft] = useState({});
+    const [activeStyleColumn, setActiveStyleColumn] = useState(null);
     const [editingOptionsField, setEditingOptionsField] = useState(null);
     const [optionsTextDraft, setOptionsTextDraft] = useState('');
     const [resizeState, setResizeState] = useState(null);
