@@ -1051,6 +1051,14 @@ export default function ReviewQueue() {
                     onConditional={() => { setApproveMode('conditional'); setActionSheetStep('approve'); setActionSheetTarget(detailTarget); setDetailTarget(null); }}
                     onReject={() => { setActionSheetStep('reject'); setActionSheetTarget(detailTarget); setDetailTarget(null); }}
                     onCancel={() => { setActionSheetStep('cancel'); setActionSheetTarget(detailTarget); setDetailTarget(null); }}
+                    onEditDecision={(r) => {
+                        setSheetRemarks('');
+                        setSheetFiles([]);
+                        setSheetError('');
+                        setActionSheetStep('menu');
+                        setActionSheetTarget(r);
+                        setDetailTarget(null);
+                    }}
                 />
             )}
 
@@ -1114,12 +1122,23 @@ export default function ReviewQueue() {
                             )}
                             <div style={{ flex: 1, textAlign: actionSheetStep === 'menu' ? 'center' : 'left' }}>
                                 <h3 className="action-sheet-title">
-                                    {actionSheetStep === 'menu' ? `RFI #${actionSheetTarget.customFields?.rfi_no || actionSheetTarget.serialNo}` : 
+                                    {actionSheetStep === 'menu' ? 
+                                        (actionSheetTarget.status === 'pending' ? `Review RFI #${actionSheetTarget.customFields?.rfi_no || actionSheetTarget.serialNo}` : 'Change Decision') : 
                                      actionSheetStep === 'approve' ? (approveMode === 'conditional' ? 'Conditionally Approve' : 'Approve RFI') :
                                      actionSheetStep === 'reject' ? 'Reject RFI' : 
                                      actionSheetStep === 'cancel' ? 'Cancel RFI' : 'Review Details'}
                                 </h3>
-                                {actionSheetStep === 'menu' && <p className="action-sheet-subtitle">{actionSheetTarget.location}</p>}
+                                {actionSheetStep === 'menu' && (
+                                    <div className="sheet-header-meta">
+                                        <p className="action-sheet-subtitle">{actionSheetTarget.location}</p>
+                                        {actionSheetTarget.status !== 'pending' && (
+                                            <div className="sheet-current-status-tag">
+                                                <span>Current:</span>
+                                                <StatusBadge status={actionSheetTarget.status} />
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -1127,21 +1146,31 @@ export default function ReviewQueue() {
                     <div className="action-sheet-body">
                         {actionSheetStep === 'menu' ? (
                             <div className="action-sheet-grid">
-                                <button className="sheet-btn sheet-btn-approve" onClick={() => { setApproveMode('full'); setActionSheetStep('approve'); }}>
-                                    <CheckCircle size={24} /> Approve
-                                </button>
-                                <button className="sheet-btn sheet-btn-cond" onClick={() => { setApproveMode('conditional'); setActionSheetStep('approve'); }}>
-                                    <CheckCircle size={24} /> <span style={{fontSize: '0.7rem'}}>COND. APPROVE</span>
-                                </button>
-                                <button className="sheet-btn sheet-btn-reject" onClick={() => setActionSheetStep('reject')}>
-                                    <XCircle size={24} /> Reject
-                                </button>
-                                <button className="sheet-btn sheet-btn-cancel" onClick={() => setActionSheetStep('cancel')}>
-                                    <Ban size={24} /> Cancel
-                                </button>
-                                <button className="sheet-btn sheet-btn-details full-width" onClick={() => { setDetailTarget(actionSheetTarget); setActionSheetTarget(null); }}>
-                                    <ClipboardList size={20} /> View Full Details & Review History
-                                </button>
+                                {actionSheetTarget.status !== 'approved' && (
+                                    <button className="sheet-btn sheet-btn-approve" onClick={() => { setApproveMode('full'); setActionSheetStep('approve'); }}>
+                                        <CheckCircle size={24} /> Approve
+                                    </button>
+                                )}
+                                {actionSheetTarget.status !== 'conditional_approve' && (
+                                    <button className="sheet-btn sheet-btn-cond" onClick={() => { setApproveMode('conditional'); setActionSheetStep('approve'); }}>
+                                        <CheckCircle size={24} /> <span style={{fontSize: '0.7rem'}}>COND. APPROVE</span>
+                                    </button>
+                                )}
+                                {actionSheetTarget.status !== 'rejected' && (
+                                    <button className="sheet-btn sheet-btn-reject" onClick={() => setActionSheetStep('reject')}>
+                                        <XCircle size={24} /> Reject
+                                    </button>
+                                )}
+                                {actionSheetTarget.status !== 'cancelled' && (
+                                    <button className="sheet-btn sheet-btn-cancel" onClick={() => setActionSheetStep('cancel')}>
+                                        <Ban size={24} /> Cancel
+                                    </button>
+                                )}
+                                {actionSheetTarget.status === 'pending' && (
+                                    <button className="sheet-btn sheet-btn-details full-width" onClick={() => { setDetailTarget(actionSheetTarget); setActionSheetTarget(null); }}>
+                                        <ClipboardList size={20} /> View Full Details & Review History
+                                    </button>
+                                )}
                             </div>
                         ) : (
                             <div className="action-sheet-form-container">
@@ -1452,6 +1481,61 @@ export default function ReviewQueue() {
                 .action-sheet-subtitle {
                     font-size: 0.85rem;
                     color: #64748b;
+                    margin-bottom: 8px;
+                }
+                .sheet-header-meta {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .sheet-current-status-tag {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 4px 12px;
+                    background: #f1f5f9;
+                    border-radius: 20px;
+                    border: 1px solid #e2e8f0;
+                    margin-top: 4px;
+                }
+                .sheet-current-status-tag span {
+                    font-size: 0.7rem;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    color: #64748b;
+                    letter-spacing: 0.05em;
+                }
+                .sheet-current-status-tag .badge {
+                    transform: scale(0.85);
+                    margin: 0 -8px;
+                }
+                .btn-edit-decision-ghost {
+                    background: #f1f5f9;
+                    border: 1px solid #e2e8f0;
+                    color: #475569;
+                    padding: 4px 10px;
+                    border-radius: 8px;
+                    font-size: 0.7rem;
+                    font-weight: 700;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    margin-left: 8px;
+                    text-transform: uppercase;
+                }
+                .btn-edit-decision-ghost:hover {
+                    background: #e2e8f0;
+                    color: #0f172a;
+                    border-color: #cbd5e1;
+                }
+                .action-sheet-grid .sheet-btn {
+                    transition: opacity 0.3s, transform 0.3s;
+                }
+                .action-sheet-grid .sheet-btn-details.full-width {
+                    grid-column: 1 / -1;
                 }
                 .action-sheet-grid {
                     display: grid;

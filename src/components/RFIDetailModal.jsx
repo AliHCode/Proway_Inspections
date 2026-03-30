@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
-import { X, Calendar, MapPin, Tag, MessageSquare, History, List, Upload, CheckCircle, ClipboardList, XCircle, Hand, Ban } from 'lucide-react';
+import { X, Calendar, MapPin, Tag, MessageSquare, History, List, Upload, CheckCircle, ClipboardList, XCircle, Hand, Ban, Edit3 } from 'lucide-react';
 import ThreadedComments from './ThreadedComments';
 import AuditLog from './AuditLog';
 import StatusBadge from './StatusBadge';
@@ -115,6 +115,15 @@ export default function RFIDetailModal({
                             <div className="rfi-title-row">
                                 <h2>RFI #{rfiNo}</h2>
                                 <StatusBadge status={rfi.status} />
+                                {rfi.status !== 'pending' && onEditDecision && (
+                                    <button 
+                                        className="btn-edit-decision-ghost" 
+                                        onClick={() => onEditDecision(rfi)}
+                                        title="Modify Decision"
+                                    >
+                                        <Edit3 size={14} /> Edit Decision
+                                    </button>
+                                )}
                             </div>
                             <p>{mergedData.description || mergedData.inspection_type || 'RFI Details'}</p>
                         </div>
