@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
-import { X, Calendar, MapPin, Tag, MessageSquare, History, List, Upload, CheckCircle, ClipboardList, XCircle, Hand, Ban, Edit3 } from 'lucide-react';
+import { X, Calendar, MapPin, Tag, MessageSquare, History, List, Upload, CheckCircle, ClipboardList, XCircle, Hand, Ban, Edit3, Users } from 'lucide-react';
 import ThreadedComments from './ThreadedComments';
 import AuditLog from './AuditLog';
 import StatusBadge from './StatusBadge';
@@ -135,6 +135,13 @@ export default function RFIDetailModal({
 
                 <div className="rfi-universal-tabs">
                     <button onClick={() => handleTabClick('review')} className={`rfi-tab-btn ${activeTab === 'review' ? 'active' : ''}`}><CheckCircle size={18} /><span>Review</span></button>
+                    {user?.role === 'consultant' && activeProject?.multi_review_enabled && (
+                        <button onClick={() => handleTabClick('internal')} className={`rfi-tab-btn ${activeTab === 'internal' ? 'active' : ''}`}>
+                            <Users size={18} />
+                            <span>Team Feedback</span>
+                            {rfi.internalReviews?.length > 0 && <span className="tab-badge-mini">{rfi.internalReviews.length}</span>}
+                        </button>
+                    )}
                     <button onClick={() => handleTabClick('details')} className={`rfi-tab-btn ${activeTab === 'details' ? 'active' : ''}`}><List size={18} /><span>Details</span></button>
                     <button onClick={() => handleTabClick('discussion')} className={`rfi-tab-btn ${activeTab === 'discussion' ? 'active' : ''}`}><MessageSquare size={18} /><span>Chat</span></button>
                     <button onClick={() => handleTabClick('audit')} className={`rfi-tab-btn ${activeTab === 'audit' ? 'active' : ''}`}><History size={18} /><span>History</span></button>
@@ -171,8 +178,6 @@ export default function RFIDetailModal({
                                             </button>
                                         </div>
                                     )}
-
-
                                 </div>
                             ) : (
                                 <div className={`rfi-verdict-card ${rfi.status.toLowerCase()}`}>
@@ -202,7 +207,6 @@ export default function RFIDetailModal({
                                                             src={img} 
                                                             alt={`Attachment ${idx + 1}`}
                                                             onError={(e) => {
-                                                                // Fallback: if original fails, try thumbnail transform
                                                                 const thumbUrl = getThumbnailUrl(img, { width: 200, height: 200 });
                                                                 if (e.target.src !== thumbUrl) {
                                                                     e.target.src = thumbUrl;
@@ -217,7 +221,6 @@ export default function RFIDetailModal({
                                 </div>
                             )}
 
-                            {/* Prominent Edit Decision Button for Consultants */}
                             {rfi.status !== RFI_STATUS.PENDING && rfi.status !== RFI_STATUS.VERIFICATION_PENDING && onEditDecision && user.role === 'consultant' && (
                                 <div className="edit-decision-prominent-container">
                                     <button 
@@ -246,74 +249,87 @@ export default function RFIDetailModal({
                                     )}
                                 </div>
                             )}
-                            {activeProject?.multi_review_enabled && (
-                                <div className="internal-reviews-section">
-                                    <h4 className="panel-heading" style={{ marginTop: '2rem' }}>Internal Reviews</h4>
-                                    
-                                    {rfi.internalReviews?.length > 0 ? (
-                                        <div className="internal-reviews-list">
-                                            {rfi.internalReviews.map(rev => (
-                                                <div key={rev.id} className={`internal-review-card ${rev.status_recommendation}`}>
-                                                    <div className="ir-header">
-                                                        <UserAvatar name={rev.reviewer?.name} avatarUrl={rev.reviewer?.avatar_url} size={24} />
-                                                        <span className="ir-name">{rev.reviewer?.name || 'Consultant'}</span>
-                                                        <StatusBadge status={rev.status_recommendation} />
-                                                    </div>
-                                                    <div className="ir-remarks">"{rev.remarks}"</div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="no-internal-reviews">No internal reviews submitted yet.</p>
-                                    )}
+                        </div>
+                    )}
 
-                                    {user?.role === 'consultant' && rfi.status === RFI_STATUS.PENDING && !showInternalReviewForm && (
-                                        <button className="btn btn-internal-review-toggle" onClick={() => setShowInternalReviewForm(true)} style={{ marginTop: '1rem', padding: '0.6rem 1rem', background: 'white', border: '1px solid #cbd5e1', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>
-                                            + Add Internal Review
-                                        </button>
-                                    )}
-
-                                    {showInternalReviewForm && (
-                                        <div className="internal-review-form" style={{ marginTop: '1.5rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '1rem', padding: '1.25rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                                            <h5 style={{ margin: '0 0 1rem 0', color: '#334155', fontSize: '0.9rem' }}>Submit Internal Review</h5>
-                                            <div style={{ marginBottom: '1rem' }}>
-                                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '0.25rem', textTransform: 'uppercase' }}>Recommendation</label>
-                                                <select value={internalStatus} onChange={(e) => setInternalStatus(e.target.value)} style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', outline: 'none' }}>
-                                                    <option value="approved">Approve</option>
-                                                    <option value="conditional_approve">Conditionally Approve</option>
-                                                    <option value="rejected">Reject</option>
-                                                </select>
-                                            </div>
-                                            <div style={{ marginBottom: '1rem' }}>
-                                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '0.25rem', textTransform: 'uppercase' }}>Internal Remarks (Required)</label>
-                                                <textarea 
-                                                    value={internalRemarks} 
-                                                    onChange={(e) => setInternalRemarks(e.target.value)} 
-                                                    rows={3} 
-                                                    style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', outline: 'none', resize: 'vertical' }}
-                                                    placeholder="These remarks will not be visible to the contractor until finalized."
-                                                />
-                                            </div>
-                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                <button onClick={() => setShowInternalReviewForm(false)} style={{ padding: '0.6rem 1rem', background: '#f1f5f9', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600, color: '#475569' }}>Cancel</button>
-                                                <button 
-                                                    disabled={!internalRemarks.trim()}
-                                                    onClick={async () => {
-                                                        const success = await submitInternalReview(rfi.id, internalStatus, internalRemarks);
-                                                        if (success) {
-                                                            setShowInternalReviewForm(false);
-                                                            setInternalRemarks('');
-                                                        }
-                                                    }}
-                                                    style={{ padding: '0.6rem 1rem', background: internalRemarks.trim() ? '#0ea5e9' : '#bae6fd', border: 'none', borderRadius: '0.5rem', cursor: internalRemarks.trim() ? 'pointer' : 'not-allowed', fontWeight: 600, color: 'white' }}
-                                                >
-                                                    Submit Review
-                                                </button>
-                                            </div>
+                    {activeTab === 'internal' && user?.role === 'consultant' && activeProject?.multi_review_enabled && (
+                        <div className="rfi-tab-panel-full internal-panel">
+                            <div className="panel-header-row">
+                                <h4 className="panel-heading">Team Feedback Log</h4>
+                                {!showInternalReviewForm && rfi.status === RFI_STATUS.PENDING && (
+                                    <button className="btn-add-internal-compact" onClick={() => setShowInternalReviewForm(true)}>
+                                        <Users size={14} /> + New Review
+                                    </button>
+                                )}
+                            </div>
+                            
+                            {showInternalReviewForm && (
+                                <div className="internal-review-form-flat">
+                                    <div className="form-title">Submit Technical Review</div>
+                                    <div className="form-body">
+                                        <div className="field-group">
+                                            <label>Recommendation</label>
+                                            <select value={internalStatus} onChange={(e) => setInternalStatus(e.target.value)}>
+                                                <option value="approved">Approve</option>
+                                                <option value="conditional_approve">Conditionally Approve</option>
+                                                <option value="rejected">Reject</option>
+                                            </select>
                                         </div>
-                                    )}
+                                        <div className="field-group">
+                                            <label>Technical Remarks</label>
+                                            <textarea 
+                                                value={internalRemarks} 
+                                                onChange={(e) => setInternalRemarks(e.target.value)} 
+                                                rows={3} 
+                                                placeholder="Provide internal feedback or technical notes..."
+                                            />
+                                        </div>
+                                        <div className="form-actions">
+                                            <button className="btn-cancel-flat" onClick={() => setShowInternalReviewForm(false)}>Cancel</button>
+                                            <button 
+                                                className="btn-submit-flat"
+                                                disabled={!internalRemarks.trim()}
+                                                onClick={async () => {
+                                                    const success = await submitInternalReview(rfi.id, internalStatus, internalRemarks);
+                                                    if (success) {
+                                                        setShowInternalReviewForm(false);
+                                                        setInternalRemarks('');
+                                                    }
+                                                }}
+                                            >
+                                                Post Review
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
+
+                            <div className="internal-reviews-feed">
+                                {rfi.internalReviews?.length > 0 ? (
+                                    [...rfi.internalReviews].reverse().map(rev => (
+                                        <div key={rev.id} className="internal-feed-item">
+                                            <div className="feed-avatar">
+                                                <UserAvatar name={rev.reviewer?.name} avatarUrl={rev.reviewer?.avatar_url} size={32} />
+                                            </div>
+                                            <div className="feed-content">
+                                                <div className="feed-header">
+                                                    <span className="feed-name">{rev.reviewer?.name || 'Consultant'}</span>
+                                                    <div className={`feed-badge ${rev.status_recommendation}`}>
+                                                        {rev.status_recommendation === 'conditional_approve' ? 'COND. APPROVE' : rev.status_recommendation.toUpperCase()}
+                                                    </div>
+                                                    <span className="feed-time">{formatDateDisplay(rev.created_at?.split('T')[0])}</span>
+                                                </div>
+                                                <div className="feed-remarks">{rev.remarks}</div>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="empty-feed">
+                                        <div className="empty-icon"><Users size={32} /></div>
+                                        <p>No internal technical reviews have been logged for this RFI yet.</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 
@@ -395,10 +411,12 @@ export default function RFIDetailModal({
             <style>
                 {`
                 .rfi-detail-modal.universal-tabbed { width: 95vw; max-width: 900px; height: 90vh; max-height: 800px; display: flex; flex-direction: column; background: #f8fafc; border-radius: 1.5rem; overflow: hidden; }
+                .modal-inner { display: flex; flex-direction: column; height: 100%; width: 100%; }
                 .rfi-detail-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid #e2e8f0; background: white; }
                 .rfi-detail-title { display: flex; justify-content: space-between; align-items: center; width: 100%; }
                 .rfi-title-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem; }
                 .rfi-title-row h2 { font-size: 1.25rem; font-weight: 800; color: #0f172a; margin: 0; }
+                .rfi-subtitle-location { font-size: 0.85rem; color: #64748b; font-weight: 500; margin: 0; }
                 
                 .btn-close-hex {
                     width: 36px;
@@ -424,55 +442,83 @@ export default function RFIDetailModal({
                 .rfi-universal-tabs::-webkit-scrollbar { display: none; }
                 .rfi-tab-btn { padding: 1rem 1.25rem; font-size: 0.9rem; font-weight: 600; color: #64748b; border: none; background: none; display: flex; align-items: center; gap: 0.75rem; cursor: pointer; white-space: nowrap; border-bottom: 3px solid transparent; transition: all 0.2s; position: relative; }
                 .rfi-tab-btn.active { color: var(--clr-brand-primary); border-bottom-color: var(--clr-brand-primary); background: rgba(6, 182, 212, 0.05); }
+                
+                .tab-badge-mini { background: var(--clr-brand-primary); color: white; border-radius: 99px; padding: 2px 6px; font-size: 0.65rem; font-weight: 800; min-width: 18px; text-align: center; }
+
                 .rfi-universal-body { flex: 1; overflow-y: auto; padding: 1.5rem; background: #f8fafc; }
                 .rfi-tab-panel-full { max-width: 800px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 1.5rem; }
                 
-                .panel-heading { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 0.5rem; }
+                .panel-heading { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin: 0; }
+                .panel-header-row { display: flex; justify-content: space-between; align-items: center; }
+
+                /* Team Feedback Log Styles */
+                .internal-reviews-feed { display: flex; flex-direction: column; gap: 1rem; margin-top: 0.5rem; }
+                .internal-feed-item { display: flex; gap: 1rem; background: white; padding: 1rem; border-radius: 1rem; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+                .feed-avatar { flex-shrink: 0; }
+                .feed-content { flex: 1; min-width: 0; }
+                .feed-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+                .feed-name { font-weight: 700; color: #1e293b; font-size: 0.9rem; }
+                .feed-badge { font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; text-transform: uppercase; }
+                .feed-badge.approved { background: #dcfce7; color: #166534; }
+                .feed-badge.conditional_approve { background: #fef3c7; color: #92400e; }
+                .feed-badge.rejected { background: #fee2e2; color: #991b1b; }
+                .feed-time { font-size: 0.75rem; color: #94a3b8; margin-left: auto; }
+                .feed-remarks { font-size: 0.95rem; color: #475569; line-height: 1.5; white-space: pre-wrap; }
                 
+                /* Compact Form Style */
+                .internal-review-form-flat { background: white; border: 1px solid #e2e8f0; border-radius: 1.25rem; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
+                .internal-review-form-flat .form-title { padding: 1rem 1.25rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; font-weight: 700; color: #334155; }
+                .internal-review-form-flat .form-body { padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+                .field-group label { display: block; font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 0.5rem; }
+                .field-group select, .field-group textarea { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 0.75rem; font-size: 0.95rem; outline: none; }
+                .field-group textarea { resize: vertical; }
+                .form-actions { display: flex; gap: 0.75rem; justify-content: flex-end; padding-top: 0.5rem; }
+                .btn-cancel-flat { padding: 0.6rem 1.25rem; font-weight: 600; color: #64748b; background: #f1f5f9; border: none; border-radius: 0.75rem; cursor: pointer; }
+                .btn-submit-flat { padding: 0.6rem 1.5rem; font-weight: 600; color: white; background: var(--clr-brand-primary); border: none; border-radius: 0.75rem; cursor: pointer; }
+                .btn-submit-flat:disabled { background: #cbd5e1; cursor: not-allowed; }
+                
+                .btn-add-internal-compact { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 700; color: var(--clr-brand-primary); background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.2); border-radius: 0.75rem; cursor: pointer; transition: all 0.2s; }
+                .btn-add-internal-compact:hover { background: rgba(6, 182, 212, 0.15); }
+
+                .empty-feed { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 1rem; color: #94a3b8; text-align: center; }
+                .empty-icon { margin-bottom: 1rem; opacity: 0.3; }
+
+                /* Standard Elements */
                 .rfi-verdict-card { padding: 1.5rem; border-radius: 1.25rem; border: 1px solid transparent; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); background: white; }
                 .rfi-verdict-card.approved { border-left: 6px solid #22c55e; }
                 .rfi-verdict-card.rejected { border-left: 6px solid #ef4444; }
                 .rfi-verdict-card.conditional_approve { border-left: 6px solid #f59e0b; }
                 .rfi-verdict-card.pending { border: 2px dashed #cbd5e1; background: #f1f5f9; }
-                
                 .verdict-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
                 .verdict-status { display: flex; align-items: center; gap: 0.75rem; font-weight: 800; font-size: 1.1rem; }
                 .verdict-meta { font-size: 0.8rem; opacity: 0.7; font-weight: 600; }
                 .rfi-verdict-remarks { font-size: 0.95rem; line-height: 1.6; font-style: italic; color: #334155; padding: 1rem; background: rgba(0,0,0,0.02); border-radius: 0.75rem; margin-bottom: 1.25rem; }
-                
                 .rfi-attachments-grid.large { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem; }
                 .rfi-attachment-thumb { aspect-ratio: 1; border-radius: 0.75rem; overflow: hidden; border: 1px solid #e2e8f0; transition: transform 0.2s; }
-                .rfi-attachment-thumb:hover { transform: scale(1.05); }
                 .rfi-attachment-thumb img { width: 100%; height: 100%; object-fit: cover; }
-                
                 .rfi-detail-grid-universal { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.5rem; background: white; padding: 1.5rem; border-radius: 1.25rem; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
                 .rfi-detail-item { display: flex; gap: 1rem; align-items: flex-start; }
                 .rfi-detail-item svg { color: #94a3b8; margin-top: 3px; }
                 .rfi-detail-label { font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.25rem; }
                 .rfi-detail-value { font-size: 0.95rem; font-weight: 600; color: #1e293b; }
                 .rfi-detail-subvalue { font-size: 0.8rem; color: #64748b; }
-                
                 .chat-panel, .audit-panel { background: white; border-radius: 1.25rem; border: 1px solid #e2e8f0; overflow: hidden; height: 100%; min-height: 500px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-                
                 .revision-timeline.universal { background: white; padding: 1.5rem; border-radius: 1.25rem; border: 1px solid #e2e8f0; }
                 .revision-node { display: flex; gap: 1.25rem; }
                 .node-dot { width: 12px; height: 12px; border-radius: 50%; background: #cbd5e1; margin-top: 12px; }
                 .revision-node.current .node-dot { background: var(--clr-brand-primary); }
-                .revision-card { padding: 1rem; border-radius: 1rem; border: 1px solid #f1f5f9; margin-bottom: 1rem; background: white; }
+                .revision-connector { display: flex; flex-direction: column; align-items: center; }
+                .node-line { width: 2px; flex: 1; background: #f1f5f9; }
+                .revision-card { padding: 1rem; border-radius: 1rem; border: 1px solid #f1f5f9; margin-bottom: 1rem; background: white; flex: 1; }
                 .revision-node.current .revision-card { border-color: var(--clr-brand-primary); background: #f0f9ff; }
-                
-                .rfi-resolve-section-inline { padding: 1.5rem; background: #fffbeb; border-radius: 1.25rem; border: 1px solid #fef3c7; margin-top: 1rem; }
-                .btn-resolve-pick { width: 100%; background: white; border: 2px dashed #fde68a; color: #92400e; padding: 0.75rem; font-weight: 700; border-radius: 0.75rem; }
-                .file-pill { background: white; padding: 0.5rem 0.75rem; border-radius: 0.5rem; border: 1px solid #fde68a; display: flex; justify-content: space-between; margin-bottom: 1rem; }
-                .btn-resolve-submit { width: 100%; background: #d97706; color: white; padding: 0.75rem; font-weight: 700; border-radius: 0.75rem; }
+                .revision-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+                .revision-version { font-weight: 700; font-size: 0.9rem; }
+                .revision-card-meta { font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.5rem; }
+                .revision-card-desc { font-size: 0.85rem; color: #475569; }
+                .revision-card-remarks { font-size: 0.85rem; padding: 0.5rem; background: #00000005; border-radius: 0.4rem; margin-top: 0.5rem; font-style: italic; }
+                .current-badge { font-size: 0.65rem; font-weight: 800; color: var(--clr-brand-primary); margin-top: 0.5rem; }
 
-                .internal-reviews-list { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.75rem; }
-                .internal-review-card { padding: 1rem; background: white; border-radius: 1rem; border: 1px solid #e2e8f0; border-left-width: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-                .internal-review-card.approved { border-left-color: #22c55e; }
-                .internal-review-card.conditional_approve { border-left-color: #f59e0b; }
-                .internal-review-card.rejected { border-left-color: #ef4444; }
-                .ir-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
-                .ir-name { font-weight: 700; color: #1e293b; font-size: 0.9rem; flex: 1; }
+                .rfi-resolve-section-inline { padding: 1.5rem; background: #fffbeb; border-radius: 1.25rem; border: 1px solid #fef3c7; margin-top: 1rem; }
                 .ir-remarks { font-size: 0.9rem; color: #475569; font-style: italic; background: #f8fafc; padding: 0.75rem; border-radius: 0.5rem; }
                 .no-internal-reviews { font-size: 0.9rem; color: #94a3b8; font-style: italic; }
 

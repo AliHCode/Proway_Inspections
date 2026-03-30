@@ -39,6 +39,7 @@ export default function ReviewQueue() {
         status: 'all', // all, to_review, approved, conditional, rejected
         showOnlyMe: false
     });
+    const [sheetIsFinal, setSheetIsFinal] = useState(true); // Default to Final if multi-review disabled
     const [actionMessage, setActionMessage] = useState('');
     const [selectedImages, setSelectedImages] = useState(null);
     const [scrollTrigger, setScrollTrigger] = useState(0);
@@ -575,6 +576,7 @@ export default function ReviewQueue() {
                         setSheetFiles([]);
                         setSheetAssignedTo(rfi.filedBy || '');
                         setSheetError('');
+                        setSheetIsFinal(activeProject?.multi_review_enabled ? false : true); // Default to recommendation if multi-review on
                         setActionSheetStep('menu');
                         setActionSheetTarget(rfi);
                     }}
@@ -1134,6 +1136,24 @@ export default function ReviewQueue() {
                     </div>
 
                     <div className="action-sheet-body">
+                        {actionSheetStep === 'menu' && actionSheetTarget.internalReviews?.length > 0 && (
+                            <div className="sheet-history-section">
+                                <h4 className="sheet-section-title">Team Feedback ({actionSheetTarget.internalReviews.length})</h4>
+                                <div className="sheet-history-list">
+                                    {actionSheetTarget.internalReviews.map((rev, idx) => (
+                                        <div key={rev.id || idx} className="sheet-history-item">
+                                            <div className="history-meta">
+                                                <UserAvatar name={rev.reviewer?.name} url={rev.reviewer?.avatar_url} size={24} />
+                                                <span className="history-name">{rev.reviewer?.name}</span>
+                                                <StatusBadge status={rev.status_recommendation} />
+                                            </div>
+                                            {rev.remarks && <p className="history-remarks">{rev.remarks}</p>}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {actionSheetStep === 'menu' ? (
                             <div className="action-sheet-grid">
                                 {actionSheetTarget.status !== 'approved' && (
@@ -1223,6 +1243,22 @@ export default function ReviewQueue() {
 
                                 {sheetError && <div className="sheet-form-error">{sheetError}</div>}
 
+                                {activeProject?.multi_review_enabled && (
+                                    <div className="sheet-finalize-card">
+                                        <label className="sheet-finalize-label">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={sheetIsFinal} 
+                                                onChange={e => setSheetIsFinal(e.target.checked)} 
+                                            />
+                                            <div className="finalize-text">
+                                                <span className="finalize-title">Finalize Official Verdict</span>
+                                                <span className="finalize-desc">Checked will notify contractor and update global status. Unchecked saves as internal recommendation.</span>
+                                            </div>
+                                        </label>
+                                    </div>
+                                )}
+
                                 <div className="action-sheet-footer">
                                     <button 
                                         className={`sheet-submit-btn ${actionSheetStep}`}
@@ -1237,11 +1273,11 @@ export default function ReviewQueue() {
                                             }
 
                                             if (actionSheetStep === 'approve') {
-                                                await handleApprove(actionSheetTarget.id, sheetRemarks.trim(), sheetFiles, isConditional ? 'conditional_approve' : 'approved', null);
+                                                await approveRFI(actionSheetTarget.id, user.id, sheetRemarks.trim(), sheetFiles, null, sheetIsFinal);
                                             } else if (isReject) {
-                                                await handleReject(actionSheetTarget.id, sheetRemarks.trim(), sheetFiles, null);
+                                                await rejectRFI(actionSheetTarget.id, user.id, sheetRemarks.trim(), sheetFiles, null, sheetIsFinal);
                                             } else if (isCancel) {
-                                                await handleCancel(actionSheetTarget.id, sheetRemarks.trim(), null);
+                                                await cancelRFI(actionSheetTarget.id, user.id, sheetRemarks.trim(), null, sheetIsFinal);
                                             }
                                             setActionSheetTarget(null);
                                         }}
@@ -1779,6 +1815,89 @@ export default function ReviewQueue() {
                     border: 1px solid #fde68a;
                     white-space: nowrap;
                     box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+                }
+
+                /* Collaborative Action Sheet Specifics */
+                .sheet-history-section {
+                    background: #f8fafc;
+                    border-radius: 16px;
+                    border: 1px solid #e2e8f0;
+                    padding: 16px;
+                    margin-bottom: 20px;
+                }
+                .sheet-section-title {
+                    font-size: 0.7rem;
+                    font-weight: 800;
+                    color: #64748b;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                    margin-bottom: 12px;
+                }
+                .sheet-history-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                }
+                .sheet-history-item {
+                    background: #fff;
+                    border-radius: 12px;
+                    padding: 10px;
+                    border: 1px solid #f1f5f9;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+                }
+                .history-meta {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-bottom: 6px;
+                }
+                .history-name {
+                    font-size: 0.8rem;
+                    font-weight: 700;
+                    color: #1e293b;
+                    flex: 1;
+                }
+                .history-remarks {
+                    font-size: 0.85rem;
+                    color: #475569;
+                    margin: 0;
+                    line-height: 1.4;
+                    padding-left: 32px;
+                }
+
+                .sheet-finalize-card {
+                    background: #f0f9ff;
+                    border: 1px solid #bae6fd;
+                    border-radius: 16px;
+                    padding: 16px;
+                }
+                .sheet-finalize-label {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 12px;
+                    cursor: pointer;
+                }
+                .sheet-finalize-label input[type="checkbox"] {
+                    margin-top: 4px;
+                    width: 18px;
+                    height: 18px;
+                    accent-color: #0369a1;
+                }
+                .finalize-text {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 2px;
+                }
+                .finalize-title {
+                    font-size: 0.95rem;
+                    font-weight: 700;
+                    color: #0c4a6e;
+                }
+                .finalize-desc {
+                    font-size: 0.75rem;
+                    color: #0369a1;
+                    line-height: 1.3;
+                    opacity: 0.8;
                 }
                 `}
             </style>

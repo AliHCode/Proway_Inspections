@@ -1190,11 +1190,9 @@ export function RFIProvider({ children }) {
         }
     }, [activeProject, fetchAllRFIs, normalizeImagesForSubmission, rfis]);
 
-    /** Submit an Internal Consultant Review */
-    async function submitInternalReview(rfiId, statusRecommendation, remarks) {
-        if (!user?.id || !activeProject?.id) throw new Error("Missing auth/project context");
-
-        setLoadingAction(true);
+    /** Internal Helper: Log a review in rfi_reviews table */
+    async function logInternalReview(rfiId, statusRecommendation, remarks) {
+        if (!user?.id) return null;
         try {
             const { data, error } = await supabase.from('rfi_reviews').insert([{
                 rfi_id: rfiId,
@@ -1204,6 +1202,21 @@ export function RFIProvider({ children }) {
             }]).select('*, reviewer:reviewer_id(name, avatar_url)').single();
 
             if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error logging internal review:', error);
+            return null;
+        }
+    }
+
+    /** Submit an Internal Consultant Review */
+    async function submitInternalReview(rfiId, statusRecommendation, remarks) {
+        if (!user?.id || !activeProject?.id) throw new Error("Missing auth/project context");
+
+        setLoadingAction(true);
+        try {
+            const data = await logInternalReview(rfiId, statusRecommendation, remarks);
+            if (!data) throw new Error("Failed to log review");
 
             setRfis(prev => prev.map(r => {
                 if (r.id === rfiId) {
@@ -1212,11 +1225,11 @@ export function RFIProvider({ children }) {
                 return r;
             }));
 
-            toast.success("Internal Review submitted successfully.");
+            toast.success("Feedback submitted successfully.");
             return true;
         } catch (error) {
             console.error('Error submitting internal review:', error);
-            toast.error("Failed to submit internal review.");
+            toast.error("Failed to submit feedback.");
             return false;
         } finally {
             setLoadingAction(false);
@@ -1224,7 +1237,7 @@ export function RFIProvider({ children }) {
     }
 
     /** Approve an RFI */
-    async function approveRFI(rfiId, reviewedBy, remarks = '', consultantAttachments = [], assignedTo = null) {
+    async function approveRFI(rfiId, reviewedBy, remarks = '', consultantAttachments = [], assignedTo = null, isFinal = true) {
         const targetRfi = rfis.find(r => r.id === rfiId);
         if (!targetRfi) return;
 
@@ -1232,6 +1245,24 @@ export function RFIProvider({ children }) {
             toast.error('This RFI is assigned to another reviewer. You can only view it.');
             return;
         }
+
+        // --- NEW COLLABORATIVE LOGIC ---
+        // If not final, we just log a recommendation and skip the official update/notification
+        if (!isFinal) {
+            const success = await submitInternalReview(rfiId, 'approved', remarks);
+            if (success && consultantAttachments.length > 0) {
+                // If they provided attachments for a recommendation, we still want to append them to the RFI images 
+                // so subsequent reviewers can see the technical proof.
+                try {
+                    const uploaded = await normalizeImagesForSubmission(consultantAttachments);
+                    const merged = [...(targetRfi.images || []), ...uploaded];
+                    await supabase.from('rfis').update({ images: merged }).eq('id', rfiId);
+                    await fetchAllRFIs(); 
+                } catch (e) { console.error("Error attaching reco photos:", e); }
+            }
+            return;
+        }
+        // -------------------------------
 
         if (!navigator.onLine) {
             const queuedAttachments = await serializeImagesForQueue(consultantAttachments || []);
@@ -1292,8 +1323,8 @@ export function RFIProvider({ children }) {
         }
     }
 
-    /** Reject an RFI with remarks, and set carryover to next day */
-    async function rejectRFI(rfiId, reviewedBy, remarks, consultantAttachments = [], assignedTo = null) {
+    /** Reject an RFI with remarks */
+    async function rejectRFI(rfiId, reviewedBy, remarks, consultantAttachments = [], assignedTo = null, isFinal = true) {
         const targetRfi = rfis.find(r => r.id === rfiId);
         if (!targetRfi) return;
 
@@ -1301,6 +1332,12 @@ export function RFIProvider({ children }) {
             toast.error('This RFI is assigned to another reviewer. You can only view it.');
             return;
         }
+
+        // --- NEW COLLABORATIVE LOGIC ---
+        if (!isFinal) {
+            return await submitInternalReview(rfiId, 'rejected', remarks);
+        }
+        // -------------------------------
 
         if (!navigator.onLine) {
             const queuedAttachments = await serializeImagesForQueue(consultantAttachments || []);
@@ -1357,7 +1394,7 @@ export function RFIProvider({ children }) {
     }
 
     /** Cancel an RFI with mandatory reason */
-    async function cancelRFI(rfiId, reviewedBy, reason, assignedTo = null) {
+    async function cancelRFI(rfiId, reviewedBy, reason, assignedTo = null, isFinal = true) {
         const targetRfi = rfis.find(r => r.id === rfiId);
         if (!targetRfi) return;
 
@@ -1365,6 +1402,12 @@ export function RFIProvider({ children }) {
             toast.error('This RFI is assigned to another reviewer. You can only view it.');
             return;
         }
+
+        // --- NEW COLLABORATIVE LOGIC ---
+        if (!isFinal) {
+            return await submitInternalReview(rfiId, 'cancelled', reason);
+        }
+        // -------------------------------
 
         if (!navigator.onLine) {
             await enqueuePendingAction({
