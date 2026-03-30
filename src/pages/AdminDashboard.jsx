@@ -2024,6 +2024,53 @@ export default function AdminDashboard() {
                 }
                 .btn-premium-save:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15, 23, 42, 0.3); }
                 .btn-premium-save:active { transform: translateY(0); }
+
+                /* Dropdown Options Styling */
+                .options-edit-trigger {
+                    cursor: pointer;
+                    padding: 4px 8px;
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                    font-size: 0.85rem;
+                    transition: all 0.2s;
+                    min-height: 32px;
+                    display: flex;
+                    align-items: center;
+                }
+                .options-edit-trigger:hover {
+                    border-color: #6366f1;
+                    background: #f5f3ff;
+                    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+                }
+                .option-pills {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 4px;
+                    align-items: center;
+                }
+                .option-pill {
+                    background: #fff;
+                    border: 1px solid #e2e8f0;
+                    color: #475569;
+                    padding: 1px 8px;
+                    border-radius: 6px;
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    white-space: nowrap;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+                }
+                .option-pill-edit {
+                    color: #94a3b8;
+                    display: flex;
+                    align-items: center;
+                    margin-left: 4px;
+                }
+                .option-pill-none {
+                    color: #94a3b8;
+                    font-style: italic;
+                    font-size: 0.8rem;
+                }
             `}</style>
         </div>
     );
