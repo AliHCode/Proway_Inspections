@@ -76,12 +76,12 @@ export default function ContractorDashboard() {
 
     // --- Chart Data Preparation ---
     const pieData = [
-        { name: 'Approved', value: stats.todayApproved, color: 'var(--clr-success)' },
-        { name: 'Cond. Approved', value: stats.todayConditionallyApproved || 0, color: '#14b8a6' },
-        { name: 'Pending', value: stats.todayPending, color: 'var(--clr-warning)' },
-        { name: 'Rejected', value: stats.todayRejected, color: 'var(--clr-danger)' },
-        { name: 'Info Req.', value: stats.todayInfoRequested || 0, color: 'var(--clr-brand-secondary)' },
-        { name: 'Cancelled', value: stats.todayCancelled || 0, color: '#6b7280' },
+        { name: 'Approved', value: stats.todayApproved, color: '#10b981' }, // Emerald
+        { name: 'Cond. Approved', value: stats.todayConditionallyApproved || 0, color: '#06b6d4' }, // Cyan
+        { name: 'Pending', value: stats.todayPending, color: '#f59e0b' }, // Amber
+        { name: 'Rejected', value: stats.todayRejected, color: '#ef4444' }, // Red
+        { name: 'Info Req.', value: stats.todayInfoRequested || 0, color: '#6366f1' }, // Indigo
+        { name: 'Cancelled', value: stats.todayCancelled || 0, color: '#94a3b8' }, // Slate
     ];
 
     // Group RFIs by date for the area chart (last 7 days of activity)

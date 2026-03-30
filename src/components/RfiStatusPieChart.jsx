@@ -29,9 +29,10 @@ export default function RfiStatusPieChart({ data }) {
                         cy="50%"
                         innerRadius={65}
                         outerRadius={85}
-                        paddingAngle={4}
+                        paddingAngle={0}
                         dataKey="value"
-                        stroke="none"
+                        stroke="#fff"
+                        strokeWidth={4}
                         isAnimationActive={true}
                         animationDuration={1200}
                     >

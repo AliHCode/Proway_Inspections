@@ -44,12 +44,12 @@ export default function ConsultantDashboard() {
         const pendingQueue = queue.all.length;
 
         return [
-            { name: 'Approved', value: approvedToday, color: 'var(--clr-success)' },
-            { name: 'Cond. Approved', value: conditionallyApprovedToday, color: '#14b8a6' },
-            { name: 'Pending', value: pendingQueue, color: 'var(--clr-warning)' },
-            { name: 'Rejected', value: rejectedToday, color: 'var(--clr-danger)' },
-            { name: 'Info Req.', value: infoRequestedToday, color: 'var(--clr-brand-secondary)' },
-            { name: 'Cancelled', value: cancelledToday, color: '#6b7280' },
+            { name: 'Approved', value: approvedToday, color: '#10b981' }, // Emerald
+            { name: 'Cond. Approved', value: conditionallyApprovedToday, color: '#06b6d4' }, // Cyan
+            { name: 'Pending', value: pendingQueue, color: '#f59e0b' }, // Amber
+            { name: 'Rejected', value: rejectedToday, color: '#ef4444' }, // Red
+            { name: 'Info Req.', value: infoRequestedToday, color: '#6366f1' }, // Indigo
+            { name: 'Cancelled', value: cancelledToday, color: '#94a3b8' }, // Slate
         ];
     }, [rfis, today, queue.all.length]);
 
@@ -110,7 +110,7 @@ export default function ConsultantDashboard() {
                             subtitle="Today"
                             trend="up"
                             trendValue="Daily"
-                            color="#10b981"
+                            color="#34d399"
                         />
                     </div>
                     <div className="bento-span-2">
