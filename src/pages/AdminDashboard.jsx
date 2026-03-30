@@ -348,6 +348,58 @@ function ProjectEditOverlay({
     );
 }
 
+// --- FieldOptionsEditOverlay Component (Portal-based) ---
+function FieldOptionsEditOverlay({ field, currentOptions, onClose, onSave }) {
+    const [text, setText] = useState(currentOptions ? currentOptions.join(', ') : '');
+
+    if (!field) return null;
+
+    return createPortal(
+        <div className="action-sheet-overlay open" onClick={onClose}>
+            <div className="action-sheet-panel project-edit-panel open" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+                <div className="action-sheet-header project-edit-header">
+                    <div className="header-content">
+                        <div className="title-group">
+                            <h3 className="action-sheet-title">Edit Dropdown Options</h3>
+                            <p className="action-sheet-subtitle">Field: {field.field_name}</p>
+                        </div>
+                        <button className="btn-close-hex" onClick={onClose}>
+                            <X size={20} />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="action-sheet-body project-edit-body">
+                    <div className="overlay-form-container">
+                        <div className="overlay-section">
+                            <h4 className="overlay-section-title">Configure Options</h4>
+                            <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.75rem' }}>
+                                Enter options separated by commas. Existing options will be preserved if their name remains unchanged.
+                            </p>
+                            <textarea 
+                                className="premium-textarea"
+                                value={text}
+                                onChange={e => setText(e.target.value)}
+                                placeholder="e.g. Civil, Structural, Electrical, Plumbing"
+                                rows={6}
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="action-sheet-footer project-edit-footer">
+                    <button className="btn btn-premium-secondary" onClick={onClose}>Cancel</button>
+                    <button className="btn btn-premium-save" onClick={() => onSave(text)}>
+                        <Save size={18} /> <span>Update Options</span>
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+}
+
 export default function AdminDashboard() {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -404,7 +456,8 @@ export default function AdminDashboard() {
     const [isReordering, setIsReordering] = useState(false);
     const [columnWidthsDraft, setColumnWidthsDraft] = useState({});
     const [columnStylesDraft, setColumnStylesDraft] = useState({});
-    const [activeStyleColumn, setActiveStyleColumn] = useState(null);
+    const [editingOptionsField, setEditingOptionsField] = useState(null);
+    const [optionsTextDraft, setOptionsTextDraft] = useState('');
     const [resizeState, setResizeState] = useState(null);
 
     const BUILT_IN_COLUMNS = [
@@ -755,6 +808,18 @@ export default function AdminDashboard() {
 
     async function handleToggleRequired(field) {
         await updateProjectField(field.id, { is_required: !field.is_required });
+    }
+
+    async function handleSaveFieldOptions(optionsStr) {
+        if (!editingOptionsField) return;
+        const opts = optionsStr.split(',').map(o => o.trim()).filter(Boolean);
+        const result = await updateProjectField(editingOptionsField.id, { options: opts });
+        if (result?.success) {
+            showMsg('Options updated');
+            setEditingOptionsField(null);
+        } else {
+            showMsg('Error updating options');
+        }
     }
 
     // ─── Computed ───
@@ -1217,11 +1282,22 @@ export default function AdminDashboard() {
                                                         )}
                                                     </td>
                                                     <td className="designer-td">
-                                                        {f.options && Array.isArray(f.options) && f.options.length > 0 ? (
-                                                            <div className="option-pills">
-                                                                {f.options.map((o, i) => <span key={i} className="option-pill">{o}</span>)}
+                                                        {f.field_type === 'select' ? (
+                                                            <div 
+                                                                className="options-edit-trigger" 
+                                                                onClick={() => setEditingOptionsField(f)}
+                                                                title="Click to edit dropdown options"
+                                                            >
+                                                                {f.options && Array.isArray(f.options) && f.options.length > 0 ? (
+                                                                    <div className="option-pills">
+                                                                        {f.options.map((o, i) => <span key={i} className="option-pill">{o}</span>)}
+                                                                        <span className="option-pill-edit"><Settings2 size={12} /></span>
+                                                                    </div>
+                                                                ) : <span className="option-pill-none">+ Set Options</span>}
                                                             </div>
-                                                        ) : <span className="text-muted" style={{ fontStyle: 'italic', fontSize: '0.85rem' }}>None</span>}
+                                                        ) : (
+                                                            <span className="text-muted" style={{ fontStyle: 'italic', fontSize: '0.85rem' }}>None</span>
+                                                        )}
                                                     </td>
                                                     <td className="designer-td" style={{ textAlign: 'center' }}>
                                                         <label className="designer-toggle">
