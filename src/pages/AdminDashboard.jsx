@@ -798,6 +798,9 @@ export default function AdminDashboard() {
                         <button className={`admin-tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
                             <Users size={16} /> <span className="tab-label">Users &amp; Assignments</span>
                         </button>
+                        <button className="admin-tab-btn" onClick={() => navigate('/admin/data-manager')}>
+                            <Trash2 size={16} /> <span className="tab-label">Data Manager</span>
+                        </button>
                     </div>
 
                     <div className="admin-nav-actions">

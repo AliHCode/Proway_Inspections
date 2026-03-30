@@ -13,6 +13,7 @@ import ConsultantDashboard from './pages/ConsultantDashboard';
 import ReviewQueue from './pages/ReviewQueue';
 import RejectionJourneyBoard from './pages/RejectionJourneyBoard';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminDataManager from './pages/AdminDataManager';
 import UsersPage from './pages/UsersPage';
 import AdminFormatDesigner from './pages/AdminFormatDesigner';
 import PendingApproval from './pages/PendingApproval';
@@ -61,6 +62,7 @@ function AppRoutes() {
             <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><UsersPage /></ProtectedRoute>} />
             <Route path="/admin/export-format" element={<ProtectedRoute allowedRoles={['admin']}><AdminFormatDesigner /></ProtectedRoute>} />
             <Route path="/admin/registered-devices" element={<ProtectedRoute allowedRoles={['admin']}><RegisteredDevicesPage /></ProtectedRoute>} />
+            <Route path="/admin/data-manager" element={<ProtectedRoute allowedRoles={['admin']}><AdminDataManager /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
