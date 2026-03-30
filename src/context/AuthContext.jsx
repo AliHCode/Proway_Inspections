@@ -64,6 +64,14 @@ export function AuthProvider({ children }) {
                         // Session is still valid — quietly refresh the profile if needed
                         isFetchingProfileRef.current = null; // allow next fetch
                         fetchProfile(session.user.id, { allowRetry: false, authUser: session.user });
+                    } else {
+                        // Session was invalidated (e.g. logged in on another device)
+                        // — force a clean logout so the user isn't stuck on a loading screen
+                        console.warn('Session invalidated while tab was in background — logging out');
+                        localStorage.removeItem(PROFILE_CACHE_KEY);
+                        setUser(null);
+                        setLoading(false);
+                        setAuthResolved(true);
                     }
                 });
             }
@@ -260,6 +268,24 @@ export function AuthProvider({ children }) {
             }
         } catch (error) {
             console.error('Error fetching profile:', error.message);
+            // If this is a genuine auth error (401/403), the session is dead.
+            // Don't restore from cache — that would leave the user stuck with
+            // a stale profile and a dead Supabase token (infinite loading).
+            const status = error?.status || error?.statusCode;
+            const msg = (error?.message || '').toLowerCase();
+            const isAuthError = status === 401 || status === 403
+                || msg.includes('jwt expired') || msg.includes('invalid jwt')
+                || msg.includes('not authenticated') || msg.includes('refresh_token');
+
+            if (isAuthError) {
+                console.warn('Session token is dead — forcing clean logout');
+                localStorage.removeItem(PROFILE_CACHE_KEY);
+                setUser(null);
+                setLoading(false);
+                setAuthResolved(true);
+                return;
+            }
+
             // Network error while online? Fallback to cache so we don't log user out
             if (restoreCachedProfile(userId)) {
                 setLoading(false);

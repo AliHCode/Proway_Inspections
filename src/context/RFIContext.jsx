@@ -542,8 +542,15 @@ export function RFIProvider({ children }) {
     useEffect(() => {
         if (!user) return;
 
-        syncPushSubscriptionForUser(user.id).catch((error) => {
-            console.error('Error syncing push subscription:', error);
+        // Only sync push subscription if we have a valid Supabase session.
+        // The user state may have been restored from cache before the session
+        // is fully validated — firing push sync with a dead token causes 401s.
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session?.user?.id === user.id) {
+                syncPushSubscriptionForUser(user.id).catch((error) => {
+                    console.error('Error syncing push subscription:', error);
+                });
+            }
         });
     }, [user]);
 
