@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useRFI } from '../context/RFIContext';
 import { useProject } from '../context/ProjectContext';
-import { getToday, formatDateDisplay } from '../utils/rfiLogic';
+import { getToday, formatDateDisplay, formatDate } from '../utils/rfiLogic';
 import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
 import Header from '../components/Header';
 import StatusBadge from '../components/StatusBadge';
@@ -33,7 +33,7 @@ function shiftMonth(yr, mo, delta) {
 function dayOffset(base, delta) {
     const d = new Date(base + 'T00:00:00');
     d.setDate(d.getDate() + delta);
-    return d.toISOString().slice(0, 10);
+    return formatDate(d);
 }
 
 // ─── Single Month Panel ────────────────────────────────────────────────────────
@@ -137,7 +137,7 @@ function DateRangePicker({ fromDate, toDate, onChange }) {
             from: (() => {
                 const d = new Date(today + 'T00:00:00');
                 d.setDate(d.getDate() - d.getDay());
-                return d.toISOString().slice(0, 10);
+                return formatDate(d);
             })(),
             to: today,
         },
