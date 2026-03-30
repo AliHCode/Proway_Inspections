@@ -13,7 +13,7 @@ import CancelModal from '../components/CancelModal';
 import RFIDetailModal from '../components/RFIDetailModal';
 import UserAvatar from '../components/UserAvatar';
 import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
-import { CheckCircle, XCircle, Ban, X, FileDown, Table, ClipboardList, Filter, Maximize2, Minimize2, RotateCcw, User, UserPlus, Hand } from 'lucide-react';
+import { CheckCircle, XCircle, Ban, X, FileDown, Table, ClipboardList, Filter, Maximize2, Minimize2, RotateCcw, User, UserPlus, Hand, ArrowLeft, Camera, Upload, Send } from 'lucide-react';
 
 export default function ReviewQueue() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -29,6 +29,12 @@ export default function ReviewQueue() {
     const [cancelTarget, setCancelTarget] = useState(null);
     const [detailTarget, setDetailTarget] = useState(null);
     const [actionSheetTarget, setActionSheetTarget] = useState(null);
+    const [actionSheetStep, setActionSheetStep] = useState('menu'); // menu, approve, reject, cancel, details
+    const [sheetRemarks, setSheetRemarks] = useState('');
+    const [sheetFiles, setSheetFiles] = useState([]);
+    const [sheetAssignedTo, setSheetAssignedTo] = useState('');
+    const [sheetMarkupIndex, setSheetMarkupIndex] = useState(null);
+    const [sheetError, setSheetError] = useState('');
     const [filterOptions, setFilterOptions] = useState({
         status: 'all', // all, to_review, approved, conditional, rejected
         showOnlyMe: false
@@ -45,6 +51,7 @@ export default function ReviewQueue() {
     const [filterValueSearch, setFilterValueSearch] = useState('');
     const [isFullscreen, setIsFullscreen] = useState(false);
     const pageRef = useRef(null);
+    const sheetFileRef = useRef(null);
 
     const queue = getReviewQueue(currentDate);
 
@@ -558,11 +565,17 @@ export default function ReviewQueue() {
         return (
             <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <button
-                    onClick={() => setActionSheetTarget(rfi)}
                     className="btn-review-main"
-                    title="Review RFI"
+                    onClick={() => {
+                        setSheetRemarks('');
+                        setSheetFiles([]);
+                        setSheetAssignedTo(rfi.filedBy || '');
+                        setSheetError('');
+                        setActionSheetStep('menu');
+                        setActionSheetTarget(rfi);
+                    }}
                 >
-                    Review <Maximize2 size={14} style={{ marginLeft: '4px', opacity: 0.7 }} />
+                    <Hand size={16} /> Review
                 </button>
             </div>
         );
@@ -1034,44 +1047,14 @@ export default function ReviewQueue() {
                     onClose={() => setDetailTarget(null)}
                     externalScrollTrigger={scrollTrigger}
                     // Decision Action Overrides
-                    onApprove={() => { setApproveMode('full'); setApproveTarget(detailTarget); }}
-                    onConditional={() => { setApproveMode('conditional'); setApproveTarget(detailTarget); }}
-                    onReject={() => setRejectTarget(detailTarget)}
-                    onCancel={() => setCancelTarget(detailTarget)}
+                    onApprove={() => { setApproveMode('full'); setActionSheetStep('approve'); setActionSheetTarget(detailTarget); setDetailTarget(null); }}
+                    onConditional={() => { setApproveMode('conditional'); setActionSheetStep('approve'); setActionSheetTarget(detailTarget); setDetailTarget(null); }}
+                    onReject={() => { setActionSheetStep('reject'); setActionSheetTarget(detailTarget); setDetailTarget(null); }}
+                    onCancel={() => { setActionSheetStep('cancel'); setActionSheetTarget(detailTarget); setDetailTarget(null); }}
                 />
             )}
 
-            {/* Inline Widgets */}
-            {approveTarget && (
-                <ApproveModal
-                    key={approveTarget.id}
-                    rfi={approveTarget}
-                    mode={approveMode}
-                    contractors={contractors}
-                    onApprove={handleApprove}
-                    onClose={() => setApproveTarget(null)}
-                />
-            )}
-
-            {rejectTarget && (
-                <RejectModal
-                    key={rejectTarget.id}
-                    rfi={rejectTarget}
-                    onReject={handleReject}
-                    contractors={contractors}
-                    onClose={() => setRejectTarget(null)}
-                />
-            )}
-            {cancelTarget && (
-                <CancelModal
-                    key={cancelTarget.id}
-                    isOpen={!!cancelTarget}
-                    rfi={cancelTarget}
-                    contractors={contractors}
-                    onConfirm={(reason, assignedTo) => handleCancel(cancelTarget.id, reason, assignedTo)}
-                    onClose={() => setCancelTarget(null)}
-                />
-            )}
+            {/* Inline Widgets removed - now integrated into bottom sheet */}
 
             {/* Lightbox for Images */}
             {selectedImages && (
@@ -1119,31 +1102,152 @@ export default function ReviewQueue() {
                 onClick={() => setActionSheetTarget(null)}
             />
             {actionSheetTarget && (
-                <div className="action-sheet-panel">
+                <div className={`action-sheet-panel ${actionSheetStep !== 'menu' ? 'expanded' : ''}`}>
                     <div className="sheet-handle"></div>
-                    <div className="action-sheet-header">
-                        <h3 className="action-sheet-title">RFI #{actionSheetTarget.customFields?.rfi_no || actionSheetTarget.serialNo}</h3>
-                        <p className="action-sheet-subtitle">{actionSheetTarget.location}</p>
-                    </div>
                     
-                    <div className="action-sheet-grid">
-                        <button className="sheet-btn sheet-btn-approve" onClick={() => { setApproveMode('full'); setApproveTarget(actionSheetTarget); setActionSheetTarget(null); }}>
-                            <CheckCircle size={24} /> Approve
-                        </button>
-                        <button className="sheet-btn sheet-btn-cond" onClick={() => { setApproveMode('conditional'); setApproveTarget(actionSheetTarget); setActionSheetTarget(null); }}>
-                            <CheckCircle size={24} /> <span style={{fontSize: '0.7rem'}}>COND. APPROVE</span>
-                        </button>
-                        <button className="sheet-btn sheet-btn-reject" onClick={() => { setRejectTarget(actionSheetTarget); setActionSheetTarget(null); }}>
-                            <XCircle size={24} /> Reject
-                        </button>
-                        <button className="sheet-btn sheet-btn-cancel" onClick={() => { setCancelTarget(actionSheetTarget); setActionSheetTarget(null); }}>
-                            <Ban size={24} /> Cancel
-                        </button>
-                        <button className="sheet-btn sheet-btn-details full-width" onClick={() => { setDetailTarget(actionSheetTarget); setActionSheetTarget(null); }}>
-                            <ClipboardList size={20} /> View Full Details & Review History
-                        </button>
+                    <div className="action-sheet-header">
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: actionSheetStep === 'menu' ? '4px' : '15px' }}>
+                            {actionSheetStep !== 'menu' && (
+                                <button className="sheet-back-btn" onClick={() => setActionSheetStep('menu')}>
+                                    <ArrowLeft size={20} />
+                                </button>
+                            )}
+                            <div style={{ flex: 1, textAlign: actionSheetStep === 'menu' ? 'center' : 'left' }}>
+                                <h3 className="action-sheet-title">
+                                    {actionSheetStep === 'menu' ? `RFI #${actionSheetTarget.customFields?.rfi_no || actionSheetTarget.serialNo}` : 
+                                     actionSheetStep === 'approve' ? (approveMode === 'conditional' ? 'Conditionally Approve' : 'Approve RFI') :
+                                     actionSheetStep === 'reject' ? 'Reject RFI' : 
+                                     actionSheetStep === 'cancel' ? 'Cancel RFI' : 'Review Details'}
+                                </h3>
+                                {actionSheetStep === 'menu' && <p className="action-sheet-subtitle">{actionSheetTarget.location}</p>}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="action-sheet-body">
+                        {actionSheetStep === 'menu' ? (
+                            <div className="action-sheet-grid">
+                                <button className="sheet-btn sheet-btn-approve" onClick={() => { setApproveMode('full'); setActionSheetStep('approve'); }}>
+                                    <CheckCircle size={24} /> Approve
+                                </button>
+                                <button className="sheet-btn sheet-btn-cond" onClick={() => { setApproveMode('conditional'); setActionSheetStep('approve'); }}>
+                                    <CheckCircle size={24} /> <span style={{fontSize: '0.7rem'}}>COND. APPROVE</span>
+                                </button>
+                                <button className="sheet-btn sheet-btn-reject" onClick={() => setActionSheetStep('reject')}>
+                                    <XCircle size={24} /> Reject
+                                </button>
+                                <button className="sheet-btn sheet-btn-cancel" onClick={() => setActionSheetStep('cancel')}>
+                                    <Ban size={24} /> Cancel
+                                </button>
+                                <button className="sheet-btn sheet-btn-details full-width" onClick={() => { setDetailTarget(actionSheetTarget); setActionSheetTarget(null); }}>
+                                    <ClipboardList size={20} /> View Full Details & Review History
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="action-sheet-form-container">
+                                {/* Form Fields ported from Modals */}
+                                <div className="sheet-form-field">
+                                    <label className="sheet-form-label">Notify Representative <span style={{color:'#ef4444'}}>*</span></label>
+                                    <select 
+                                        className="sheet-form-select"
+                                        value={sheetAssignedTo}
+                                        onChange={e => setSheetAssignedTo(e.target.value)}
+                                    >
+                                        <option value="" disabled>Select recipient</option>
+                                        {contractors.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name} ({c.company})</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="sheet-form-field">
+                                    <label className="sheet-form-label">
+                                        {actionSheetStep === 'approve' ? (approveMode === 'conditional' ? 'Conditions (Required)' : 'Remarks (Optional)') :
+                                         actionSheetStep === 'reject' ? 'Corrective Actions (Required)' : 'Cancellation Reason (Required)'}
+                                    </label>
+                                    <textarea 
+                                        className="sheet-form-textarea"
+                                        value={sheetRemarks}
+                                        onChange={e => { setSheetRemarks(e.target.value); setSheetError(''); }}
+                                        placeholder="Add notes, conditions or corrective actions..."
+                                        rows={3}
+                                    />
+                                </div>
+
+                                {/* File Preview / Add */}
+                                <div className="sheet-form-field">
+                                    <label className="sheet-form-label" style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                                        Evidence Photos (Optional)
+                                        <button className="sheet-add-photo" onClick={() => sheetFileRef.current?.click()}>
+                                            <Camera size={14} /> Add
+                                        </button>
+                                    </label>
+                                    <input type="file" ref={sheetFileRef} multiple accept="image/*,application/pdf" style={{display:'none'}} 
+                                        onChange={e => { setSheetFiles(prev => [...prev, ...Array.from(e.target.files)]); e.target.value=''; }} />
+                                    
+                                    {sheetFiles.length > 0 && (
+                                        <div className="sheet-file-strip">
+                                            {sheetFiles.map((file, idx) => (
+                                                <div key={idx} className="sheet-file-thumb">
+                                                    <img src={typeof file === 'string' ? file : URL.createObjectURL(file)} alt="Evidence" />
+                                                    <div className="sheet-file-actions">
+                                                        <button onClick={() => setSheetMarkupIndex(idx)}><Camera size={12} /></button>
+                                                        <button onClick={() => setSheetFiles(prev => prev.filter((_,i) => i !== idx))}><X size={12} /></button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {sheetError && <div className="sheet-form-error">{sheetError}</div>}
+
+                                <div className="action-sheet-footer">
+                                    <button 
+                                        className={`sheet-submit-btn ${actionSheetStep}`}
+                                        onClick={async () => {
+                                            const isConditional = actionSheetStep === 'approve' && approveMode === 'conditional';
+                                            const isReject = actionSheetStep === 'reject';
+                                            const isCancel = actionSheetStep === 'cancel';
+
+                                            if ((isConditional || isReject || isCancel) && !sheetRemarks.trim()) {
+                                                setSheetError('Please provide remarks/reason.');
+                                                return;
+                                            }
+                                            if (!sheetAssignedTo) {
+                                                setSheetError('Please notify a representative.');
+                                                return;
+                                            }
+
+                                            if (actionSheetStep === 'approve') {
+                                                await handleApprove(actionSheetTarget.id, sheetRemarks.trim(), sheetFiles, isConditional ? 'conditional_approve' : 'approved', sheetAssignedTo);
+                                            } else if (isReject) {
+                                                await handleReject(actionSheetTarget.id, sheetRemarks.trim(), sheetFiles, sheetAssignedTo);
+                                            } else if (isCancel) {
+                                                await handleCancel(actionSheetTarget.id, sheetRemarks.trim(), sheetAssignedTo);
+                                            }
+                                            setActionSheetTarget(null);
+                                        }}
+                                    >
+                                        <Send size={16} /> Confirm {actionSheetStep === 'approve' ? 'Approval' : actionSheetStep === 'reject' ? 'Rejection' : 'Cancellation'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
+            )}
+
+            {/* Global FieldMarkupStudio for Action Sheet */}
+            {sheetMarkupIndex !== null && sheetFiles[sheetMarkupIndex] && (
+                <FieldMarkupStudio 
+                    image={sheetFiles[sheetMarkupIndex]} 
+                    onClose={() => setSheetMarkupIndex(null)}
+                    onSave={annotatedFile => {
+                        setSheetFiles(prev => prev.map((f, i) => i === sheetMarkupIndex ? annotatedFile : f));
+                        setSheetMarkupIndex(null);
+                    }}
+                />
             )}
             <style>
                 {`
@@ -1386,6 +1490,124 @@ export default function ReviewQueue() {
                 
                 .sheet-btn-details { background: #eff6ff; color: #2563eb; border-color: #dbeafe; }
                 .sheet-btn-details:active { background: #dbeafe; transform: scale(0.97); }
+
+                /* Action Sheet Multi-Step Form Styling */
+                .action-sheet-panel.expanded {
+                    max-height: 85vh;
+                    overflow-y: auto;
+                }
+                .sheet-back-btn {
+                    background: none;
+                    border: none;
+                    color: #64748b;
+                    padding: 8px;
+                    margin-left: -8px;
+                    margin-right: 8px;
+                    cursor: pointer;
+                    border-radius: 50%;
+                    transition: background 0.2s;
+                }
+                .sheet-back-btn:hover { background: #f1f5f9; }
+                
+                .action-sheet-form-container {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1.25rem;
+                    padding-bottom: 20px;
+                }
+                .sheet-form-field { display: flex; flex-direction: column; gap: 0.5rem; }
+                .sheet-form-label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+                .sheet-form-select {
+                    width: 100%;
+                    padding: 12px;
+                    border-radius: 12px;
+                    border: 1px solid #e2e8f0;
+                    font-size: 0.9rem;
+                    background: #f8fafc;
+                }
+                .sheet-form-textarea {
+                    width: 100%;
+                    padding: 12px;
+                    border-radius: 12px;
+                    border: 1px solid #e2e8f0;
+                    font-size: 0.9rem;
+                    font-family: inherit;
+                    resize: none;
+                }
+                .sheet-add-photo {
+                    background: #f1f5f9;
+                    border: 1px solid #e2e8f0;
+                    padding: 4px 10px;
+                    border-radius: 8px;
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    color: #475569;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                }
+                .sheet-file-strip { 
+                    display: flex; 
+                    gap: 10px; 
+                    overflow-x: auto; 
+                    padding: 4px 0; 
+                    scrollbar-width: none; 
+                }
+                .sheet-file-thumb {
+                    position: relative;
+                    min-width: 80px;
+                    height: 80px;
+                    border-radius: 10px;
+                    overflow: hidden;
+                    border: 1px solid #e2e8f0;
+                }
+                .sheet-file-thumb img { width: 100%; height: 100%; object-fit: cover; }
+                .sheet-file-actions {
+                    position: absolute;
+                    inset: 0;
+                    background: rgba(0,0,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                    opacity: 0;
+                    transition: opacity 0.2s;
+                }
+                .sheet-file-thumb:hover .sheet-file-actions { opacity: 1; }
+                .sheet-file-actions button {
+                    background: #fff;
+                    border: none;
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #0f172a;
+                    cursor: pointer;
+                }
+
+                .sheet-submit-btn {
+                    width: 100%;
+                    padding: 16px;
+                    border-radius: 14px;
+                    border: none;
+                    font-weight: 700;
+                    font-size: 1rem;
+                    color: #fff;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .sheet-submit-btn.approve { background: #059669; box-shadow: 0 4px 12px rgba(5,150,105,0.2); }
+                .sheet-submit-btn.reject { background: #dc2626; box-shadow: 0 4px 12px rgba(220,38,38,0.2); }
+                .sheet-submit-btn.cancel { background: #475569; box-shadow: 0 4px 12px rgba(71,85,105,0.2); }
+                .sheet-submit-btn:active { transform: scale(0.98); }
+                
+                .sheet-form-error { font-size: 0.8rem; color: #dc2626; font-weight: 500; text-align: center; }
 
                 .btn-review-main {
                     background: #f8fafc;
