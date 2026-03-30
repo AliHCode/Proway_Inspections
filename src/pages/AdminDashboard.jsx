@@ -191,60 +191,63 @@ function ProjectEditOverlay({
             }}>
                 <div className="sheet-handle"></div>
                 
-                <div className="action-sheet-header" style={{ paddingBottom: '0.5rem', borderBottom: '1px solid #f1f5f9', marginBottom: '1.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ textAlign: 'left' }}>
-                            <h3 className="action-sheet-title" style={{ fontSize: '1.25rem' }}>Project Settings</h3>
+                <div className="action-sheet-header project-edit-header">
+                    <div className="header-content">
+                        <div className="title-group">
+                            <h3 className="action-sheet-title">Project Settings</h3>
                             <p className="action-sheet-subtitle">{project.name}</p>
                         </div>
-                        <button className="btn-close-hex" onClick={onClose} style={{ background: '#f1f5f9' }}>
+                        <button className="btn-close-hex" onClick={onClose}>
                             <X size={20} />
                         </button>
                     </div>
                 </div>
 
-                <div className="action-sheet-body" style={{ overflowY: 'auto', flex: 1, paddingRight: '4px' }}>
-                    <div className="overlay-form-grid">
+                <div className="action-sheet-body project-edit-body">
+                    <div className="overlay-form-container">
                         {/* Section: Site Config */}
                         <div className="overlay-section">
-                            <h4 className="overlay-section-title"><Globe size={14} /> Site Configuration</h4>
-                            <div className="form-grid">
-                                <div className="form-group">
+                            <h4 className="overlay-section-title"><Globe size={16} /> Site Configuration</h4>
+                            <div className="form-row">
+                                <div className="form-group flex-1">
                                     <label>Project Code</label>
                                     <input 
                                         type="text" 
+                                        className="premium-input"
                                         value={editState.code}
                                         onChange={e => setEditState(prev => ({ ...prev, code: e.target.value }))}
                                         placeholder="e.g. RR007"
                                     />
                                 </div>
-                                <div className="form-group">
+                                <div className="form-group flex-1">
                                     <label>RFI Start #</label>
                                     <input 
                                         type="number" 
+                                        className="premium-input"
                                         min="1"
                                         value={editState.startNumber}
                                         onChange={e => setEditState(prev => ({ ...prev, startNumber: e.target.value }))}
                                     />
                                 </div>
-                                <div className="form-group full-width">
-                                    <label>Site Timezone</label>
-                                    <SearchableSelect 
-                                        options={ALL_TIMEZONES}
-                                        value={editState.timezone}
-                                        onChange={val => setEditState(prev => ({ ...prev, timezone: val }))}
-                                    />
-                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>Site Timezone</label>
+                                <SearchableSelect 
+                                    options={ALL_TIMEZONES}
+                                    value={editState.timezone}
+                                    onChange={val => setEditState(prev => ({ ...prev, timezone: val }))}
+                                />
                             </div>
                         </div>
 
                         {/* Section: Access & Subscription */}
                         <div className="overlay-section">
-                            <h4 className="overlay-section-title"><Shield size={14} /> Access & Subscription</h4>
-                            <div className="form-grid">
-                                <div className="form-group">
+                            <h4 className="overlay-section-title"><Shield size={16} /> Access & Subscription</h4>
+                            <div className="form-row">
+                                <div className="form-group flex-1">
                                     <label>Status</label>
                                     <select 
+                                        className="premium-select"
                                         value={editState.subscriptionStatus}
                                         onChange={e => setEditState(prev => ({ ...prev, subscriptionStatus: e.target.value }))}
                                     >
@@ -253,15 +256,18 @@ function ProjectEditOverlay({
                                         <option value="expired">Expired</option>
                                     </select>
                                 </div>
-                                <div className="form-group">
+                                <div className="form-group flex-1">
                                     <label>Expiry Date</label>
                                     <input 
                                         type="date" 
+                                        className="premium-input"
                                         value={editState.subscriptionEnd ? editState.subscriptionEnd.split('T')[0] : ''}
                                         onChange={e => setEditState(prev => ({ ...prev, subscriptionEnd: e.target.value }))}
                                     />
                                 </div>
-                                <div className="form-group full-width">
+                            </div>
+                            <div className="form-group">
+                                <div className="modern-lock-card">
                                     <label className="checkbox-label-modern">
                                         <input 
                                             type="checkbox"
@@ -274,76 +280,73 @@ function ProjectEditOverlay({
                                         </div>
                                     </label>
                                 </div>
-                                <div className="form-group full-width">
-                                    <label>RFI Assignment Mode</label>
-                                    <div className="assignment-mode-toggle" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '4px' }}>
-                                        {[
-                                            { value: 'direct', label: 'Direct', desc: 'Contractor assigns consultant' },
-                                            { value: 'open', label: 'Open Queue', desc: 'First to act wins' },
-                                            { value: 'claim', label: 'Claim', desc: 'Consultants claim RFIs' }
-                                        ].map(opt => (
-                                            <button
-                                                key={opt.value}
-                                                type="button"
-                                                className={`mode-option ${editState.assignmentMode === opt.value ? 'active' : ''}`}
-                                                onClick={() => setEditState(prev => ({ ...prev, assignmentMode: opt.value }))}
-                                                style={{ flex: 1, padding: '0.5rem' }}
-                                            >
-                                                <span className="mode-label" style={{ fontSize: '0.8rem' }}>{opt.label}</span>
-                                            </button>
-                                        ))}
-                                    </div>
+                            </div>
+                            <div className="form-group">
+                                <label>RFI Assignment Mode</label>
+                                <div className="assignment-segmented-control">
+                                    {[
+                                        { value: 'direct', label: 'Direct', desc: 'Contractor assigns consultant' },
+                                        { value: 'open', label: 'Open Queue', desc: 'First to act wins' },
+                                        { value: 'claim', label: 'Claim', desc: 'Consultants claim RFIs' }
+                                    ].map(opt => (
+                                        <button
+                                            key={opt.value}
+                                            type="button"
+                                            className={`segment-btn ${editState.assignmentMode === opt.value ? 'active' : ''}`}
+                                            onClick={() => setEditState(prev => ({ ...prev, assignmentMode: opt.value }))}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
                                 </div>
-                                <div className="form-group full-width">
-                                    <label>Internal Payment Remarks</label>
-                                    <textarea 
-                                        value={editState.paymentRemarks}
-                                        onChange={e => setEditState(prev => ({ ...prev, paymentRemarks: e.target.value }))}
-                                        placeholder="Internal notes about billing or scope..."
-                                        rows={2}
-                                        style={{ resize: 'none' }}
-                                    />
-                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>Internal Payment Remarks</label>
+                                <textarea 
+                                    className="premium-textarea"
+                                    value={editState.paymentRemarks}
+                                    onChange={e => setEditState(prev => ({ ...prev, paymentRemarks: e.target.value }))}
+                                    placeholder="Internal notes about billing or scope..."
+                                    rows={3}
+                                />
                             </div>
                         </div>
 
                         {/* Section: Display Prefs */}
                         <div className="overlay-section">
-                            <h4 className="overlay-section-title"><Eye size={14} /> Review Table Display Preferences</h4>
-                            <div className="form-grid">
-                                <div className="form-group full-width" style={{ display: 'flex', gap: '1rem' }}>
-                                    <label className="checkbox-label-modern" style={{ flex: 1 }}>
-                                        <input 
-                                            type="checkbox"
-                                            checked={editState.showFilerInfo}
-                                            onChange={e => setEditState(prev => ({ ...prev, showFilerInfo: e.target.checked }))}
-                                        />
-                                        <div className="checkbox-meta">
-                                            <strong>Show Contractor Info</strong>
-                                            <p>Avatars & Names in table.</p>
-                                        </div>
-                                    </label>
-                                    <label className="checkbox-label-modern" style={{ flex: 1 }}>
-                                        <input 
-                                            type="checkbox"
-                                            checked={editState.showEscalatedBadge}
-                                            onChange={e => setEditState(prev => ({ ...prev, showEscalatedBadge: e.target.checked }))}
-                                        />
-                                        <div className="checkbox-meta">
-                                            <strong>Escalated Badges</strong>
-                                            <p>Highlight old RFIs.</p>
-                                        </div>
-                                    </label>
-                                </div>
+                            <h4 className="overlay-section-title"><Eye size={16} /> Dashboard Display Preferences</h4>
+                            <div className="form-row">
+                                <label className="checkbox-label-modern flex-1">
+                                    <input 
+                                        type="checkbox"
+                                        checked={editState.showFilerInfo}
+                                        onChange={e => setEditState(prev => ({ ...prev, showFilerInfo: e.target.checked }))}
+                                    />
+                                    <div className="checkbox-meta">
+                                        <strong>Contractor Info</strong>
+                                        <p>Show Avatars in table</p>
+                                    </div>
+                                </label>
+                                <label className="checkbox-label-modern flex-1">
+                                    <input 
+                                        type="checkbox"
+                                        checked={editState.showEscalatedBadge}
+                                        onChange={e => setEditState(prev => ({ ...prev, showEscalatedBadge: e.target.checked }))}
+                                    />
+                                    <div className="checkbox-meta">
+                                        <strong>Escalated Badges</strong>
+                                        <p>Highlight aging RFIs</p>
+                                    </div>
+                                </label>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="action-sheet-footer" style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '12px' }}>
-                    <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
-                    <button className="btn btn-primary" onClick={onSave} style={{ flex: 2, background: '#0f172a' }}>
-                        <Save size={18} /> Save All Changes
+                <div className="action-sheet-footer project-edit-footer">
+                    <button className="btn btn-premium-secondary" onClick={onClose}>Cancel</button>
+                    <button className="btn btn-premium-save" onClick={onSave}>
+                        <Save size={18} /> <span>Save All Changes</span>
                     </button>
                 </div>
             </div>
@@ -1730,6 +1733,182 @@ export default function AdminDashboard() {
                     background: #e2e8f0 !important;
                     color: #0f172a;
                 }
+
+                /* Premium Overlay & Form Styles */
+                .project-edit-panel {
+                    border-radius: 32px 32px 0 0 !important;
+                    box-shadow: 0 -20px 60px rgba(15, 23, 42, 0.2) !important;
+                }
+                .project-edit-header .header-content {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding-bottom: 1rem;
+                    border-bottom: 1px solid #f1f5f9;
+                }
+                .project-edit-header .title-group h3 {
+                    font-size: 1.35rem;
+                    font-weight: 800;
+                    margin: 0;
+                    color: #0f172a;
+                }
+                .project-edit-header .title-group p {
+                    margin: 2px 0 0;
+                    font-size: 0.9rem;
+                    color: #64748b;
+                }
+                .project-edit-body {
+                    padding: 4px 0 0;
+                }
+                .overlay-section {
+                    margin-bottom: 2rem;
+                    background: #f8fafc;
+                    padding: 1.5rem;
+                    border-radius: 20px;
+                    border: 1px solid #f1f5f9;
+                }
+                .overlay-section-title {
+                    font-size: 0.75rem;
+                    text-transform: uppercase;
+                    letter-spacing: 0.1em;
+                    color: #64748b;
+                    font-weight: 700;
+                    margin-bottom: 1.25rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .form-row {
+                    display: flex;
+                    gap: 1.25rem;
+                    margin-bottom: 1.25rem;
+                }
+                .form-group {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 6px;
+                    margin-bottom: 1.25rem;
+                }
+                .form-group:last-child { margin-bottom: 0; }
+                .flex-1 { flex: 1; }
+                .form-group label {
+                    font-size: 0.85rem;
+                    font-weight: 600;
+                    color: #334155;
+                    margin-left: 4px;
+                }
+                .premium-input, .premium-select, .premium-textarea {
+                    width: 100%;
+                    padding: 10px 14px;
+                    border-radius: 12px;
+                    border: 1.5px solid #e2e8f0;
+                    background: #fff;
+                    font-size: 0.95rem;
+                    color: #0f172a;
+                    transition: all 0.2s;
+                }
+                .premium-input:focus, .premium-select:focus, .premium-textarea:focus {
+                    outline: none;
+                    border-color: #0f172a;
+                    box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.05);
+                }
+                .premium-textarea { resize: none; min-height: 80px; }
+                
+                .modern-lock-card {
+                    background: rgba(255, 255, 255, 0.6);
+                    border: 2px solid #fee2e2;
+                    border-radius: 16px;
+                    padding: 12px 16px;
+                    transition: all 0.2s;
+                }
+                .modern-lock-card:has(input:checked) {
+                    background: #fff;
+                    border-color: #f43f5e;
+                    box-shadow: 0 4px 12px rgba(244, 63, 94, 0.1);
+                }
+                .checkbox-label-modern {
+                    display: flex;
+                    gap: 12px;
+                    align-items: flex-start;
+                    cursor: pointer;
+                }
+                .checkbox-label-modern input[type="checkbox"] {
+                    width: 20px;
+                    height: 20px;
+                    margin-top: 2px;
+                    accent-color: #0f172a;
+                }
+                .checkbox-meta strong {
+                    display: block;
+                    font-size: 0.9rem;
+                    color: #0f172a;
+                }
+                .checkbox-meta p {
+                    font-size: 0.8rem;
+                    color: #64748b;
+                    margin: 2px 0 0;
+                }
+
+                .assignment-segmented-control {
+                    display: flex;
+                    background: #fff;
+                    border: 1.5px solid #e2e8f0;
+                    border-radius: 14px;
+                    padding: 4px;
+                }
+                .segment-btn {
+                    flex: 1;
+                    padding: 8px;
+                    border: none;
+                    background: transparent;
+                    border-radius: 10px;
+                    font-size: 0.85rem;
+                    font-weight: 600;
+                    color: #64748b;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .segment-btn.active {
+                    background: #0f172a;
+                    color: #fff;
+                    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.2);
+                }
+
+                .project-edit-footer {
+                    margin-top: 1.5rem;
+                    padding: 1.5rem 0 0;
+                    border-top: 1px solid #f1f5f9;
+                    display: flex;
+                    gap: 12px;
+                }
+                .btn-premium-secondary {
+                    flex: 1;
+                    height: 52px;
+                    background: #f8fafc;
+                    border: 1.5px solid #e2e8f0;
+                    color: #64748b;
+                    font-weight: 700;
+                    border-radius: 16px;
+                    transition: all 0.2s;
+                }
+                .btn-premium-secondary:hover { background: #e2e8f0; color: #0f172a; }
+                .btn-premium-save {
+                    flex: 2;
+                    height: 52px;
+                    background: #0f172a;
+                    border: none;
+                    color: #fff;
+                    font-weight: 700;
+                    border-radius: 16px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 10px;
+                    transition: all 0.2s;
+                    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.2);
+                }
+                .btn-premium-save:hover { transform: translateY(-2px); box-shadow: 0 14px 24px rgba(15, 23, 42, 0.25); }
+                .btn-premium-save:active { transform: translateY(0); }
             `}</style>
         </div>
     );
