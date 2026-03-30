@@ -1652,6 +1652,84 @@ export default function AdminDashboard() {
                     overflow-x: auto;
                     -webkit-overflow-scrolling: touch;
                 }
+
+                /* Action Sheet Core Styles (Shared UI Pattern) */
+                .action-sheet-overlay {
+                    position: fixed;
+                    inset: 0;
+                    background: rgba(15, 23, 42, 0.4);
+                    backdrop-filter: blur(4px);
+                    -webkit-backdrop-filter: blur(4px);
+                    z-index: 10000;
+                    opacity: 0;
+                    visibility: hidden;
+                    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+                .action-sheet-overlay.open {
+                    opacity: 1;
+                    visibility: visible;
+                }
+                .action-sheet-panel {
+                    position: fixed;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    background: #fff;
+                    border-top-left-radius: 24px;
+                    border-top-right-radius: 24px;
+                    padding: 24px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+                    z-index: 10001;
+                    transform: translateY(100%);
+                    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+                    box-shadow: 0 -10px 40px rgba(0,0,0,0.15);
+                    max-width: 650px;
+                    margin: 0 auto;
+                }
+                .action-sheet-overlay.open .action-sheet-panel.open,
+                .action-sheet-panel.open {
+                    transform: translateY(0);
+                }
+                .sheet-handle {
+                    width: 40px;
+                    height: 5px;
+                    background: #e2e8f0;
+                    border-radius: 5px;
+                    margin: -10px auto 15px;
+                }
+                .action-sheet-header {
+                    margin-bottom: 24px;
+                }
+                .action-sheet-title {
+                    font-size: 1.1rem;
+                    font-weight: 700;
+                    color: #0f172a;
+                    margin-bottom: 4px;
+                }
+                .action-sheet-subtitle {
+                    font-size: 0.85rem;
+                    color: #64748b;
+                }
+                .action-sheet-footer {
+                    padding-bottom: env(safe-area-inset-bottom, 0px);
+                }
+                
+                /* Close Button Hex Style */
+                .btn-close-hex {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 10px;
+                    border: none;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #64748b;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .btn-close-hex:hover {
+                    background: #e2e8f0 !important;
+                    color: #0f172a;
+                }
             `}</style>
         </div>
     );
