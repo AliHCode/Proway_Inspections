@@ -9,11 +9,11 @@ import DateNavigator from '../components/DateNavigator';
 import StatusBadge from '../components/StatusBadge';
 import ApproveModal from '../components/ApproveModal';
 import RejectModal from '../components/RejectModal';
-import CancelModal from '../components/CancelModal';
 import RFIDetailModal from '../components/RFIDetailModal';
+import FieldMarkupStudio from '../components/FieldMarkupStudio';
 import UserAvatar from '../components/UserAvatar';
 import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
-import { CheckCircle, XCircle, Ban, X, FileDown, Table, ClipboardList, Filter, Maximize2, Minimize2, RotateCcw, User, UserPlus, Hand, ArrowLeft, Camera, Upload, Send } from 'lucide-react';
+import { CheckCircle, XCircle, Ban, X, FileDown, Table, ClipboardList, Filter, Maximize2, Minimize2, RotateCcw, User, UserPlus, Hand, ArrowLeft, Camera, Upload, Send, Edit3 } from 'lucide-react';
 
 export default function ReviewQueue() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -1188,11 +1188,13 @@ export default function ReviewQueue() {
                                     {sheetFiles.length > 0 && (
                                         <div className="sheet-file-strip">
                                             {sheetFiles.map((file, idx) => (
-                                                <div key={idx} className="sheet-file-thumb">
-                                                    <img src={typeof file === 'string' ? file : URL.createObjectURL(file)} alt="Evidence" />
-                                                    <div className="sheet-file-actions">
-                                                        <button onClick={() => setSheetMarkupIndex(idx)}><Camera size={12} /></button>
-                                                        <button onClick={() => setSheetFiles(prev => prev.filter((_,i) => i !== idx))}><X size={12} /></button>
+                                                <div key={idx} className="sheet-file-item">
+                                                    <div className="sheet-file-thumb">
+                                                        <img src={typeof file === 'string' ? file : URL.createObjectURL(file)} alt="Evidence" />
+                                                    </div>
+                                                    <div className="sheet-file-actions-row">
+                                                        <button onClick={() => setSheetMarkupIndex(idx)} title="Edit / Markup"><Edit3 size={14} /></button>
+                                                        <button onClick={() => setSheetFiles(prev => prev.filter((_,i) => i !== idx))} title="Remove"><X size={14} /></button>
                                                     </div>
                                                 </div>
                                             ))}
@@ -1553,38 +1555,46 @@ export default function ReviewQueue() {
                     padding: 4px 0; 
                     scrollbar-width: none; 
                 }
+                .sheet-file-item {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 6px;
+                }
                 .sheet-file-thumb {
-                    position: relative;
-                    min-width: 80px;
-                    height: 80px;
-                    border-radius: 10px;
+                    width: 70px;
+                    height: 70px;
+                    border-radius: 12px;
                     overflow: hidden;
                     border: 1px solid #e2e8f0;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
                 }
                 .sheet-file-thumb img { width: 100%; height: 100%; object-fit: cover; }
-                .sheet-file-actions {
-                    position: absolute;
-                    inset: 0;
-                    background: rgba(0,0,0,0.3);
+                .sheet-file-actions-row {
                     display: flex;
-                    align-items: center;
                     justify-content: center;
                     gap: 8px;
-                    opacity: 0;
-                    transition: opacity 0.2s;
                 }
-                .sheet-file-thumb:hover .sheet-file-actions { opacity: 1; }
-                .sheet-file-actions button {
-                    background: #fff;
-                    border: none;
-                    width: 24px;
-                    height: 24px;
-                    border-radius: 50%;
+                .sheet-file-actions-row button {
+                    background: #f1f5f9;
+                    border: 1px solid #e2e8f0;
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 8px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    color: #0f172a;
+                    color: #475569;
                     cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .sheet-file-actions-row button:hover {
+                    background: #e2e8f0;
+                    color: #0f172a;
+                }
+                .sheet-file-actions-row button:last-child:hover {
+                    background: #fee2e2;
+                    color: #ef4444;
+                    border-color: #fca5a5;
                 }
 
                 .sheet-submit-btn {

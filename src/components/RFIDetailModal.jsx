@@ -16,11 +16,6 @@ export default function RFIDetailModal({
     orderedColumns = [], 
     onClose, 
     externalScrollTrigger,
-    // Decision Actions
-    onApprove,
-    onConditional,
-    onReject,
-    onCancel
 }) {
     const [activeTab, setActiveTab] = useState('review');
     const [tabScrollTrigger, setTabScrollTrigger] = useState(0);
@@ -123,8 +118,8 @@ export default function RFIDetailModal({
                             </div>
                             <p>{mergedData.description || mergedData.inspection_type || 'RFI Details'}</p>
                         </div>
-                        <button className="btn-close" onClick={onClose}>
-                            <X size={24} color="var(--clr-text-secondary)" />
+                        <button className="btn-close-hex" onClick={onClose}>
+                            <X size={20} />
                         </button>
                     </div>
                 </div>
@@ -168,67 +163,7 @@ export default function RFIDetailModal({
                                         </div>
                                     )}
 
-                                    {/* Action Center for Claimed/Assigned Consultant */}
-                                    {user?.role === 'consultant' && (rfi.assignedTo === user.id || assignmentMode === 'open') && (
-                                        <div className="consultant-action-center" style={{ marginTop: '1.5rem', borderTop: '1px solid var(--clr-border)', paddingTop: '1.25rem' }}>
-                                            <div style={{ textAlign: 'center', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--clr-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                                Decision Action Center
-                                            </div>
-                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', justifyContent: 'center' }}>
-                                                {rfi.status === RFI_STATUS.PENDING ? (
-                                                    <>
-                                                        <button 
-                                                            className="btn btn-approve-full" 
-                                                            onClick={onApprove}
-                                                            style={{ backgroundColor: 'var(--clr-success)', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
-                                                        >
-                                                            <CheckCircle size={18} /> Approve
-                                                        </button>
-                                                        <button 
-                                                            className="btn btn-approve-cond" 
-                                                            onClick={onConditional}
-                                                            style={{ backgroundColor: 'var(--clr-warning)', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
-                                                        >
-                                                            <CheckCircle size={18} /> Cond. Approve
-                                                        </button>
-                                                        <button 
-                                                            className="btn btn-reject-full" 
-                                                            onClick={onReject}
-                                                            style={{ backgroundColor: 'var(--clr-danger)', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
-                                                        >
-                                                            <XCircle size={18} /> Reject
-                                                        </button>
-                                                    </>
-                                                ) : (
-                                                    /* Verification Pending Case */
-                                                    <>
-                                                        <button 
-                                                            className="btn btn-approve-full" 
-                                                            onClick={onApprove}
-                                                            style={{ backgroundColor: 'var(--clr-success)', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
-                                                        >
-                                                            <CheckCircle size={18} /> Verify & Approve
-                                                        </button>
-                                                        <button 
-                                                            className="btn btn-reject-full" 
-                                                            onClick={onReject}
-                                                            style={{ backgroundColor: 'var(--clr-danger)', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
-                                                        >
-                                                            <XCircle size={18} /> Deny Proof
-                                                        </button>
-                                                    </>
-                                                )}
-                                                
-                                                <button 
-                                                    className="btn btn-cancel-terminal" 
-                                                    onClick={onCancel}
-                                                    style={{ backgroundColor: '#4b5563', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
-                                                >
-                                                    <Ban size={18} /> Cancel
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
+
                                 </div>
                             ) : (
                                 <div className={`rfi-verdict-card ${rfi.status.toLowerCase()}`}>
@@ -363,6 +298,31 @@ export default function RFIDetailModal({
             <style>
                 {`
                 .rfi-detail-modal.universal-tabbed { width: 95vw; max-width: 900px; height: 90vh; max-height: 800px; display: flex; flex-direction: column; background: #f8fafc; border-radius: 1.5rem; overflow: hidden; }
+                .rfi-detail-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid #e2e8f0; background: white; }
+                .rfi-detail-title { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+                .rfi-title-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem; }
+                .rfi-title-row h2 { font-size: 1.25rem; font-weight: 800; color: #0f172a; margin: 0; }
+                
+                .btn-close-hex {
+                    width: 36px;
+                    height: 36px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border-radius: 10px;
+                    border: 1px solid #e2e8f0;
+                    background: #f8fafc;
+                    color: #64748b;
+                    cursor: pointer;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+                .btn-close-hex:hover {
+                    background: #fee2e2;
+                    color: #ef4444;
+                    border-color: #fca5a5;
+                    transform: rotate(90deg);
+                }
+
                 .rfi-universal-tabs { display: flex; background: white; padding: 0 1rem; border-bottom: 1px solid #e2e8f0; gap: 0.5rem; overflow-x: auto; scrollbar-width: none; }
                 .rfi-universal-tabs::-webkit-scrollbar { display: none; }
                 .rfi-tab-btn { padding: 1rem 1.25rem; font-size: 0.9rem; font-weight: 600; color: #64748b; border: none; background: none; display: flex; align-items: center; gap: 0.75rem; cursor: pointer; white-space: nowrap; border-bottom: 3px solid transparent; transition: all 0.2s; position: relative; }
