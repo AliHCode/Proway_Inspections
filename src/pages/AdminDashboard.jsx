@@ -1284,18 +1284,24 @@ export default function AdminDashboard() {
                                                     </td>
                                                     <td className="designer-td">
                                                         {f.field_type === 'select' ? (
-                                                            <div 
+                                                            <button 
+                                                                type="button"
                                                                 className="options-edit-trigger" 
-                                                                onClick={() => setEditingOptionsField(f)}
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    console.log('Opening editor for:', f);
+                                                                    setEditingOptionsField(f);
+                                                                }}
                                                                 title="Click to edit dropdown options"
                                                             >
                                                                 {f.options && Array.isArray(f.options) && f.options.length > 0 ? (
                                                                     <div className="option-pills">
                                                                         {f.options.map((o, i) => <span key={i} className="option-pill">{o}</span>)}
-                                                                        <span className="option-pill-edit"><Settings2 size={12} /></span>
+                                                                        <span className="option-pill-edit"><Settings2 size={12} /> Edit</span>
                                                                     </div>
                                                                 ) : <span className="option-pill-none">+ Set Options</span>}
-                                                            </div>
+                                                            </button>
                                                         ) : (
                                                             <span className="text-muted" style={{ fontStyle: 'italic', fontSize: '0.85rem' }}>None</span>
                                                         )}
@@ -2028,7 +2034,7 @@ export default function AdminDashboard() {
                 /* Dropdown Options Styling */
                 .options-edit-trigger {
                     cursor: pointer;
-                    padding: 4px 8px;
+                    padding: 8px;
                     background: #f8fafc;
                     border: 1px solid #e2e8f0;
                     border-radius: 8px;
@@ -2037,23 +2043,25 @@ export default function AdminDashboard() {
                     min-height: 32px;
                     display: flex;
                     align-items: center;
+                    width: 100%;
+                    text-align: left;
                 }
                 .options-edit-trigger:hover {
                     border-color: #6366f1;
                     background: #f5f3ff;
-                    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+                    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
                 }
                 .option-pills {
                     display: flex;
                     flex-wrap: wrap;
-                    gap: 4px;
+                    gap: 6px;
                     align-items: center;
                 }
                 .option-pill {
                     background: #fff;
-                    border: 1px solid #e2e8f0;
-                    color: #475569;
-                    padding: 1px 8px;
+                    border: 1px solid #cbd5e1;
+                    color: #334155;
+                    padding: 2px 8px;
                     border-radius: 6px;
                     font-size: 0.75rem;
                     font-weight: 600;
@@ -2061,14 +2069,26 @@ export default function AdminDashboard() {
                     box-shadow: 0 1px 2px rgba(0,0,0,0.02);
                 }
                 .option-pill-edit {
-                    color: #94a3b8;
+                    background: #6366f1;
+                    color: white;
                     display: flex;
                     align-items: center;
+                    gap: 4px;
+                    padding: 3px 10px;
+                    border-radius: 6px;
+                    font-size: 0.75rem;
+                    font-weight: 700;
                     margin-left: 4px;
+                    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+                    transition: all 0.2s;
+                }
+                .options-edit-trigger:hover .option-pill-edit {
+                    background: #4f46e5;
+                    transform: scale(1.05);
                 }
                 .option-pill-none {
-                    color: #94a3b8;
-                    font-style: italic;
+                    color: #6366f1;
+                    font-weight: 600;
                     font-size: 0.8rem;
                 }
             `}</style>
