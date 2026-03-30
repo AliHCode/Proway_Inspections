@@ -29,34 +29,28 @@ export default function RfiTrendChart({ data }) {
     }
 
     return (
-        <div className="premium-card chart-container" style={{ width: '100%', height: '100%', minHeight: 400 }}>
-            <h3 className="chart-title" style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 700, marginBottom: '2.5rem', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Weekly RFI Activity</h3>
+        <div className="premium-card chart-container" style={{ width: '100%', height: '100%', minHeight: 320, display: 'flex', flexDirection: 'column', padding: '1.5rem 1.5rem 0.5rem' }}>
+            <h3 className="chart-title" style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 800, marginBottom: '1.5rem', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Weekly RFI Activity</h3>
             <ResponsiveContainer width="100%" height={260}>
                 {isMobile ? (
                     /* Mobile: Bento Bar Style */
                     <BarChart
                         data={data}
-                        margin={{ top: 10, right: 10, left: -20, bottom: 25 }}
+                        margin={{ top: 10, right: 10, left: -20, bottom: 10 }}
                     >
-                        <defs>
-                            <linearGradient id="navyBarGrad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#1e293b" stopOpacity={1} />
-                                <stop offset="100%" stopColor="#334155" stopOpacity={0.9} />
-                            </linearGradient>
-                        </defs>
                         <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="#f1f5f9" />
                         <XAxis
                             dataKey="date"
                             axisLine={false}
                             tickLine={false}
-                            tick={{ fontSize: 11, fill: '#64748b', fontWeight: 600 }}
+                            tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 600 }}
                             dy={10}
                         />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b', fontWeight: 600 }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 600 }} />
                         <Tooltip
                             cursor={{ fill: '#f8fafc' }}
                             contentStyle={{
-                                borderRadius: '8px',
+                                borderRadius: '12px',
                                 border: '1px solid #e2e8f0',
                                 background: '#fff',
                                 boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)',
@@ -67,24 +61,18 @@ export default function RfiTrendChart({ data }) {
                         <Bar
                             dataKey="value"
                             name="RFIs Filed"
-                            fill="url(#navyBarGrad)"
-                            radius={[4, 4, 0, 0]}
+                            fill="#1e293b"
+                            radius={[6, 6, 0, 0]}
                             barSize={32}
                             animationDuration={1500}
                         />
                     </BarChart>
                 ) : (
-                    /* Tablet & PC: Linear Style (Line Chart) */
+                    /* Tablet & PC: Classic Dark Line Style (Previous preferred) */
                     <AreaChart
                         data={data}
-                        margin={{ top: 10, right: 20, left: -20, bottom: 25 }}
+                        margin={{ top: 10, right: 20, left: -20, bottom: 10 }}
                     >
-                        <defs>
-                            <linearGradient id="linearShadow" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#1e293b" stopOpacity={0.05} />
-                                <stop offset="95%" stopColor="#1e293b" stopOpacity={0.01} />
-                            </linearGradient>
-                        </defs>
                         <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f1f5f9" />
                         <XAxis
                             dataKey="date"
@@ -110,10 +98,10 @@ export default function RfiTrendChart({ data }) {
                             dataKey="value"
                             name="RFIs Filed"
                             stroke="#1e293b"
-                            strokeWidth={2}
-                            fill="url(#linearShadow)"
-                            dot={{ r: 3, fill: '#fff', stroke: '#1e293b', strokeWidth: 2, fillOpacity: 1 }}
-                            activeDot={{ r: 4, fill: '#fff', stroke: '#1e293b', strokeWidth: 2 }}
+                            strokeWidth={3}
+                            fill="transparent"
+                            dot={{ r: 4, fill: '#fff', stroke: '#1e293b', strokeWidth: 2, fillOpacity: 1 }}
+                            activeDot={{ r: 6, fill: '#fff', stroke: '#1e293b', strokeWidth: 3 }}
                             animationDuration={1500}
                         />
                     </AreaChart>
