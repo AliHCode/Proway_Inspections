@@ -144,12 +144,12 @@ export function getReviewQueue(allRfis, targetDate) {
             rfi.carryoverTo === targetDate
     );
 
-    // Pending RFIs for today (only if not in the future)
+    // Pending RFIs for today (only if targetDate is the actual present day)
     const pending = allRfis.filter(
         (rfi) =>
             (rfi.status === RFI_STATUS.PENDING || rfi.status === RFI_STATUS.VERIFICATION_PENDING) &&
             rfi.filedDate <= targetDate &&
-            targetDate <= realToday
+            targetDate === realToday
     );
 
     return {

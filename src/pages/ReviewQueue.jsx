@@ -84,7 +84,14 @@ export default function ReviewQueue() {
         
         // Items filed today
         rfis.filter(r => r.filedDate?.startsWith(currentDate))
-            .forEach(r => allSet.set(r.id, r));
+            .forEach(r => {
+                const realToday = getToday();
+                if (currentDate < realToday && (r.status === 'pending' || r.status === 'verification_pending')) {
+                    // Do not show currently pending RFIs on past dates (they belong to 'today')
+                    return;
+                }
+                allSet.set(r.id, r);
+            });
             
         // Items reviewed today
         rfis.filter(r => r.reviewedAt?.startsWith(currentDate))
@@ -164,19 +171,18 @@ export default function ReviewQueue() {
             });
         });
 
-        // 4. SORTING: Prioritize "Carryover" (older than today) at the top of the queue
+        // 4. SORTING: Prioritize older RFIs (carryovers) first, then sort sequentially by RFI number
         return filtered.sort((a, b) => {
             const aDate = a.originalFiledDate || a.filedDate || '';
             const bDate = b.originalFiledDate || b.filedDate || '';
-            const aIsToday = aDate.startsWith(currentDate);
-            const bIsToday = bDate.startsWith(currentDate);
 
-            // If one is carryover and the other is today, carryover comes first
-            if (!aIsToday && bIsToday) return -1;
-            if (aIsToday && !bIsToday) return 1;
+            // Older dates (carryovers) come first
+            if (aDate !== bDate) return aDate.localeCompare(bDate);
 
-            // Stable secondary sort (older filing date first within the same group)
-            return aDate.localeCompare(bDate);
+            // Within the same day, sort by serial number to maintain strict sequence
+            const aSerial = parseInt(a.serialNo) || 0;
+            const bSerial = parseInt(b.serialNo) || 0;
+            return aSerial - bSerial;
         });
     }, [baseItems, filterOptions, user, activeFilterEntries, currentDate]);
 
@@ -516,14 +522,14 @@ export default function ReviewQueue() {
                     </div>
                 );
             }
-            // If claimed by someone else, show "Claimed by" badge for consultants
+            // If claimed by someone else, show locked name badge for consultants
             if (rfi.assignedTo && rfi.assignedTo !== user.id && rfi.reviewedBy !== user.id) {
                 if (user?.role === 'consultant') {
                     const claimerName = rfi.assigneeName || 'Another Consultant';
                     return (
                         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                             <span className="badge-ghost-locked">
-                                🔒 Claimed by {claimerName}
+                                🔒 {claimerName}
                             </span>
                         </div>
                     );
