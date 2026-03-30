@@ -437,7 +437,7 @@ export default function AdminDashboard() {
     const {
         projects, activeProject, fetchProjects, createProject, updateProject, deleteProject, changeActiveProject,
         projectFields, addProjectField, updateProjectField, deleteProjectField,
-        assignUserToProject, removeUserFromProject, fetchProjectMembers,
+        assignUserToProject, removeUserFromProject, updateProjectMember, fetchProjectMembers,
         loadingFields, fieldsResolvedProjectId,
     } = useProject();
 
@@ -586,7 +586,7 @@ export default function AdminDashboard() {
     const fetchAllMemberships = useCallback(async () => {
         const { data, error } = await supabase
             .from('project_members')
-            .select('user_id, project_id, role');
+            .select('user_id, project_id, role, can_file_rfis, can_discuss_rfis, can_manage_contractor_permissions');
         if (!error) setAllMemberships(data || []);
     }, []);
 
@@ -679,6 +679,21 @@ export default function AdminDashboard() {
     }
 
     // ─── Project actions ───
+    async function handleToggleLeadContractor(member) {
+        if (!effectiveTeamProjectId || member.memberRole !== 'contractor') return;
+
+        const result = await updateProjectMember(effectiveTeamProjectId, member.id, {
+            can_manage_contractor_permissions: !member.canManageContractorPermissions,
+        });
+
+        if (result?.success) {
+            showMsg(member.canManageContractorPermissions ? 'Lead contractor removed' : 'Lead contractor assigned');
+            fetchAllMemberships();
+        } else {
+            showMsg('Error: ' + (result?.error || 'Failed to update lead contractor'));
+        }
+    }
+
     async function handleCreateProject(e) {
         e.preventDefault();
         if (!newProjectName.trim()) return;
@@ -875,7 +890,13 @@ export default function AdminDashboard() {
     const teamMemberships = allMemberships.filter(m => m.project_id === effectiveTeamProjectId);
     const teamUsers = teamMemberships.map(m => {
         const u = users.find(x => x.id === m.user_id);
-        return u ? { ...u, memberRole: m.role } : null;
+        return u ? {
+            ...u,
+            memberRole: m.role,
+            canFileRfis: m.can_file_rfis !== false,
+            canDiscussRfis: m.can_discuss_rfis !== false,
+            canManageContractorPermissions: m.can_manage_contractor_permissions === true,
+        } : null;
     }).filter(Boolean);
     // Users eligible to add to this project (active, not already in this project)
     const teamMemberIds = new Set(teamMemberships.map(m => m.user_id));
@@ -1532,7 +1553,20 @@ export default function AdminDashboard() {
                                             <UserAvatar name={m.name} avatarUrl={m.avatar_url} size={30} />
                                             <span className="ua-team-name">{m.name}</span>
                                             <span className="ua-role-badge">{m.memberRole}</span>
+                                            {m.memberRole === 'contractor' && m.canManageContractorPermissions && (
+                                                <span className="ua-role-badge" style={{ background: '#dbeafe', color: '#1d4ed8' }}>Lead</span>
+                                            )}
                                             <span className="ua-team-company">{m.company || ''}</span>
+                                            {m.memberRole === 'contractor' && (
+                                                <button
+                                                    className="ua-btn ua-btn-outline"
+                                                    style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem' }}
+                                                    onClick={() => handleToggleLeadContractor(m)}
+                                                >
+                                                    <Shield size={12} />
+                                                    {m.canManageContractorPermissions ? 'Unset Lead' : 'Set Lead'}
+                                                </button>
+                                            )}
                                             {m.id !== user.id && (
                                                 <button className="ua-btn ua-btn-icon" onClick={() => handleRemoveTeamMember(m.id)} title="Remove from project">
                                                     <X size={14} />

@@ -16,7 +16,7 @@ import { syncPushSubscriptionForUser, unregisterCurrentPushSubscription } from '
 
 export default function Header() {
     const { user, logout } = useAuth();
-    const { projects, activeProject, changeActiveProject } = useProject();
+    const { projects, activeProject, changeActiveProject, contractorPermissions } = useProject();
     const navigate = useNavigate();
     const location = useLocation();
     const [menuOpen, setMenuOpen] = useState(false);
@@ -231,6 +231,15 @@ export default function Header() {
                             </button>
                         )}
 
+                        {isContractor && contractorPermissions.canManageContractorPermissions && (
+                            <button
+                                onClick={() => handleMenuNavigation('/contractor/team')}
+                                className={`desktop-nav-link ${location.pathname.includes('/contractor/team') ? 'active' : ''}`}
+                            >
+                                Team Access
+                            </button>
+                        )}
+
                         {isConsultant && (
                             <>
                                 <button
@@ -415,6 +424,16 @@ export default function Header() {
                                     >
                                         <div className="menu-icon-box"><ScrollText size={18} strokeWidth={1.5} /></div>
                                         <span>Daily RFI Sheet</span>
+                                    </button>
+                                )}
+
+                                {isContractor && contractorPermissions.canManageContractorPermissions && (
+                                    <button
+                                        onClick={() => handleMenuNavigation('/contractor/team')}
+                                        className={`header-dropdown-item-premium ${location.pathname.includes('/contractor/team') ? 'active' : ''}`}
+                                    >
+                                        <div className="menu-icon-box"><Briefcase size={18} strokeWidth={1.5} /></div>
+                                        <span>Team Access</span>
                                     </button>
                                 )}
 

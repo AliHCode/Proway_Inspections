@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { useAuth } from './AuthContext';
 import { buildColumnWidthMap, getColumnWidthStyle } from '../utils/tableLayout';
@@ -38,6 +38,11 @@ export function ProjectProvider({ children }) {
     const restoreProjectCache = useCallback((userId) => {
         if (!userId) return false;
         try {
+            const membershipDefaults = {
+                can_file_rfis: true,
+                can_discuss_rfis: true,
+                can_manage_contractor_permissions: false,
+            };
             const raw = localStorage.getItem(projectCacheKey(userId));
             if (!raw) return false;
             const parsed = JSON.parse(raw);
@@ -226,7 +231,7 @@ export function ProjectProvider({ children }) {
         try {
             const { data, error } = await supabase
                 .from('project_members')
-                .select('*, profiles:user_id(id, name, company, role, is_active)')
+                .select('*, profiles:user_id(id, name, company, role, is_active, avatar_url)')
                 .eq('project_id', projectId);
             if (error) throw error;
             setProjectMembers(data || []);
@@ -464,6 +469,11 @@ export function ProjectProvider({ children }) {
     // ─── Project member management (admin) ───
     async function assignUserToProject(projectId, userId, role) {
         try {
+            const membershipDefaults = {
+                can_file_rfis: true,
+                can_discuss_rfis: true,
+                can_manage_contractor_permissions: false,
+            };
             // Check if the user is already a member — avoids unique constraint errors
             const { data: existing } = await supabase
                 .from('project_members')
@@ -476,7 +486,7 @@ export function ProjectProvider({ children }) {
                 // Already a member: update their role only
                 const { error } = await supabase
                     .from('project_members')
-                    .update({ role })
+                    .update({ role, ...membershipDefaults })
                     .eq('project_id', projectId)
                     .eq('user_id', userId);
                 if (error) throw error;
@@ -484,7 +494,7 @@ export function ProjectProvider({ children }) {
                 // New member: insert
                 const { error } = await supabase
                     .from('project_members')
-                    .insert({ project_id: projectId, user_id: userId, role });
+                    .insert({ project_id: projectId, user_id: userId, role, ...membershipDefaults });
                 if (error) throw error;
             }
 
@@ -516,6 +526,60 @@ export function ProjectProvider({ children }) {
     }
 
     // ─── Assignment mode convenience getter ───
+    async function updateProjectMember(projectId, userId, updates) {
+        try {
+            const { error } = await supabase
+                .from('project_members')
+                .update(updates)
+                .eq('project_id', projectId)
+                .eq('user_id', userId);
+            if (error) throw error;
+            await fetchProjectMembers(projectId);
+            return { success: true };
+        } catch (error) {
+            console.error("Error updating project member:", error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async function updateContractorPermissions(projectId, userId, updates) {
+        try {
+            const { error } = await supabase.rpc('update_project_contractor_permissions', {
+                target_project_id: projectId,
+                target_user_id: userId,
+                next_can_file_rfis: updates.can_file_rfis,
+                next_can_discuss_rfis: updates.can_discuss_rfis,
+            });
+            if (error) throw error;
+            await fetchProjectMembers(projectId);
+            return { success: true };
+        } catch (error) {
+            console.error("Error updating contractor permissions:", error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    const activeProjectMembership = useMemo(() => {
+        if (!activeProject?.id || !user?.id) return null;
+        return projectMembers.find((member) => member.project_id === activeProject.id && member.user_id === user.id) || null;
+    }, [activeProject?.id, projectMembers, user?.id]);
+
+    const contractorPermissions = useMemo(() => {
+        if (user?.role !== 'contractor') {
+            return {
+                canFileRfis: true,
+                canDiscussRfis: true,
+                canManageContractorPermissions: false,
+            };
+        }
+
+        return {
+            canFileRfis: activeProjectMembership?.can_file_rfis !== false,
+            canDiscussRfis: activeProjectMembership?.can_discuss_rfis !== false,
+            canManageContractorPermissions: activeProjectMembership?.can_manage_contractor_permissions === true,
+        };
+    }, [activeProjectMembership, user?.role]);
+
     const assignmentMode = activeProject?.assignment_mode || 'direct';
 
     // ─── Review table display toggles (admin-configurable) ───
@@ -524,10 +588,10 @@ export function ProjectProvider({ children }) {
 
     return (
         <ProjectContext.Provider value={{
-            projects, activeProject, loadingProjects, projectsResolved, projectFields, orderedTableColumns, columnWidthMap, columnStylesMap, getTableColumnStyle, loadingFields, fieldsResolvedProjectId, projectMembers, assignmentMode, showFilerInfo, showEscalatedBadge,
+            projects, activeProject, loadingProjects, projectsResolved, projectFields, orderedTableColumns, columnWidthMap, columnStylesMap, getTableColumnStyle, loadingFields, fieldsResolvedProjectId, projectMembers, activeProjectMembership, contractorPermissions, assignmentMode, showFilerInfo, showEscalatedBadge,
             fetchProjects, changeActiveProject, createProject, deleteProject, updateProject,
             addProjectField, updateProjectField, deleteProjectField,
-            assignUserToProject, removeUserFromProject, fetchProjectMembers,
+            assignUserToProject, removeUserFromProject, updateProjectMember, updateContractorPermissions, fetchProjectMembers,
             saveProjectExportTemplate, checkProjectAccess,
         }}>
             {children}

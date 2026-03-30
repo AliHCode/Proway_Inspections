@@ -8,6 +8,7 @@ import AppExperienceEnhancements from './components/AppExperienceEnhancements';
 import { Toaster } from 'react-hot-toast';
 import LoginPage from './pages/LoginPage';
 import ContractorDashboard from './pages/ContractorDashboard';
+import ContractorTeamPage from './pages/ContractorTeamPage';
 import DailyRFISheet from './pages/DailyRFISheet';
 import ConsultantDashboard from './pages/ConsultantDashboard';
 import ReviewQueue from './pages/ReviewQueue';
@@ -52,6 +53,7 @@ function AppRoutes() {
                 <Navigate to={user.role === 'admin' ? '/admin' : user.role === 'contractor' ? '/contractor' : '/consultant'} replace />
             ) : <LoginPage />} />
             <Route path="/contractor" element={<ProtectedRoute allowedRoles={['contractor']}><SubscriptionGuard><ContractorDashboard /></SubscriptionGuard></ProtectedRoute>} />
+            <Route path="/contractor/team" element={<ProtectedRoute allowedRoles={['contractor']}><SubscriptionGuard><ContractorTeamPage /></SubscriptionGuard></ProtectedRoute>} />
             <Route path="/contractor/rfi-sheet" element={<ProtectedRoute allowedRoles={['contractor']}><SubscriptionGuard><DailyRFISheet /></SubscriptionGuard></ProtectedRoute>} />
             <Route path="/contractor/summary" element={<ProtectedRoute allowedRoles={['contractor']}><SubscriptionGuard><SummaryPage /></SubscriptionGuard></ProtectedRoute>} />
             <Route path="/consultant" element={<ProtectedRoute allowedRoles={['consultant']}><SubscriptionGuard><ConsultantDashboard /></SubscriptionGuard></ProtectedRoute>} />

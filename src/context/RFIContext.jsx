@@ -105,7 +105,7 @@ function formatDbRow(r, userMap = {}) {
     };
 }
 
-function canUserEditRfiRecord(rfi, currentUser, activeProject) {
+function canUserEditRfiRecord(rfi, currentUser, activeProject, activeProjectMembership) {
     if (!rfi || !currentUser?.id) return false;
     if (currentUser.role === 'admin') return true;
 
@@ -121,6 +121,10 @@ function canUserEditRfiRecord(rfi, currentUser, activeProject) {
         return rfi.assignedTo === currentUser.id;
     }
 
+    if (currentUser.role === 'contractor' && activeProjectMembership?.can_file_rfis === false) {
+        return false;
+    }
+
     // Contractor / Filer Permission: Allow editing if they filed it AND it's not yet acted upon (Pending/Info Requested)
     const isFiler = rfi.filedBy === currentUser.id;
     const isUnderReview = rfi.status === RFI_STATUS.PENDING || rfi.status === RFI_STATUS.INFO_REQUESTED;
@@ -134,24 +138,32 @@ function canUserEditRfiRecord(rfi, currentUser, activeProject) {
     return isFiler;
 }
 
-function canUserDiscussRfiRecord(rfi, user, activeProject) {
+function canUserViewRfiDiscussionRecord(rfi, user, activeProjectMembership) {
     if (!rfi || !user?.id) return false;
     if (user.role === 'admin') return true;
-    
+
+    if (user.role === 'consultant') return true;
+    if (user.role === 'contractor') return Boolean(activeProjectMembership);
+    return false;
+}
+
+function canUserDiscussRfiRecord(rfi, user, activeProject, activeProjectMembership) {
+    if (!canUserViewRfiDiscussionRecord(rfi, user, activeProjectMembership)) return false;
+    if (user.role === 'admin') return true;
+
     // Consultants can discuss if open assignment or if assigned/reviewed/internal reviews...
     if (user.role === 'consultant') {
         if (activeProject?.assignment_mode === 'open') return true;
         if (!rfi.assignedTo || rfi.assignedTo === user.id || rfi.reviewedBy === user.id) return true;
-        // Check if they are part of the internal review workflow
         if (rfi.internalReviews?.some(rev => rev.reviewer_id === user.id)) return true;
         return false;
     }
 
-    return rfi.filedBy === user.id || rfi.assignedTo === user.id;
+    return activeProjectMembership?.can_discuss_rfis !== false;
 }
 
 export function RFIProvider({ children }) {
-    const { activeProject, projects } = useProject();
+    const { activeProject, projects, activeProjectMembership, contractorPermissions } = useProject();
     const { user } = useAuth();
     const [rfis, setRfis] = useState([]);
     const [loadingRfis, setLoadingRfis] = useState(true);
@@ -751,6 +763,10 @@ export function RFIProvider({ children }) {
             throw new Error('No active project selected.');
         }
 
+        if (user?.role === 'contractor' && contractorPermissions.canFileRfis === false) {
+            throw new Error('You have view-only access for this project. Ask the lead contractor to enable RFI filing.');
+        }
+
         const effectiveFiledDate = filedDate || new Date().toISOString().split('T')[0];
         const normalizedImagesInput = images || [];
         const effectiveFiledBy = filedBy || user?.id;
@@ -1259,7 +1275,7 @@ export function RFIProvider({ children }) {
         const targetRfi = rfis.find(r => r.id === rfiId);
         if (!targetRfi) return;
 
-        if (!canUserEditRfiRecord(targetRfi, user, activeProject)) {
+        if (!canUserEditRfiRecord(targetRfi, user, activeProject, activeProjectMembership)) {
             toast.error('This RFI is assigned to another reviewer. You can only view it.');
             return;
         }
@@ -1349,7 +1365,7 @@ export function RFIProvider({ children }) {
         const targetRfi = rfis.find(r => r.id === rfiId);
         if (!targetRfi) return;
 
-        if (!canUserEditRfiRecord(targetRfi, user, activeProject)) {
+        if (!canUserEditRfiRecord(targetRfi, user, activeProject, activeProjectMembership)) {
             toast.error('This RFI is assigned to another reviewer. You can only view it.');
             return;
         }
@@ -1427,7 +1443,7 @@ export function RFIProvider({ children }) {
         const targetRfi = rfis.find(r => r.id === rfiId);
         if (!targetRfi) return;
 
-        if (!canUserEditRfiRecord(targetRfi, user, activeProject)) {
+        if (!canUserEditRfiRecord(targetRfi, user, activeProject, activeProjectMembership)) {
             toast.error('This RFI is assigned to another reviewer. You can only view it.');
             return;
         }
@@ -1600,7 +1616,7 @@ export function RFIProvider({ children }) {
     async function fetchComments(rfiId) {
         try {
             const targetRfi = rfis.find((r) => r.id === rfiId);
-            if (targetRfi && !canUserDiscussRfiRecord(targetRfi, user, activeProject)) {
+            if (targetRfi && !canUserViewRfiDiscussionRecord(targetRfi, user, activeProjectMembership)) {
                 return [];
             }
 
@@ -1639,8 +1655,8 @@ export function RFIProvider({ children }) {
         const targetRfi = rfis.find(r => r.id === rfiId);
         if (!targetRfi) return;
 
-        if (!canUserDiscussRfiRecord(targetRfi, user, activeProject)) {
-            throw new Error('Chat is limited to the assigned consultant and filing contractor.');
+        if (!canUserDiscussRfiRecord(targetRfi, user, activeProject, activeProjectMembership)) {
+            throw new Error('You have view-only discussion access on this project.');
         }
 
         try {
@@ -1731,8 +1747,8 @@ export function RFIProvider({ children }) {
             }
 
             const targetRfi = rfis.find((r) => r.id === commentRow.rfi_id);
-            if (targetRfi && !canUserDiscussRfiRecord(targetRfi, user, activeProject)) {
-                throw new Error('Chat is limited to the assigned consultant and filing contractor.');
+            if (targetRfi && !canUserDiscussRfiRecord(targetRfi, user, activeProject, activeProjectMembership)) {
+                throw new Error('You have view-only discussion access on this project.');
             }
 
             const { error } = await supabase
@@ -1765,8 +1781,8 @@ export function RFIProvider({ children }) {
             }
 
             const targetRfi = rfis.find((r) => r.id === commentRow.rfi_id);
-            if (targetRfi && !canUserDiscussRfiRecord(targetRfi, user, activeProject)) {
-                throw new Error('Chat is limited to the assigned consultant and filing contractor.');
+            if (targetRfi && !canUserDiscussRfiRecord(targetRfi, user, activeProject, activeProjectMembership)) {
+                throw new Error('You have view-only discussion access on this project.');
             }
 
             const { data, error } = await supabase
@@ -1805,8 +1821,8 @@ export function RFIProvider({ children }) {
     async function updateRFI(rfiId, updates) {
         try {
             const current = rfis.find((r) => r.id === rfiId);
-            if (current && !canUserEditRfiRecord(current, user, activeProject)) {
-                toast.error('This RFI is assigned to another user. You can view it only.');
+            if (current && !canUserEditRfiRecord(current, user, activeProject, activeProjectMembership)) {
+                toast.error('You do not have edit rights for this RFI in the current project.');
                 return;
             }
 
@@ -2232,8 +2248,9 @@ export function RFIProvider({ children }) {
                 updateComment,
                 deleteComment,
                 submitInternalReview,
-                canUserEditRfi: (rfi) => canUserEditRfiRecord(rfi, user, activeProject),
-                canUserDiscussRfi: (rfi) => canUserDiscussRfiRecord(rfi, user, activeProject),
+                canUserEditRfi: (rfi) => canUserEditRfiRecord(rfi, user, activeProject, activeProjectMembership),
+                canUserViewDiscussion: (rfi) => canUserViewRfiDiscussionRecord(rfi, user, activeProjectMembership),
+                canUserDiscussRfi: (rfi) => canUserDiscussRfiRecord(rfi, user, activeProject, activeProjectMembership),
                 markNotificationRead,
                 markAllNotificationsRead,
                 deleteNotification,

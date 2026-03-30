@@ -20,7 +20,7 @@ export default function DailyRFISheet() {
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { activeProject, projectFields, orderedTableColumns, getTableColumnStyle, columnWidthMap, assignmentMode } = useProject();
+    const { activeProject, projectFields, orderedTableColumns, getTableColumnStyle, columnWidthMap, assignmentMode, contractorPermissions } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
     const { createRFI, uploadImages, updateRFI, getRFIsForDate, resubmitRFI, deleteRFI, consultants, rfis, pendingSyncCount, canUserEditRfi, minDate } = useRFI();
     const [currentDate, setCurrentDate] = useState(getToday());
@@ -103,6 +103,7 @@ export default function DailyRFISheet() {
 
     // Determines what to show in the table
     const currentRfis = activeTab === 'daily' ? dailyRfis : activeRejectedRfis;
+    const editableRows = contractorPermissions.canFileRfis ? newRows : [];
 
     const reportRfis = rfis ? rfis.filter(r =>
         r.filedBy === user.id &&
@@ -125,6 +126,7 @@ export default function DailyRFISheet() {
     }
 
     function addRow() {
+        if (!contractorPermissions.canFileRfis) return;
         setNewRows((prev) => [...prev, createEmptyRow()]);
     }
 
@@ -178,6 +180,12 @@ export default function DailyRFISheet() {
     }
 
     async function handleSubmit() {
+        if (!contractorPermissions.canFileRfis) {
+            setSubmitMessage('View-only project access. Ask the lead contractor to enable RFI filing.');
+            setTimeout(() => setSubmitMessage(''), 3000);
+            return;
+        }
+
         const validRows = newRows.filter((r) => {
             const hasCustomData = Object.values(r.customFields).some(val => val && val.toString().trim().length > 0);
             return hasCustomData || r.images.length > 0;
@@ -773,12 +781,27 @@ export default function DailyRFISheet() {
                     </div>
                 </div>
 
+                {!contractorPermissions.canFileRfis && (
+                    <div style={{
+                        marginBottom: '1rem',
+                        padding: '0.95rem 1rem',
+                        borderRadius: '12px',
+                        border: '1px solid #cbd5e1',
+                        background: '#f8fafc',
+                        color: '#334155',
+                        fontSize: '0.92rem',
+                        fontWeight: 500
+                    }}>
+                        This contractor account is view-only for the active project. You can review RFIs here, but filing is locked until the lead contractor enables it.
+                    </div>
+                )}
+
                 {/* Filed RFIs for selected date only */}
                 <div className="sheet-section filed-section">
                     <h2 className="section-title">
                         {activeTab === 'daily' ? 'Filed RFIs' : 'Rejected RFIs'}
                     </h2>
-                    {currentRfis.length === 0 && newRows.length === 0 ? (
+                    {currentRfis.length === 0 && editableRows.length === 0 ? (
                         <div className="empty-state">
                             <div className="empty-state-icon" style={{ marginBottom: '0.25rem', opacity: 0.35 }}>
                                 <ClipboardList size={28} strokeWidth={1.5} />
@@ -788,7 +811,7 @@ export default function DailyRFISheet() {
                                 {activeTab === 'daily' ? 'Sync today\'s items.' : 'No rejected items.'}
                             </p>
                             {activeTab === 'daily' && currentDate === getToday() && (
-                                <button className="btn btn-primary" onClick={addRow} style={{ marginTop: '1rem' }}>
+                                <button className="btn btn-primary" onClick={addRow} style={{ marginTop: '1rem' }} disabled={!contractorPermissions.canFileRfis}>
                                     <Plus size={16} /> File New RFI
                                 </button>
                             )}
@@ -816,7 +839,7 @@ export default function DailyRFISheet() {
                                     ))}
 
                                     {/* New Entry Rows (Inline) */}
-                                    {activeTab === 'daily' && currentDate === getToday() && newRows.map((row, idx) => (
+                                    {activeTab === 'daily' && currentDate === getToday() && editableRows.map((row, idx) => (
                                         <tr key={row.tempId} className="new-rfi-row-entry">
                                             {displayTableColumns.map(col => renderNewEntryCell(row, col, idx))}
                                         </tr>
@@ -825,7 +848,7 @@ export default function DailyRFISheet() {
                             </table>
 
                             {/* Spreadsheet Actions */}
-                            {activeTab === 'daily' && currentDate === getToday() && (
+                            {activeTab === 'daily' && currentDate === getToday() && contractorPermissions.canFileRfis && (
                                 <div className="integrated-sheet-actions" style={{ 
                                     display: 'flex', 
                                     justifyContent: 'space-between', 
@@ -836,7 +859,7 @@ export default function DailyRFISheet() {
                                     borderBottomLeftRadius: '12px',
                                     borderBottomRightRadius: '12px'
                                 }}>
-                                    <button className="btn btn-ghost" onClick={addRow} disabled={isSubmitting}>
+                                    <button className="btn btn-ghost" onClick={addRow} disabled={isSubmitting || !contractorPermissions.canFileRfis}>
                                         <Plus size={16} /> Add Another Row
                                     </button>
                                     
@@ -850,7 +873,7 @@ export default function DailyRFISheet() {
                                                 {submitMessage}
                                             </span>
                                         )}
-                                        <button className="btn btn-primary" onClick={handleSubmit} disabled={isSubmitting || newRows.length === 0}>
+                                        <button className="btn btn-primary" onClick={handleSubmit} disabled={isSubmitting || newRows.length === 0 || !contractorPermissions.canFileRfis}>
                                             {isSubmitting ? <RefreshCw size={16} className="spin" /> : <Send size={16} />}
                                             {isSubmitting ? 'Submitting...' : `Submit ${newRows.length} RFI${newRows.length > 1 ? 's' : ''}`}
                                         </button>

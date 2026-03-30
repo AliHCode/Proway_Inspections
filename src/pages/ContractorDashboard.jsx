@@ -19,7 +19,8 @@ import {
     AlertTriangle,
     FileDown,
     Table,
-    ClipboardList
+    ClipboardList,
+    Users
 } from 'lucide-react';
 import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
 import { useProject } from '../context/ProjectContext';
@@ -27,7 +28,7 @@ import { useProject } from '../context/ProjectContext';
 export default function ContractorDashboard() {
     const { user } = useAuth();
     const { rfis, getStats } = useRFI();
-    const { activeProject, projectFields, orderedTableColumns, columnWidthMap, getTableColumnStyle, showEscalatedBadge } = useProject();
+    const { activeProject, projectFields, orderedTableColumns, columnWidthMap, getTableColumnStyle, showEscalatedBadge, contractorPermissions } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
     const navigate = useNavigate();
     const today = getToday();
@@ -146,10 +147,33 @@ export default function ContractorDashboard() {
                         <span className="welcome-label-mono">{getGreeting()}</span>
                         <h1 className="welcome-user-mono">{user?.name?.split(' ')[0] || 'Contractor'}</h1>
                     </div>
-                    <button className="btn-command" onClick={() => navigate('/contractor/rfi-sheet')}>
-                        <Plus size={18} strokeWidth={2.5} /> File RFIs
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        {contractorPermissions.canManageContractorPermissions && (
+                            <button
+                                className="btn-command"
+                                onClick={() => navigate('/contractor/team')}
+                                style={{ background: 'var(--clr-bg-elevated)', color: 'var(--clr-text-primary)', border: '1px solid var(--clr-border)' }}
+                            >
+                                <Users size={18} strokeWidth={2.2} /> Manage Team
+                            </button>
+                        )}
+                        <button
+                            className="btn-command"
+                            onClick={() => navigate('/contractor/rfi-sheet')}
+                            disabled={!contractorPermissions.canFileRfis}
+                            title={contractorPermissions.canFileRfis ? 'File RFIs' : 'View-only access for this project'}
+                            style={contractorPermissions.canFileRfis ? undefined : { opacity: 0.7, cursor: 'not-allowed' }}
+                        >
+                            <Plus size={18} strokeWidth={2.5} /> {contractorPermissions.canFileRfis ? 'File RFIs' : 'View RFIs'}
+                        </button>
+                    </div>
                 </header>
+
+                {!contractorPermissions.canFileRfis && (
+                    <div style={{ marginBottom: '1rem', padding: '0.9rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#334155', fontWeight: 500 }}>
+                        Your contractor account is currently set to view-only on this project. You can still monitor RFIs and status updates from the dashboard.
+                    </div>
+                )}
 
                 {actionRequiredRfis.length > 0 && (
                     <div style={{ marginBottom: '2rem', background: 'var(--clr-danger-bg)', border: '1px solid var(--clr-danger-border)', borderRadius: '12px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>

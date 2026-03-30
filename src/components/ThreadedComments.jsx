@@ -7,7 +7,7 @@ import { Send, Loader2, Paperclip, Brush, X, RotateCcw, Move, Trash2 } from 'luc
 
 export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger }) {
     const { user } = useAuth();
-    const { fetchComments, addComment, updateComment, deleteComment, uploadImages, rfis, canUserDiscussRfi } = useRFI();
+    const { fetchComments, addComment, updateComment, deleteComment, uploadImages, rfis, canUserDiscussRfi, canUserViewDiscussion } = useRFI();
     const [comments, setComments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -114,7 +114,7 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
         // Set up polling (5s)
         const interval = setInterval(loadComments, 5000);
         return () => clearInterval(interval);
-    }, [rfiId, rfis, canUserDiscussRfi]);
+    }, [rfiId, rfis, canUserDiscussRfi, canUserViewDiscussion]);
 
     useEffect(() => {
         // SCROLL ON TRIGGER (Button Click)
@@ -135,10 +135,11 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
 
     const loadComments = async () => {
         const targetRfi = rfis.find((r) => r.id === rfiId);
+        const canViewDiscussion = targetRfi ? canUserViewDiscussion(targetRfi) : true;
         const canDiscuss = targetRfi ? canUserDiscussRfi(targetRfi) : true;
         setDiscussionLocked(!canDiscuss);
 
-        if (!canDiscuss) {
+        if (!canViewDiscussion) {
             setComments([]);
             setLoading(false);
             return;
@@ -202,6 +203,7 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
     };
 
     const openFilePicker = () => {
+        if (discussionLocked) return;
         attachInputRef.current?.click();
     };
 
@@ -445,6 +447,7 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
     };
 
     const handleComposerSend = async () => {
+        if (discussionLocked) return;
         const trimmed = composerCaption.trim();
         if (composerImages.length === 0 || submitting) return;
 
@@ -676,7 +679,7 @@ export default function ThreadedComments({ rfiId, onCommentAdded, scrollTrigger 
 
             {discussionLocked && (
                 <div className="comment-chat-lock-notice">
-                    Chat is restricted. Only the filing contractor and assigned consultant can message on this RFI.
+                    You can view this discussion, but posting is disabled for your contractor access on this project.
                 </div>
             )}
 
