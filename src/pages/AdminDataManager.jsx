@@ -146,10 +146,13 @@ export default function AdminDataManager() {
         try {
             await deleteImagesFromStorage(rfi.images);
             const { error } = await supabase.from('rfis').delete().eq('id', rfi.id);
-            if (error) throw error;
             toast.success(`Deleted ${rfi.custom_fields?.rfi_no || `RFI #${rfi.serial_no}`}`);
             setSelectedIds(prev => prev.filter(id => id !== rfi.id));
-            await fetchProjectRfis();
+            if (rfis.length <= 1 && page > 0) {
+                setPage(p => p - 1);
+            } else {
+                fetchProjectRfis();
+            }
         } catch (err) {
             console.error('Error deleting RFI:', err);
             toast.error('Failed to delete RFI');
@@ -178,7 +181,11 @@ export default function AdminDataManager() {
 
             toast.success(`Deleted ${selectedIds.length} RFIs`);
             setSelectedIds([]);
-            await fetchProjectRfis();
+            if (rfis.length <= selectedIds.length && page > 0) {
+                setPage(0);
+            } else {
+                fetchProjectRfis();
+            }
         } catch (err) {
             console.error('Error bulk deleting RFIs:', err);
             toast.error('Failed to delete some RFIs');
@@ -264,7 +271,15 @@ export default function AdminDataManager() {
             toast.success(`All data purged for "${selectedProject?.name}". Project is now fresh.`, { id: toastId, duration: 5000 });
             setPurgeConfirmText('');
             setSelectedIds([]);
-            await fetchProjectRfis();
+            setPage(0);
+            setRfis([]);
+            setTotalCount(0);
+            setTotalImages(0);
+            
+            // Re-fetch to ensure sync
+            setTimeout(() => {
+                fetchProjectRfis();
+            }, 500);
         } catch (err) {
             console.error('Error purging project data:', err);
             toast.error('Purge failed. Some data may remain.', { id: toastId });
