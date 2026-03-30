@@ -4,7 +4,7 @@ import {
     LogOut, Menu, X, Building, Shield, User, Briefcase, UserCircle, 
     LayoutGrid, ScrollText, ListChecks, BellRing, Smartphone, 
     GitBranch, BarChart3, Settings2, LifeBuoy, Edit2, 
-    ShieldCheck, Power, Activity, ChevronDown, Info, Building2
+    ShieldCheck, Power, Activity, ChevronDown, Info, Building2, Database
 } from 'lucide-react';
 import { useRFI } from '../context/RFIContext';
 import { useCallback, useEffect, useState, useRef } from 'react';
@@ -280,6 +280,12 @@ export default function Header() {
                                 >
                                     Devices
                                 </button>
+                                <button
+                                    onClick={() => handleMenuNavigation('/admin/data-manager')}
+                                    className={`desktop-nav-link ${location.pathname === '/admin/data-manager' ? 'active' : ''}`}
+                                >
+                                    Data Manager
+                                </button>
                             </>
                         )}
                     </nav>
@@ -467,6 +473,13 @@ export default function Header() {
                                         >
                                             <div className="menu-icon-box"><Smartphone size={18} strokeWidth={1.5} /></div>
                                             <span>Registered Devices</span>
+                                        </button>
+                                        <button
+                                            onClick={() => handleMenuNavigation('/admin/data-manager')}
+                                            className={`header-dropdown-item-premium ${location.pathname === '/admin/data-manager' ? 'active' : ''}`}
+                                        >
+                                            <div className="menu-icon-box"><Database size={18} strokeWidth={1.5} /></div>
+                                            <span>Data Manager</span>
                                         </button>
                                     </>
                                 )}
