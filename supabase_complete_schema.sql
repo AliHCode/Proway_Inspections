@@ -770,7 +770,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 DROP TRIGGER IF EXISTS trg_generate_rfi_serial_no ON public.rfis;
 CREATE TRIGGER trg_generate_rfi_serial_no
@@ -798,7 +798,7 @@ BEGIN
   END IF;
   RETURN OLD;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 DROP TRIGGER IF EXISTS trg_enqueue_rfi_images_for_deletion ON public.rfis;
 CREATE TRIGGER trg_enqueue_rfi_images_for_deletion
