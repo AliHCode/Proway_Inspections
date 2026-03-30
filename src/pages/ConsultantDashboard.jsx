@@ -48,7 +48,6 @@ export default function ConsultantDashboard() {
             { name: 'Cond. Approved', value: conditionallyApprovedToday, color: '#06b6d4' }, // Cyan
             { name: 'Pending', value: pendingQueue, color: '#f59e0b' }, // Amber
             { name: 'Rejected', value: rejectedToday, color: '#ef4444' }, // Red
-            { name: 'Info Req.', value: infoRequestedToday, color: '#6366f1' }, // Indigo
             { name: 'Cancelled', value: cancelledToday, color: '#94a3b8' }, // Slate
         ];
     }, [rfis, today, queue.all.length]);
@@ -154,8 +153,7 @@ export default function ConsultantDashboard() {
                                 (statusBreakdown.find(s => s.name === 'Approved')?.value || 0) +
                                 (statusBreakdown.find(s => s.name === 'Cond. Approved')?.value || 0) +
                                 (statusBreakdown.find(s => s.name === 'Rejected')?.value || 0) +
-                                (statusBreakdown.find(s => s.name === 'Cancelled')?.value || 0) +
-                                (statusBreakdown.find(s => s.name === 'Info Req.')?.value || 0)
+                                (statusBreakdown.find(s => s.name === 'Cancelled')?.value || 0)
                             }
                             subtitle="Today's throughput"
                             trend="up"

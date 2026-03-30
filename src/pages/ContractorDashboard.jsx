@@ -80,7 +80,6 @@ export default function ContractorDashboard() {
         { name: 'Cond. Approved', value: stats.todayConditionallyApproved || 0, color: '#06b6d4' }, // Cyan
         { name: 'Pending', value: stats.todayPending, color: '#f59e0b' }, // Amber
         { name: 'Rejected', value: stats.todayRejected, color: '#ef4444' }, // Red
-        { name: 'Info Req.', value: stats.todayInfoRequested || 0, color: '#6366f1' }, // Indigo
         { name: 'Cancelled', value: stats.todayCancelled || 0, color: '#94a3b8' }, // Slate
     ];
 
