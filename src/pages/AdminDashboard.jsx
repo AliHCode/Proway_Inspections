@@ -12,7 +12,7 @@ import {
     Users, Shield, UserX, UserCheck, RefreshCw,
     FolderPlus, Trash2, Plus, GripVertical, ArrowUp, ArrowDown, Save,
     Building, Columns3, UserPlus, X, AlertCircle, Clock, Globe, Briefcase,
-    Search, ChevronDown, LifeBuoy, MessageSquare, Send, ArrowRight, Tag, Paperclip, Paintbrush, Eye
+    Search, ChevronDown, LifeBuoy, MessageSquare, Send, ArrowRight, Tag, Paperclip, Paintbrush, Eye, Settings2
 } from 'lucide-react';
 
 const STYLE_COLORS = [
