@@ -204,6 +204,18 @@ export default function RFIDetailModal({
                                                 </div>
                                             </div>
                                             <div className="bubble-remarks">{rev.remarks}</div>
+                                            
+                                            {rev.images && rev.images.length > 0 && (
+                                                <div className="bubble-attachments">
+                                                    <div className="rfi-attachments-grid small">
+                                                        {rev.images.map((img, idx) => (
+                                                            <a key={idx} href={img} target="_blank" rel="noopener noreferrer" className="rfi-attachment-thumb">
+                                                                <img src={img} alt="Markup" onError={(e) => { e.target.src = getThumbnailUrl(img, { width: 100, height: 100 }) }} />
+                                                            </a>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -222,12 +234,13 @@ export default function RFIDetailModal({
                                                 </div>
                                             </div>
                                             <div className="bubble-remarks">{rfi.remarks}</div>
+                                            
                                             {rfi.images && rfi.images.length > 0 && (
                                                 <div className="bubble-attachments">
                                                     <div className="rfi-attachments-grid small">
                                                         {rfi.images.map((img, idx) => (
                                                             <a key={idx} href={img} target="_blank" rel="noopener noreferrer" className="rfi-attachment-thumb">
-                                                                <img src={img} alt="Proof" onError={(e) => { e.target.src = getThumbnailUrl(img, { width: 100, height: 100 }) }} />
+                                                                <img src={img} alt="Final Proof" onError={(e) => { e.target.src = getThumbnailUrl(img, { width: 100, height: 100 }) }} />
                                                             </a>
                                                         ))}
                                                     </div>

@@ -1191,14 +1191,15 @@ export function RFIProvider({ children }) {
     }, [activeProject, fetchAllRFIs, normalizeImagesForSubmission, rfis]);
 
     /** Internal Helper: Log a review in rfi_reviews table */
-    async function logInternalReview(rfiId, statusRecommendation, remarks) {
+    async function logInternalReview(rfiId, statusRecommendation, remarks, images = []) {
         if (!user?.id) return null;
         try {
             const { data, error } = await supabase.from('rfi_reviews').insert([{
                 rfi_id: rfiId,
                 reviewer_id: user.id,
                 status_recommendation: statusRecommendation,
-                remarks: remarks
+                remarks: remarks,
+                images: images
             }]).select('*, reviewer:reviewer_id(name, avatar_url)').single();
 
             if (error) throw error;
@@ -1210,12 +1211,12 @@ export function RFIProvider({ children }) {
     }
 
     /** Submit an Internal Consultant Review */
-    async function submitInternalReview(rfiId, statusRecommendation, remarks) {
+    async function submitInternalReview(rfiId, statusRecommendation, remarks, images = []) {
         if (!user?.id || !activeProject?.id) throw new Error("Missing auth/project context");
 
         setLoadingAction(true);
         try {
-            const data = await logInternalReview(rfiId, statusRecommendation, remarks);
+            const data = await logInternalReview(rfiId, statusRecommendation, remarks, images);
             if (!data) throw new Error("Failed to log review");
 
             const targetRfi = rfis.find(r => r.id === rfiId);
@@ -1254,7 +1255,7 @@ export function RFIProvider({ children }) {
     }
 
     /** Approve an RFI */
-    async function approveRFI(rfiId, reviewedBy, remarks = '', consultantAttachments = [], assignedTo = null, isFinal = true) {
+    async function approveRFI(rfiId, reviewedBy, remarks = '', consultantAttachments = [], assignedTo = null, isFinal = true, mode = 'full') {
         const targetRfi = rfis.find(r => r.id === rfiId);
         if (!targetRfi) return;
 
@@ -1263,19 +1264,22 @@ export function RFIProvider({ children }) {
             return;
         }
 
+        const newStatus = mode === 'conditional' ? RFI_STATUS.CONDITIONAL_APPROVE : RFI_STATUS.APPROVED;
+
         // --- NEW COLLABORATIVE LOGIC ---
-        // If not final, we just log a recommendation and skip the official update/notification
         if (!isFinal) {
-            const success = await submitInternalReview(rfiId, 'approved', remarks);
-            if (success && consultantAttachments.length > 0) {
-                // If they provided attachments for a recommendation, we still want to append them to the RFI images 
-                // so subsequent reviewers can see the technical proof.
+            let imageUrls = [];
+            if (consultantAttachments.length > 0) {
                 try {
-                    const uploaded = await normalizeImagesForSubmission(consultantAttachments);
-                    const merged = [...(targetRfi.images || []), ...uploaded];
-                    await supabase.from('rfis').update({ images: merged }).eq('id', rfiId);
-                    await fetchAllRFIs(); 
-                } catch (e) { console.error("Error attaching reco photos:", e); }
+                    imageUrls = await normalizeImagesForSubmission(consultantAttachments);
+                } catch (e) { console.error("Error uploading reco photos:", e); }
+            }
+            
+            const success = await submitInternalReview(rfiId, mode === 'conditional' ? 'conditional_approve' : 'approved', remarks, imageUrls);
+            if (success) {
+                // We no longer append intermediate images to the main RFI record.
+                // They stay in the rfi_reviews table for specific attribution.
+                await fetchAllRFIs(); 
             }
             return;
         }
@@ -1299,7 +1303,7 @@ export function RFIProvider({ children }) {
                 r.id === rfiId
                     ? {
                         ...r,
-                        status: RFI_STATUS.APPROVED,
+                        status: newStatus,
                         reviewedBy,
                         reviewedAt: getNowLocalISO(),
                         remarks: remarks?.trim() ? remarks.trim() : null,
@@ -1318,21 +1322,21 @@ export function RFIProvider({ children }) {
                 ...normalizedAttachments,
             ];
             const { error } = await supabase.from('rfis').update({
-                status: RFI_STATUS.APPROVED,
+                status: newStatus,
                 reviewed_by: reviewedBy,
                 reviewed_at: getNowLocalISO(),
                 remarks: remarks?.trim() ? remarks.trim() : null,
                 carryover_to: null,
                 images: mergedImages,
-                // assigned_to: assignedTo || targetRfi.assignedTo // REMOVED: Don't overwrite consultant assignee
             }).eq('id', rfiId);
             if (error) throw error;
 
-            await notifyContractorAboutStatusChange(targetRfi, RFI_STATUS.APPROVED, remarks, assignedTo);
+            await notifyContractorAboutStatusChange(targetRfi, newStatus, remarks, assignedTo);
 
-            await logAuditEvent(rfiId, 'approved', {
+            await logAuditEvent(rfiId, mode === 'conditional' ? 'conditional_approve' : 'approved', {
                 remarks: remarks?.trim() || null,
                 attachmentsAdded: (consultantAttachments || []).length,
+                isFinal: true
             });
             await fetchAllRFIs();
         } catch (error) {
@@ -1352,7 +1356,15 @@ export function RFIProvider({ children }) {
 
         // --- NEW COLLABORATIVE LOGIC ---
         if (!isFinal) {
-            return await submitInternalReview(rfiId, 'rejected', remarks);
+            let imageUrls = [];
+            if (consultantAttachments.length > 0) {
+                try {
+                    imageUrls = await normalizeImagesForSubmission(consultantAttachments);
+                } catch (e) { console.error("Error uploading reco photos:", e); }
+            }
+            const success = await submitInternalReview(rfiId, 'rejected', remarks, imageUrls);
+            if (success) await fetchAllRFIs();
+            return;
         }
         // -------------------------------
 

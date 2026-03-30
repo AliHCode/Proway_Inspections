@@ -1273,7 +1273,7 @@ export default function ReviewQueue() {
                                             }
 
                                             if (actionSheetStep === 'approve') {
-                                                await approveRFI(actionSheetTarget.id, user.id, sheetRemarks.trim(), sheetFiles, null, sheetIsFinal);
+                                                await approveRFI(actionSheetTarget.id, user.id, sheetRemarks.trim(), sheetFiles, null, sheetIsFinal, approveMode);
                                             } else if (isReject) {
                                                 await rejectRFI(actionSheetTarget.id, user.id, sheetRemarks.trim(), sheetFiles, null, sheetIsFinal);
                                             } else if (isCancel) {
