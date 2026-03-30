@@ -359,8 +359,8 @@ function FieldOptionsEditOverlay({ field, currentOptions, onClose, onSave }) {
     if (!field) return null;
 
     return createPortal(
-        <div className="action-sheet-overlay open" onClick={onClose}>
-            <div className="action-sheet-panel project-edit-panel open" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+        <div className="action-sheet-overlay open" onClick={onClose} style={{ zIndex: 9999999, position: 'fixed', inset: 0, opacity: 1, visibility: 'visible', background: 'rgba(15, 23, 42, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="action-sheet-panel project-edit-panel open" style={{ maxWidth: '500px', width: '90%', zIndex: 99999999, position: 'relative', margin: 'auto' }} onClick={e => e.stopPropagation()}>
                 <div className="action-sheet-header project-edit-header">
                     <div className="header-content">
                         <div className="title-group">
@@ -1291,6 +1291,7 @@ export default function AdminDashboard() {
                                                             <button 
                                                                 type="button"
                                                                 className="options-edit-trigger" 
+                                                                style={{ position: 'relative', zIndex: 100, pointerEvents: 'auto' }}
                                                                 onClick={(e) => {
                                                                     e.preventDefault();
                                                                     e.stopPropagation();
@@ -1533,6 +1534,17 @@ export default function AdminDashboard() {
                 )}
 
             </main>
+
+            {/* Field Options Edit Overlay */}
+            {editingOptionsField && (
+                <FieldOptionsEditOverlay 
+                    field={editingOptionsField}
+                    currentOptions={editingOptionsField.options}
+                    onClose={() => setEditingOptionsField(null)}
+                    onSave={handleSaveFieldOptions}
+                />
+            )}
+
             <style jsx>{`
                 /* Bento Style Project Cards */
                 .admin-project-grid-premium {
