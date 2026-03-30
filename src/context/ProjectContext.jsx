@@ -518,9 +518,13 @@ export function ProjectProvider({ children }) {
     // ─── Assignment mode convenience getter ───
     const assignmentMode = activeProject?.assignment_mode || 'direct';
 
+    // ─── Review table display toggles (admin-configurable) ───
+    const showFilerInfo = activeProject?.show_filer_info !== false; // default true
+    const showEscalatedBadge = activeProject?.show_escalated_badge !== false; // default true
+
     return (
         <ProjectContext.Provider value={{
-            projects, activeProject, loadingProjects, projectsResolved, projectFields, orderedTableColumns, columnWidthMap, columnStylesMap, getTableColumnStyle, loadingFields, fieldsResolvedProjectId, projectMembers, assignmentMode,
+            projects, activeProject, loadingProjects, projectsResolved, projectFields, orderedTableColumns, columnWidthMap, columnStylesMap, getTableColumnStyle, loadingFields, fieldsResolvedProjectId, projectMembers, assignmentMode, showFilerInfo, showEscalatedBadge,
             fetchProjects, changeActiveProject, createProject, deleteProject, updateProject,
             addProjectField, updateProjectField, deleteProjectField,
             assignUserToProject, removeUserFromProject, fetchProjectMembers,

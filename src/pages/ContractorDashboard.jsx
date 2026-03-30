@@ -27,7 +27,7 @@ import { useProject } from '../context/ProjectContext';
 export default function ContractorDashboard() {
     const { user } = useAuth();
     const { rfis, getStats } = useRFI();
-    const { activeProject, projectFields, orderedTableColumns, columnWidthMap, getTableColumnStyle } = useProject();
+    const { activeProject, projectFields, orderedTableColumns, columnWidthMap, getTableColumnStyle, showEscalatedBadge } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
     const navigate = useNavigate();
     const today = getToday();
@@ -112,7 +112,7 @@ export default function ContractorDashboard() {
 
     function renderContractorCell(rfi, col, index) {
         if (col.field_key === 'serial') {
-            const escalated = isEscalated(rfi);
+            const escalated = showEscalatedBadge && isEscalated(rfi);
             return (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     #{index + 1}

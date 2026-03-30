@@ -12,7 +12,7 @@ import {
     Users, Shield, UserX, UserCheck, RefreshCw,
     FolderPlus, Trash2, Plus, GripVertical, ArrowUp, ArrowDown, Save,
     Building, Columns3, UserPlus, X, AlertCircle, Clock, Globe, Briefcase,
-    Search, ChevronDown, LifeBuoy, MessageSquare, Send, ArrowRight, Tag, Paperclip, Paintbrush
+    Search, ChevronDown, LifeBuoy, MessageSquare, Send, ArrowRight, Tag, Paperclip, Paintbrush, Eye
 } from 'lucide-react';
 
 const STYLE_COLORS = [
@@ -213,6 +213,8 @@ export default function AdminDashboard() {
     const [editIsLocked, setEditIsLocked] = useState(false);
     const [editPaymentRemarks, setEditPaymentRemarks] = useState('');
     const [editAssignmentMode, setEditAssignmentMode] = useState('direct');
+    const [editShowFilerInfo, setEditShowFilerInfo] = useState(true);
+    const [editShowEscalatedBadge, setEditShowEscalatedBadge] = useState(true);
 
     // Field creation form
     const [showNewField, setShowNewField] = useState(false);
@@ -444,7 +446,9 @@ export default function AdminDashboard() {
             is_locked: editIsLocked,
             payment_remarks: editPaymentRemarks.trim(),
             rfi_start_number: parseInt(editStartNumber, 10) || 1,
-            assignment_mode: editAssignmentMode
+            assignment_mode: editAssignmentMode,
+            show_filer_info: editShowFilerInfo,
+            show_escalated_badge: editShowEscalatedBadge
         });
         if (result?.success) {
             showMsg('Project details updated');
@@ -456,6 +460,8 @@ export default function AdminDashboard() {
             setEditIsLocked(false);
             setEditPaymentRemarks('');
             setEditAssignmentMode('direct');
+            setEditShowFilerInfo(true);
+            setEditShowEscalatedBadge(true);
         } else {
             showMsg('Error: ' + (result?.error || 'Update failed'));
         }
@@ -878,6 +884,51 @@ export default function AdminDashboard() {
                                         </div>
                                     </div>
 
+                                    {/* Review Table Display Settings */}
+                                    {editingProject === p.id && (
+                                        <div className="project-card-details" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1rem', marginTop: '1rem' }}>
+                                            <div className="detail-item" style={{ flex: '1 1 100%' }}>
+                                                <span className="detail-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#475569', fontWeight: 700, marginBottom: '0.5rem' }}>
+                                                    <Eye size={14} /> Review Table Display
+                                                </span>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }} onClick={e => e.stopPropagation()}>
+                                                    <label style={{
+                                                        display: 'flex', alignItems: 'center', gap: '0.6rem',
+                                                        padding: '0.5rem 0.85rem', borderRadius: '10px', cursor: 'pointer',
+                                                        background: editShowFilerInfo ? '#ecfdf5' : '#f8fafc',
+                                                        border: `1px solid ${editShowFilerInfo ? '#a7f3d0' : '#e2e8f0'}`,
+                                                        transition: 'all 0.2s', fontSize: '0.85rem', fontWeight: 600,
+                                                        color: editShowFilerInfo ? '#059669' : '#64748b'
+                                                    }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={editShowFilerInfo}
+                                                            onChange={e => setEditShowFilerInfo(e.target.checked)}
+                                                            style={{ accentColor: '#059669' }}
+                                                        />
+                                                        Show Contractor Name & Avatar
+                                                    </label>
+                                                    <label style={{
+                                                        display: 'flex', alignItems: 'center', gap: '0.6rem',
+                                                        padding: '0.5rem 0.85rem', borderRadius: '10px', cursor: 'pointer',
+                                                        background: editShowEscalatedBadge ? '#fef2f2' : '#f8fafc',
+                                                        border: `1px solid ${editShowEscalatedBadge ? '#fecaca' : '#e2e8f0'}`,
+                                                        transition: 'all 0.2s', fontSize: '0.85rem', fontWeight: 600,
+                                                        color: editShowEscalatedBadge ? '#dc2626' : '#64748b'
+                                                    }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={editShowEscalatedBadge}
+                                                            onChange={e => setEditShowEscalatedBadge(e.target.checked)}
+                                                            style={{ accentColor: '#dc2626' }}
+                                                        />
+                                                        Show Escalated Badge
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="project-card-actions" onClick={e => e.stopPropagation()}>
                                         {editingProject === p.id ? (
                                             <>
@@ -895,6 +946,8 @@ export default function AdminDashboard() {
                                                 setEditPaymentRemarks(p.payment_remarks || '');
                                                 setEditStartNumber(p.rfi_start_number || 1);
                                                 setEditAssignmentMode(p.assignment_mode || 'direct');
+                                                setEditShowFilerInfo(p.show_filer_info !== false);
+                                                setEditShowEscalatedBadge(p.show_escalated_badge !== false);
                                             }}>
                                                 Edit Project Details
                                             </button>

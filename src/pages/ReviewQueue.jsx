@@ -20,7 +20,7 @@ export default function ReviewQueue() {
     const location = useLocation();
     const { user } = useAuth();
     const { approveRFI, updateRFI, rejectRFI, cancelRFI, claimRFI, getReviewQueue, rfis, contractors, canUserEditRfi, canUserDiscussRfi, minDate } = useRFI();
-    const { activeProject, orderedTableColumns, columnWidthMap, getTableColumnStyle, loadingFields, fieldsResolvedProjectId, projectFields, assignmentMode } = useProject();
+    const { activeProject, orderedTableColumns, columnWidthMap, getTableColumnStyle, loadingFields, fieldsResolvedProjectId, projectFields, assignmentMode, showFilerInfo, showEscalatedBadge } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
     const [currentDate, setCurrentDate] = useState(getToday());
     const [approveTarget, setApproveTarget] = useState(null);
@@ -581,10 +581,10 @@ export default function ReviewQueue() {
 
     function renderReviewOrderedCell(rfi, col, isCarryover, index) {
         if (col.field_key === 'serial') {
-            const escalated = isEscalated(rfi);
+            const escalated = showEscalatedBadge && isEscalated(rfi);
             return (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <UserAvatar name={rfi.filerName} avatarUrl={rfi.filerAvatarUrl} size={32} />
+                    {showFilerInfo && <UserAvatar name={rfi.filerName} avatarUrl={rfi.filerAvatarUrl} size={32} />}
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ fontWeight: 600 }}>#{index + 1}</span>
@@ -597,9 +597,11 @@ export default function ReviewQueue() {
                                 </span>
                             )}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--clr-text-muted)' }}>
-                            {rfi.filerName}
-                        </div>
+                        {showFilerInfo && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--clr-text-muted)' }}>
+                                {rfi.filerName}
+                            </div>
+                        )}
                     </div>
                     {isCarryover && (
                         <div className="carryover-count" style={{ marginTop: '0.5rem', display: 'inline-block' }}>
