@@ -41,6 +41,19 @@ function ProtectedRoute({ children, allowedRoles }) {
     return children;
 }
 
+function ContractorLeadRoute({ children }) {
+    const { user, authResolved } = useAuth();
+    const { contractorPermissions, projectsResolved } = useProject();
+
+    if (!authResolved || !projectsResolved) return <LoadingSpinner />;
+    if (!user) return <Navigate to="/" replace />;
+    if (user.role !== 'contractor') return <Navigate to="/" replace />;
+    if (!contractorPermissions?.canManageContractorPermissions) {
+        return <Navigate to="/contractor" replace />;
+    }
+    return children;
+}
+
 function AppRoutes() {
     const { user, authResolved } = useAuth();
     const { projects, projectsResolved } = useProject();
@@ -53,7 +66,7 @@ function AppRoutes() {
                 <Navigate to={user.role === 'admin' ? '/admin' : user.role === 'contractor' ? '/contractor' : '/consultant'} replace />
             ) : <LoginPage />} />
             <Route path="/contractor" element={<ProtectedRoute allowedRoles={['contractor']}><SubscriptionGuard><ContractorDashboard /></SubscriptionGuard></ProtectedRoute>} />
-            <Route path="/contractor/team" element={<ProtectedRoute allowedRoles={['contractor']}><SubscriptionGuard><ContractorTeamPage /></SubscriptionGuard></ProtectedRoute>} />
+            <Route path="/contractor/team" element={<ContractorLeadRoute><SubscriptionGuard><ContractorTeamPage /></SubscriptionGuard></ContractorLeadRoute>} />
             <Route path="/contractor/rfi-sheet" element={<ProtectedRoute allowedRoles={['contractor']}><SubscriptionGuard><DailyRFISheet /></SubscriptionGuard></ProtectedRoute>} />
             <Route path="/contractor/summary" element={<ProtectedRoute allowedRoles={['contractor']}><SubscriptionGuard><SummaryPage /></SubscriptionGuard></ProtectedRoute>} />
             <Route path="/consultant" element={<ProtectedRoute allowedRoles={['consultant']}><SubscriptionGuard><ConsultantDashboard /></SubscriptionGuard></ProtectedRoute>} />
