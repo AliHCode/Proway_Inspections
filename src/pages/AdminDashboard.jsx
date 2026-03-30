@@ -1678,7 +1678,7 @@ export default function AdminDashboard() {
                     transform: translateY(30px);
                     transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
                     box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-                    max-width: 650px;
+                    max-width: 850px;
                     max-height: 85vh;
                     display: flex;
                     flex-direction: column;
