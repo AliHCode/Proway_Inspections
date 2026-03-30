@@ -174,7 +174,7 @@ function ProjectEditOverlay({
     project, 
     onClose, 
     onSave,
-    editState, // { code, timezone, startNumber, subscriptionStatus, subscriptionEnd, isLocked, paymentRemarks, assignmentMode, showFilerInfo, showEscalatedBadge }
+    editState, // { code, timezone, startNumber, subscriptionStatus, subscriptionEnd, isLocked, paymentRemarks, assignmentMode, showFilerInfo, showEscalatedBadge, multiReviewEnabled, contractorNotificationRule }
     setEditState
 }) {
     if (!project) return null;
@@ -292,6 +292,33 @@ function ProjectEditOverlay({
                                         </button>
                                     ))}
                                 </div>
+                            </div>
+                            <div className="form-group">
+                                <label>Multi-Consultant Review Workflow</label>
+                                <div className="modern-lock-card" style={{borderColor: '#e2e8f0'}}>
+                                    <label className="checkbox-label-modern">
+                                        <input 
+                                            type="checkbox"
+                                            checked={editState.multiReviewEnabled}
+                                            onChange={e => setEditState(prev => ({ ...prev, multiReviewEnabled: e.target.checked }))}
+                                        />
+                                        <div className="checkbox-meta">
+                                            <strong>Enable Multi-Consultant Reviews</strong>
+                                            <p>Allows multiple consultants to leave internal remarks before an official response is issued.</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>Contractor Notification Rule</label>
+                                <select 
+                                    className="premium-select"
+                                    value={editState.contractorNotificationRule}
+                                    onChange={e => setEditState(prev => ({ ...prev, contractorNotificationRule: e.target.value }))}
+                                >
+                                    <option value="all">Notify All Project Contractors</option>
+                                    <option value="filer_only">Notify RFI Filer Only</option>
+                                </select>
                             </div>
                             <div className="form-group">
                                 <label>Internal Payment Remarks</label>
@@ -450,6 +477,8 @@ export default function AdminDashboard() {
     const [editAssignmentMode, setEditAssignmentMode] = useState('direct');
     const [editShowFilerInfo, setEditShowFilerInfo] = useState(true);
     const [editShowEscalatedBadge, setEditShowEscalatedBadge] = useState(true);
+    const [editMultiReviewEnabled, setEditMultiReviewEnabled] = useState(false);
+    const [editContractorNotificationRule, setEditContractorNotificationRule] = useState('all');
 
     // Field creation form
     const [showNewField, setShowNewField] = useState(false);
@@ -685,7 +714,9 @@ export default function AdminDashboard() {
             rfi_start_number: parseInt(editStartNumber, 10) || 1,
             assignment_mode: editAssignmentMode,
             show_filer_info: editShowFilerInfo,
-            show_escalated_badge: editShowEscalatedBadge
+            show_escalated_badge: editShowEscalatedBadge,
+            multi_review_enabled: editMultiReviewEnabled,
+            contractor_notification_rule: editContractorNotificationRule
         });
         if (result?.success) {
             showMsg('Project details updated');
@@ -699,6 +730,9 @@ export default function AdminDashboard() {
             setEditAssignmentMode('direct');
             setEditShowFilerInfo(true);
             setEditShowEscalatedBadge(true);
+            setEditMultiReviewEnabled(false);
+            setEditContractorNotificationRule('all');
+            fetchProjects();
         } else {
             showMsg('Error: ' + (result?.error || 'Update failed'));
         }
@@ -1009,6 +1043,8 @@ export default function AdminDashboard() {
                                             setEditAssignmentMode(p.assignment_mode || 'direct');
                                             setEditShowFilerInfo(p.show_filer_info !== false);
                                             setEditShowEscalatedBadge(p.show_escalated_badge !== false);
+                                            setEditMultiReviewEnabled(p.multi_review_enabled || false);
+                                            setEditContractorNotificationRule(p.contractor_notification_rule || 'all');
                                         }}
                                     >
                                         Edit Project Details
@@ -1033,7 +1069,9 @@ export default function AdminDashboard() {
                                     paymentRemarks: editPaymentRemarks,
                                     assignmentMode: editAssignmentMode,
                                     showFilerInfo: editShowFilerInfo,
-                                    showEscalatedBadge: editShowEscalatedBadge
+                                    showEscalatedBadge: editShowEscalatedBadge,
+                                    multiReviewEnabled: editMultiReviewEnabled,
+                                    contractorNotificationRule: editContractorNotificationRule
                                 }}
                                 setEditState={(update) => {
                                     if (typeof update === 'function') {
@@ -1042,7 +1080,9 @@ export default function AdminDashboard() {
                                             subscriptionStatus: editSubscriptionStatus, subscriptionEnd: editSubscriptionEnd,
                                             isLocked: editIsLocked, paymentRemarks: editPaymentRemarks,
                                             assignmentMode: editAssignmentMode, showFilerInfo: editShowFilerInfo,
-                                            showEscalatedBadge: editShowEscalatedBadge
+                                            showEscalatedBadge: editShowEscalatedBadge,
+                                            multiReviewEnabled: editMultiReviewEnabled,
+                                            contractorNotificationRule: editContractorNotificationRule
                                         });
                                         setEditCode(next.code);
                                         setEditTimezone(next.timezone);
@@ -1054,6 +1094,8 @@ export default function AdminDashboard() {
                                         setEditAssignmentMode(next.assignmentMode);
                                         setEditShowFilerInfo(next.showFilerInfo);
                                         setEditShowEscalatedBadge(next.showEscalatedBadge);
+                                        setEditMultiReviewEnabled(next.multiReviewEnabled);
+                                        setEditContractorNotificationRule(next.contractorNotificationRule);
                                     }
                                 }}
                             />

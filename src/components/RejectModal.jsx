@@ -29,7 +29,7 @@ function PillTag({ children }) {
 export default function RejectModal({ rfi, onReject, onClose, contractors = [] }) {
     const [remarks, setRemarks] = useState('');
     const [files, setFiles] = useState([]);
-    const [assignedTo, setAssignedTo] = useState(rfi.filedBy || '');
+
     const [markupIndex, setMarkupIndex] = useState(null);
     const [isDragOver, setIsDragOver] = useState(false);
     const fileInputRef = useRef(null);
@@ -50,8 +50,7 @@ export default function RejectModal({ rfi, onReject, onClose, contractors = [] }
         setRemarks(prev => (prev.trim().length ? `${prev} ${mention}` : mention));
     }
     function handleSubmit() {
-        if (!remarks.trim() || !assignedTo) return;
-        onReject(rfi.id, remarks.trim(), files, assignedTo);
+        onReject(rfi.id, remarks.trim(), files, null);
         onClose();
     }
     function getPreviewUrl(file) { return typeof file === 'string' ? file : URL.createObjectURL(file); }
@@ -60,7 +59,7 @@ export default function RejectModal({ rfi, onReject, onClose, contractors = [] }
     function addFiles(incoming) { setFiles(prev => [...prev, ...Array.from(incoming)]); }
 
     const markupImage = markupIndex !== null ? files[markupIndex] : null;
-    const canSubmit = remarks.trim() && assignedTo;
+    const canSubmit = remarks.trim().length > 0;
 
     return (
         <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
@@ -97,22 +96,7 @@ export default function RejectModal({ rfi, onReject, onClose, contractors = [] }
                         <PillTag><span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>FILED BY</span> <span style={{ width:20, height:20, borderRadius:'50%', background:'#3b82f6', display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:'0.65rem', color:'#fff', fontWeight:700 }}>{(rfi.filerName||'?')[0].toUpperCase()}</span>{rfi.filerName}</PillTag>
                     </div>
 
-                    {/* Assign To */}
-                    <div className="ram-field">
-                        <SectionLabel>Notify Representative <span style={{ color: '#ef4444' }}>*</span></SectionLabel>
-                        <select
-                            className="ram-select"
-                            value={assignedTo}
-                            onChange={e => setAssignedTo(e.target.value)}
-                            onFocus={e => { e.target.style.borderColor = 'var(--clr-danger)'; e.target.style.boxShadow = '0 0 0 3px rgba(239,68,68,0.1)'; }}
-                            onBlur={e => { e.target.style.borderColor = 'var(--clr-border)'; e.target.style.boxShadow = 'none'; }}
-                        >
-                            <option value="" disabled>Select Contractor to Action</option>
-                            {contractors.map(c => (
-                                <option key={c.id} value={c.id}>{c.name} ({c.company})</option>
-                            ))}
-                        </select>
-                    </div>
+
 
                     {/* Corrective Actions */}
                     <div className="ram-field">

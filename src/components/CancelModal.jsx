@@ -27,7 +27,7 @@ function SectionLabel({ children, right }) {
 
 export default function CancelModal({ isOpen, onClose, onConfirm, rfi, contractors = [] }) {
     const [reason, setReason] = useState('');
-    const [assignedTo, setAssignedTo] = useState(rfi?.filedBy || '');
+
     const [error, setError] = useState('');
 
     if (!isOpen) return null;
@@ -36,8 +36,7 @@ export default function CancelModal({ isOpen, onClose, onConfirm, rfi, contracto
 
     const handleConfirm = () => {
         if (!reason.trim()) { setError('Please provide a cancellation reason.'); return; }
-        if (!assignedTo) { setError('Please select a contractor to notify.'); return; }
-        onConfirm(reason.trim(), assignedTo);
+        onConfirm(reason.trim(), null);
         setReason('');
         setError('');
     };
@@ -89,22 +88,7 @@ export default function CancelModal({ isOpen, onClose, onConfirm, rfi, contracto
                         </p>
                     </div>
 
-                    {/* Assign To */}
-                    <div className="ram-field">
-                        <SectionLabel>Notify Representative <span style={{ color: '#ef4444' }}>*</span></SectionLabel>
-                        <select
-                            className="ram-select"
-                            value={assignedTo}
-                            onChange={e => setAssignedTo(e.target.value)}
-                            onFocus={e => { e.target.style.borderColor = '#64748b'; e.target.style.boxShadow = '0 0 0 3px rgba(100,116,139,0.12)'; }}
-                            onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
-                        >
-                            <option value="" disabled>Select Contractor to Notify</option>
-                            {contractors.map(c => (
-                                <option key={c.id} value={c.id}>{c.name} ({c.company})</option>
-                            ))}
-                        </select>
-                    </div>
+
 
                     {/* Reason */}
                     <div className="ram-field">
@@ -130,8 +114,8 @@ export default function CancelModal({ isOpen, onClose, onConfirm, rfi, contracto
                     <button
                         type="button"
                         className="ram-btn-primary"
-                        style={{ background: (reason.trim() && assignedTo) ? '#475569' : '#94a3b8', cursor: (reason.trim() && assignedTo) ? 'pointer' : 'not-allowed' }}
-                        disabled={!reason.trim() || !assignedTo}
+                        style={{ background: reason.trim() ? '#475569' : '#94a3b8', cursor: reason.trim() ? 'pointer' : 'not-allowed' }}
+                        disabled={!reason.trim()}
                         onClick={handleConfirm}
                     >
                         Confirm Cancellation

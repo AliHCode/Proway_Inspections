@@ -24,9 +24,13 @@ export default function RFIDetailModal({
 }) {
     const [activeTab, setActiveTab] = useState('review');
     const [tabScrollTrigger, setTabScrollTrigger] = useState(0);
-    const { rfis, updateRFI, claimRFI } = useRFI();
-    const { assignmentMode } = useProject();
+    const { rfis, updateRFI, claimRFI, submitInternalReview } = useRFI();
+    const { activeProject, assignmentMode } = useProject();
     const { user } = useAuth();
+    
+    const [showInternalReviewForm, setShowInternalReviewForm] = useState(false);
+    const [internalStatus, setInternalStatus] = useState('approved');
+    const [internalRemarks, setInternalRemarks] = useState('');
     const fileInputRef = useRef(null);
     const [resolveFile, setResolveFile] = useState(null);
     const [isResolving, setIsResolving] = useState(false);
@@ -180,9 +184,14 @@ export default function RFIDetailModal({
                                                 {rfi.status === RFI_STATUS.CONDITIONAL_APPROVE ? 'Cond. Approved' : rfi.status.toUpperCase()}
                                             </span>
                                         </div>
-                                        <div className="verdict-meta">Reviewed by {rfi.reviewerName || 'Consultant'}</div>
+                                        <div className="verdict-meta">Finalized by {rfi.reviewerName || 'Consultant'}</div>
                                     </div>
-                                    {rfi.remarks && <div className="rfi-verdict-remarks"><p>"{rfi.remarks}"</p></div>}
+                                    {rfi.remarks && (
+                                        <>
+                                            <div className="attachment-label" style={{ marginBottom: '0.5rem', fontWeight: 700, fontSize: '0.75rem', color: '#64748b' }}>OFFICIAL REMARKS</div>
+                                            <div className="rfi-verdict-remarks"><p>"{rfi.remarks}"</p></div>
+                                        </>
+                                    )}
                                     {rfi.images && rfi.images.length > 0 && (
                                         <div className="rfi-verdict-attachments">
                                             <div className="attachment-label">Proof & Attachments ({rfi.images.length})</div>
@@ -233,6 +242,74 @@ export default function RFIDetailModal({
                                         <div className="resolve-preview">
                                             <div className="file-pill"><span>{resolveFile.name}</span><button onClick={() => setResolveFile(null)}><X size={14}/></button></div>
                                             <button onClick={handleResolve} disabled={isResolving} className="btn btn-resolve-submit">{isResolving ? 'Resolving...' : 'Upload & Resolve'}</button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            {activeProject?.multi_review_enabled && (
+                                <div className="internal-reviews-section">
+                                    <h4 className="panel-heading" style={{ marginTop: '2rem' }}>Internal Reviews</h4>
+                                    
+                                    {rfi.internalReviews?.length > 0 ? (
+                                        <div className="internal-reviews-list">
+                                            {rfi.internalReviews.map(rev => (
+                                                <div key={rev.id} className={`internal-review-card ${rev.status_recommendation}`}>
+                                                    <div className="ir-header">
+                                                        <UserAvatar name={rev.reviewer?.name} avatarUrl={rev.reviewer?.avatar_url} size={24} />
+                                                        <span className="ir-name">{rev.reviewer?.name || 'Consultant'}</span>
+                                                        <StatusBadge status={rev.status_recommendation} />
+                                                    </div>
+                                                    <div className="ir-remarks">"{rev.remarks}"</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="no-internal-reviews">No internal reviews submitted yet.</p>
+                                    )}
+
+                                    {user?.role === 'consultant' && rfi.status === RFI_STATUS.PENDING && !showInternalReviewForm && (
+                                        <button className="btn btn-internal-review-toggle" onClick={() => setShowInternalReviewForm(true)} style={{ marginTop: '1rem', padding: '0.6rem 1rem', background: 'white', border: '1px solid #cbd5e1', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>
+                                            + Add Internal Review
+                                        </button>
+                                    )}
+
+                                    {showInternalReviewForm && (
+                                        <div className="internal-review-form" style={{ marginTop: '1.5rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '1rem', padding: '1.25rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                                            <h5 style={{ margin: '0 0 1rem 0', color: '#334155', fontSize: '0.9rem' }}>Submit Internal Review</h5>
+                                            <div style={{ marginBottom: '1rem' }}>
+                                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '0.25rem', textTransform: 'uppercase' }}>Recommendation</label>
+                                                <select value={internalStatus} onChange={(e) => setInternalStatus(e.target.value)} style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', outline: 'none' }}>
+                                                    <option value="approved">Approve</option>
+                                                    <option value="conditional_approve">Conditionally Approve</option>
+                                                    <option value="rejected">Reject</option>
+                                                </select>
+                                            </div>
+                                            <div style={{ marginBottom: '1rem' }}>
+                                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '0.25rem', textTransform: 'uppercase' }}>Internal Remarks (Required)</label>
+                                                <textarea 
+                                                    value={internalRemarks} 
+                                                    onChange={(e) => setInternalRemarks(e.target.value)} 
+                                                    rows={3} 
+                                                    style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', outline: 'none', resize: 'vertical' }}
+                                                    placeholder="These remarks will not be visible to the contractor until finalized."
+                                                />
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                <button onClick={() => setShowInternalReviewForm(false)} style={{ padding: '0.6rem 1rem', background: '#f1f5f9', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600, color: '#475569' }}>Cancel</button>
+                                                <button 
+                                                    disabled={!internalRemarks.trim()}
+                                                    onClick={async () => {
+                                                        const success = await submitInternalReview(rfi.id, internalStatus, internalRemarks);
+                                                        if (success) {
+                                                            setShowInternalReviewForm(false);
+                                                            setInternalRemarks('');
+                                                        }
+                                                    }}
+                                                    style={{ padding: '0.6rem 1rem', background: internalRemarks.trim() ? '#0ea5e9' : '#bae6fd', border: 'none', borderRadius: '0.5rem', cursor: internalRemarks.trim() ? 'pointer' : 'not-allowed', fontWeight: 600, color: 'white' }}
+                                                >
+                                                    Submit Review
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -388,6 +465,16 @@ export default function RFIDetailModal({
                 .btn-resolve-pick { width: 100%; background: white; border: 2px dashed #fde68a; color: #92400e; padding: 0.75rem; font-weight: 700; border-radius: 0.75rem; }
                 .file-pill { background: white; padding: 0.5rem 0.75rem; border-radius: 0.5rem; border: 1px solid #fde68a; display: flex; justify-content: space-between; margin-bottom: 1rem; }
                 .btn-resolve-submit { width: 100%; background: #d97706; color: white; padding: 0.75rem; font-weight: 700; border-radius: 0.75rem; }
+
+                .internal-reviews-list { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.75rem; }
+                .internal-review-card { padding: 1rem; background: white; border-radius: 1rem; border: 1px solid #e2e8f0; border-left-width: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+                .internal-review-card.approved { border-left-color: #22c55e; }
+                .internal-review-card.conditional_approve { border-left-color: #f59e0b; }
+                .internal-review-card.rejected { border-left-color: #ef4444; }
+                .ir-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+                .ir-name { font-weight: 700; color: #1e293b; font-size: 0.9rem; flex: 1; }
+                .ir-remarks { font-size: 0.9rem; color: #475569; font-style: italic; background: #f8fafc; padding: 0.75rem; border-radius: 0.5rem; }
+                .no-internal-reviews { font-size: 0.9rem; color: #94a3b8; font-style: italic; }
 
                 @media (max-width: 768px) {
                     .rfi-detail-modal.universal-tabbed { width: 100vw; height: 100vh; max-height: none; border-radius: 0; }

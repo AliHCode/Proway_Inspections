@@ -48,7 +48,9 @@ function normalizeRfiRecord(rfi = {}) {
         status: rfi.status || RFI_STATUS.PENDING,
         images: Array.isArray(rfi.images) ? rfi.images : [],
         parentId: rfi.parent_id || rfi.parentId || rfi.customFields?.parentId || null,
+        createdAt: rfi.created_at || rfi.createdAt || fallbackDate,
         customFields: rfi.custom_fields && typeof rfi.custom_fields === 'object' ? rfi.custom_fields : (rfi.customFields && typeof rfi.customFields === 'object' ? rfi.customFields : {}),
+        internalReviews: Array.isArray(rfi.internalReviews) ? rfi.internalReviews : [],
     };
 }
 
@@ -99,10 +101,11 @@ function formatDbRow(r, userMap = {}) {
         parentId:          r.parent_id,
         createdAt:         r.created_at,
         customFields:      r.custom_fields || {},
+        internalReviews:   r.rfi_reviews || [],
     };
 }
 
-function canUserEditRfiRecord(rfi, currentUser) {
+function canUserEditRfiRecord(rfi, currentUser, activeProject) {
     if (!rfi || !currentUser?.id) return false;
     if (currentUser.role === 'admin') return true;
 
@@ -110,7 +113,9 @@ function canUserEditRfiRecord(rfi, currentUser) {
     // 1. They are explicitly assigned.
     // 2. It's already been reviewed (to allow correction).
     // 3. It's unassigned.
+    // 4. Project is under Open Assignment mode.
     if (currentUser.role === 'consultant') {
+        if (activeProject?.assignment_mode === 'open') return true;
         if (rfi.status !== RFI_STATUS.PENDING) return true;
         if (!rfi.assignedTo) return true;
         return rfi.assignedTo === currentUser.id;
@@ -129,13 +134,17 @@ function canUserEditRfiRecord(rfi, currentUser) {
     return isFiler;
 }
 
-function canUserDiscussRfiRecord(rfi, user) {
+function canUserDiscussRfiRecord(rfi, user, activeProject) {
     if (!rfi || !user?.id) return false;
     if (user.role === 'admin') return true;
     
-    // Consultants can discuss if assigned, if it's unassigned (pick-up), or if they reviewed it.
+    // Consultants can discuss if open assignment or if assigned/reviewed/internal reviews...
     if (user.role === 'consultant') {
-        return !rfi.assignedTo || rfi.assignedTo === user.id || rfi.reviewedBy === user.id;
+        if (activeProject?.assignment_mode === 'open') return true;
+        if (!rfi.assignedTo || rfi.assignedTo === user.id || rfi.reviewedBy === user.id) return true;
+        // Check if they are part of the internal review workflow
+        if (rfi.internalReviews?.some(rev => rev.reviewer_id === user.id)) return true;
+        return false;
     }
 
     return rfi.filedBy === user.id || rfi.assignedTo === user.id;
@@ -146,6 +155,7 @@ export function RFIProvider({ children }) {
     const { user } = useAuth();
     const [rfis, setRfis] = useState([]);
     const [loadingRfis, setLoadingRfis] = useState(true);
+    const [loadingAction, setLoadingAction] = useState(false);
     const [pendingSyncCount, setPendingSyncCount] = useState(0);
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [lastSyncTime, setLastSyncTime] = useState(null);
@@ -333,7 +343,8 @@ export function RFIProvider({ children }) {
                         *,
                         filer:filed_by(id, name, company, avatar_url),
                         reviewer:reviewed_by(id, name, avatar_url),
-                        assignee:assigned_to(id, name, avatar_url)
+                        assignee:assigned_to(id, name, avatar_url),
+                        rfi_reviews(*, reviewer:reviewer_id(name, avatar_url))
                     `)
                     .eq('project_id', activeProject.id)
                     .order('serial_no', { ascending: false });
@@ -1179,12 +1190,45 @@ export function RFIProvider({ children }) {
         }
     }, [activeProject, fetchAllRFIs, normalizeImagesForSubmission, rfis]);
 
+    /** Submit an Internal Consultant Review */
+    async function submitInternalReview(rfiId, statusRecommendation, remarks) {
+        if (!user?.id || !activeProject?.id) throw new Error("Missing auth/project context");
+
+        setLoadingAction(true);
+        try {
+            const { data, error } = await supabase.from('rfi_reviews').insert([{
+                rfi_id: rfiId,
+                reviewer_id: user.id,
+                status_recommendation: statusRecommendation,
+                remarks: remarks
+            }]).select('*, reviewer:reviewer_id(name, avatar_url)').single();
+
+            if (error) throw error;
+
+            setRfis(prev => prev.map(r => {
+                if (r.id === rfiId) {
+                    return { ...r, internalReviews: [...(r.internalReviews || []), data] };
+                }
+                return r;
+            }));
+
+            toast.success("Internal Review submitted successfully.");
+            return true;
+        } catch (error) {
+            console.error('Error submitting internal review:', error);
+            toast.error("Failed to submit internal review.");
+            return false;
+        } finally {
+            setLoadingAction(false);
+        }
+    }
+
     /** Approve an RFI */
     async function approveRFI(rfiId, reviewedBy, remarks = '', consultantAttachments = [], assignedTo = null) {
         const targetRfi = rfis.find(r => r.id === rfiId);
         if (!targetRfi) return;
 
-        if (!canUserEditRfiRecord(targetRfi, user)) {
+        if (!canUserEditRfiRecord(targetRfi, user, activeProject)) {
             toast.error('This RFI is assigned to another reviewer. You can only view it.');
             return;
         }
@@ -1253,7 +1297,7 @@ export function RFIProvider({ children }) {
         const targetRfi = rfis.find(r => r.id === rfiId);
         if (!targetRfi) return;
 
-        if (!canUserEditRfiRecord(targetRfi, user)) {
+        if (!canUserEditRfiRecord(targetRfi, user, activeProject)) {
             toast.error('This RFI is assigned to another reviewer. You can only view it.');
             return;
         }
@@ -1317,7 +1361,7 @@ export function RFIProvider({ children }) {
         const targetRfi = rfis.find(r => r.id === rfiId);
         if (!targetRfi) return;
 
-        if (!canUserEditRfiRecord(targetRfi, user)) {
+        if (!canUserEditRfiRecord(targetRfi, user, activeProject)) {
             toast.error('This RFI is assigned to another reviewer. You can only view it.');
             return;
         }
@@ -1484,7 +1528,7 @@ export function RFIProvider({ children }) {
     async function fetchComments(rfiId) {
         try {
             const targetRfi = rfis.find((r) => r.id === rfiId);
-            if (targetRfi && !canUserDiscussRfiRecord(targetRfi, user?.id)) {
+            if (targetRfi && !canUserDiscussRfiRecord(targetRfi, user, activeProject)) {
                 return [];
             }
 
@@ -1523,7 +1567,7 @@ export function RFIProvider({ children }) {
         const targetRfi = rfis.find(r => r.id === rfiId);
         if (!targetRfi) return;
 
-        if (!canUserDiscussRfiRecord(targetRfi, user.id)) {
+        if (!canUserDiscussRfiRecord(targetRfi, user, activeProject)) {
             throw new Error('Chat is limited to the assigned consultant and filing contractor.');
         }
 
@@ -1615,7 +1659,7 @@ export function RFIProvider({ children }) {
             }
 
             const targetRfi = rfis.find((r) => r.id === commentRow.rfi_id);
-            if (targetRfi && !canUserDiscussRfiRecord(targetRfi, user.id)) {
+            if (targetRfi && !canUserDiscussRfiRecord(targetRfi, user, activeProject)) {
                 throw new Error('Chat is limited to the assigned consultant and filing contractor.');
             }
 
@@ -1649,7 +1693,7 @@ export function RFIProvider({ children }) {
             }
 
             const targetRfi = rfis.find((r) => r.id === commentRow.rfi_id);
-            if (targetRfi && !canUserDiscussRfiRecord(targetRfi, user.id)) {
+            if (targetRfi && !canUserDiscussRfiRecord(targetRfi, user, activeProject)) {
                 throw new Error('Chat is limited to the assigned consultant and filing contractor.');
             }
 
@@ -1689,7 +1733,7 @@ export function RFIProvider({ children }) {
     async function updateRFI(rfiId, updates) {
         try {
             const current = rfis.find((r) => r.id === rfiId);
-            if (current && !canUserEditRfiRecord(current, user)) {
+            if (current && !canUserEditRfiRecord(current, user, activeProject)) {
                 toast.error('This RFI is assigned to another user. You can view it only.');
                 return;
             }
@@ -2018,10 +2062,20 @@ export function RFIProvider({ children }) {
             case RFI_STATUS.CANCELLED: displayStatus = 'Cancelled'; break;
         }
 
-        // 1. Notify the Filer (Contractor) and the selected assignee (if any)
+        // 1. Calculate Target Users based on the notification rule
         const targetUserIds = new Set();
-        if (rfi.filedBy) targetUserIds.add(rfi.filedBy);
-        if (notifyTo) targetUserIds.add(notifyTo);
+        const notificationRule = activeProject?.contractor_notification_rule || 'all';
+
+        if (notificationRule === 'all') {
+            // Send to ALL contractors on this project
+            contractors.forEach(c => targetUserIds.add(c.id));
+        } else {
+            // 'filer_only' — restrict to filer
+            if (rfi.filedBy) targetUserIds.add(rfi.filedBy);
+        }
+
+        // Extremely critical: Never let the person pushing the button notify themselves
+        if (targetUserIds.has(user?.id)) targetUserIds.delete(user?.id);
 
         for (const targetUserId of targetUserIds) {
             await createNotification(
@@ -2077,6 +2131,7 @@ export function RFIProvider({ children }) {
                 rfis,
                 activeProject,
                 loadingRfis,
+                loadingAction,
                 pendingSyncCount,
                 lastSyncTime,
                 isOffline,
@@ -2104,8 +2159,8 @@ export function RFIProvider({ children }) {
                 addComment,
                 updateComment,
                 deleteComment,
-                canUserEditRfi: (rfi) => canUserEditRfiRecord(rfi, user),
-                canUserDiscussRfi: (rfi) => canUserDiscussRfiRecord(rfi, user),
+                canUserEditRfi: (rfi) => canUserEditRfiRecord(rfi, user, activeProject),
+                canUserDiscussRfi: (rfi) => canUserDiscussRfiRecord(rfi, user, activeProject),
                 markNotificationRead,
                 markAllNotificationsRead,
                 deleteNotification,

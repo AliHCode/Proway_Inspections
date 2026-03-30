@@ -1147,12 +1147,24 @@ export default function ReviewQueue() {
                                     </button>
                                 )}
                                 {actionSheetTarget.status !== 'rejected' && (
-                                    <button className="sheet-btn sheet-btn-reject" onClick={() => setActionSheetStep('reject')}>
+                                    <button 
+                                        className="sheet-btn sheet-btn-reject" 
+                                        onClick={() => setActionSheetStep('reject')}
+                                        disabled={activeProject?.multi_review_enabled && actionSheetTarget.internalReviews?.some(r => r.status_recommendation === 'approved')}
+                                        style={{ opacity: (activeProject?.multi_review_enabled && actionSheetTarget.internalReviews?.some(r => r.status_recommendation === 'approved')) ? 0.4 : 1, cursor: (activeProject?.multi_review_enabled && actionSheetTarget.internalReviews?.some(r => r.status_recommendation === 'approved')) ? 'not-allowed' : undefined }}
+                                        title={(activeProject?.multi_review_enabled && actionSheetTarget.internalReviews?.some(r => r.status_recommendation === 'approved')) ? "Cannot reject because a consultant has internally approved this RFI." : ""}
+                                    >
                                         <XCircle size={24} /> Reject
                                     </button>
                                 )}
                                 {actionSheetTarget.status !== 'cancelled' && (
-                                    <button className="sheet-btn sheet-btn-cancel" onClick={() => setActionSheetStep('cancel')}>
+                                    <button 
+                                        className="sheet-btn sheet-btn-cancel" 
+                                        onClick={() => setActionSheetStep('cancel')}
+                                        disabled={activeProject?.multi_review_enabled && actionSheetTarget.internalReviews?.some(r => r.status_recommendation === 'approved')}
+                                        style={{ opacity: (activeProject?.multi_review_enabled && actionSheetTarget.internalReviews?.some(r => r.status_recommendation === 'approved')) ? 0.4 : 1, cursor: (activeProject?.multi_review_enabled && actionSheetTarget.internalReviews?.some(r => r.status_recommendation === 'approved')) ? 'not-allowed' : undefined }}
+                                        title={(activeProject?.multi_review_enabled && actionSheetTarget.internalReviews?.some(r => r.status_recommendation === 'approved')) ? "Cannot cancel because a consultant has internally approved this RFI." : ""}
+                                    >
                                         <Ban size={24} /> Cancel
                                     </button>
                                 )}
@@ -1165,19 +1177,7 @@ export default function ReviewQueue() {
                         ) : (
                             <div className="action-sheet-form-container">
                                 {/* Form Fields ported from Modals */}
-                                <div className="sheet-form-field">
-                                    <label className="sheet-form-label">Notify Representative <span style={{color:'#ef4444'}}>*</span></label>
-                                    <select 
-                                        className="sheet-form-select"
-                                        value={sheetAssignedTo}
-                                        onChange={e => setSheetAssignedTo(e.target.value)}
-                                    >
-                                        <option value="" disabled>Select recipient</option>
-                                        {contractors.map(c => (
-                                            <option key={c.id} value={c.id}>{c.name} ({c.company})</option>
-                                        ))}
-                                    </select>
-                                </div>
+
 
                                 <div className="sheet-form-field">
                                     <label className="sheet-form-label">
@@ -1235,17 +1235,13 @@ export default function ReviewQueue() {
                                                 setSheetError('Please provide remarks/reason.');
                                                 return;
                                             }
-                                            if (!sheetAssignedTo) {
-                                                setSheetError('Please notify a representative.');
-                                                return;
-                                            }
 
                                             if (actionSheetStep === 'approve') {
-                                                await handleApprove(actionSheetTarget.id, sheetRemarks.trim(), sheetFiles, isConditional ? 'conditional_approve' : 'approved', sheetAssignedTo);
+                                                await handleApprove(actionSheetTarget.id, sheetRemarks.trim(), sheetFiles, isConditional ? 'conditional_approve' : 'approved', null);
                                             } else if (isReject) {
-                                                await handleReject(actionSheetTarget.id, sheetRemarks.trim(), sheetFiles, sheetAssignedTo);
+                                                await handleReject(actionSheetTarget.id, sheetRemarks.trim(), sheetFiles, null);
                                             } else if (isCancel) {
-                                                await handleCancel(actionSheetTarget.id, sheetRemarks.trim(), sheetAssignedTo);
+                                                await handleCancel(actionSheetTarget.id, sheetRemarks.trim(), null);
                                             }
                                             setActionSheetTarget(null);
                                         }}
