@@ -794,13 +794,13 @@ export default function AdminDashboard() {
                 <div className="admin-nav-bar" style={{ marginTop: '0.5rem', marginBottom: '1.5rem' }}>
                     <div className="admin-tabs">
                         <button className={`admin-tab-btn ${activeTab === 'projects' ? 'active' : ''}`} onClick={() => setActiveTab('projects')}>
-                            <Building size={16} /> Projects
+                            <Building size={16} /> <span className="tab-label">Projects</span>
                         </button>
                         <button className={`admin-tab-btn ${activeTab === 'fields' ? 'active' : ''}`} onClick={() => setActiveTab('fields')}>
-                            <Columns3 size={16} /> RFI Table Fields
+                            <Columns3 size={16} /> <span className="tab-label">RFI Table Fields</span>
                         </button>
                         <button className={`admin-tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
-                            <Users size={16} /> Users &amp; Assignments
+                            <Users size={16} /> <span className="tab-label">Users &amp; Assignments</span>
                         </button>
                     </div>
 
@@ -998,7 +998,33 @@ export default function AdminDashboard() {
                 {/* ═══════════ TAB: RFI FIELDS ═══════════ */}
                 {activeTab === 'fields' && (
                     <div className="admin-section">
-                        <div className="admin-section-header" style={{ justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                        <div className="admin-section-header" style={{ justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                    Header Background
+                                    <input 
+                                        type="color" 
+                                        value={columnStylesDraft?.HEADER_ROW?.backgroundColor || '#f8fafc'}
+                                        onChange={e => {
+                                            setColumnStylesDraft(prev => ({ ...prev, HEADER_ROW: { ...(prev.HEADER_ROW || {}), backgroundColor: e.target.value } }));
+                                            setIsReordering(true);
+                                        }}
+                                        style={{ width: '30px', height: '30px', padding: 0, border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                    />
+                                </label>
+                                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                    Text Color
+                                    <input 
+                                        type="color" 
+                                        value={columnStylesDraft?.HEADER_ROW?.color || '#334155'}
+                                        onChange={e => {
+                                            setColumnStylesDraft(prev => ({ ...prev, HEADER_ROW: { ...(prev.HEADER_ROW || {}), color: e.target.value } }));
+                                            setIsReordering(true);
+                                        }}
+                                        style={{ width: '30px', height: '30px', padding: 0, border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                    />
+                                </label>
+                            </div>
                             <button className="btn btn-sm" style={{ background: 'var(--clr-brand-secondary)', color: '#fff', border: 'none' }}
                                 onClick={() => setShowNewField(!showNewField)}>
                                 <Plus size={16} /> Add Column
@@ -1610,6 +1636,21 @@ export default function AdminDashboard() {
                 }
                 .project-edit-panel {
                     padding: 2rem !important;
+                }
+
+                @media (max-width: 640px) {
+                    .tab-label {
+                        display: none;
+                    }
+                    .admin-tab-btn {
+                        padding: 0.6rem 0.8rem !important;
+                        justify-content: center;
+                    }
+                }
+                .admin-field-designer-wrapper,
+                .designer-table-container {
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
                 }
             `}</style>
         </div>

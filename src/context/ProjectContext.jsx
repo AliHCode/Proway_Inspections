@@ -531,6 +531,16 @@ export function ProjectProvider({ children }) {
             saveProjectExportTemplate, checkProjectAccess,
         }}>
             {children}
+            {columnStylesMap?.HEADER_ROW?.backgroundColor && (
+                <style>
+                    {`
+                        .rfi-table th, .preview-th, .designer-table th {
+                            background-color: ${columnStylesMap.HEADER_ROW.backgroundColor} !important;
+                            color: ${columnStylesMap.HEADER_ROW.color || '#ffffff'} !important;
+                        }
+                    `}
+                </style>
+            )}
         </ProjectContext.Provider>
     );
 }
