@@ -350,7 +350,11 @@ function ProjectEditOverlay({
 
 // --- FieldOptionsEditOverlay Component (Portal-based) ---
 function FieldOptionsEditOverlay({ field, currentOptions, onClose, onSave }) {
-    const [text, setText] = useState(currentOptions ? currentOptions.join(', ') : '');
+    const initialText = Array.isArray(currentOptions) 
+        ? currentOptions.join(', ') 
+        : typeof currentOptions === 'string' ? currentOptions : '';
+    
+    const [text, setText] = useState(initialText);
 
     if (!field) return null;
 
