@@ -153,25 +153,33 @@ export default function RFIDetailModal({
                 <div className="modal-body rfi-universal-body">
                     {activeTab === 'review' && (
                         <div className="rfi-tab-panel-full review-panel">
-                            <h4 className="panel-heading">Review Verdict</h4>
-                            {rfi.status === RFI_STATUS.PENDING || rfi.status === RFI_STATUS.VERIFICATION_PENDING ? (
+                            <div className="panel-header-row" style={{ alignItems: 'center', marginBottom: '0.5rem' }}>
+                                <h4 className="panel-heading" style={{ margin: 0 }}>Decision History</h4>
+                                {rfi.status !== RFI_STATUS.PENDING && rfi.status !== RFI_STATUS.VERIFICATION_PENDING && onEditDecision && user.role === 'consultant' && user.id === rfi.reviewedBy && (
+                                    <button 
+                                        className="btn-change-decision-compat"
+                                        onClick={() => onEditDecision(rfi)}
+                                    >
+                                        <Edit3 size={14} />
+                                        <span>Change Decision</span>
+                                    </button>
+                                )}
+                            </div>
+
+                            {rfi.status === RFI_STATUS.PENDING && (!rfi.internalReviews || rfi.internalReviews.length === 0) && (
                                 <div className="rfi-verdict-card pending">
                                     <div className="verdict-status">
-                                        <ClipboardList size={24} />
-                                        <span>{rfi.status === RFI_STATUS.VERIFICATION_PENDING ? 'Verification Pending' : 'Awaiting Review'}</span>
+                                        <ClipboardList size={20} />
+                                        <span>Awaiting Review</span>
                                     </div>
                                     <p className="verdict-helper">
-                                        {rfi.status === RFI_STATUS.VERIFICATION_PENDING 
-                                            ? 'Proof has been submitted and is awaiting your final verification.' 
-                                            : 'This RFI is currently in the queue and has not been reviewed by a consultant yet.'}
+                                        This RFI is currently in the queue and has not been reviewed by a consultant yet.
                                     </p>
-                                    
                                     {assignmentMode === 'claim' && !rfi.assignedTo && user?.role === 'consultant' && (
                                         <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center' }}>
                                             <button
                                                 className="btn btn-claim"
                                                 onClick={() => { claimRFI(rfi.id, user.id); onClose(); }}
-                                                title="Claim this RFI for review"
                                                 style={{ padding: '0.6rem 1.2rem', fontSize: '0.9rem' }}
                                             >
                                                 <Hand size={18} /> Claim Inspection
@@ -179,63 +187,60 @@ export default function RFIDetailModal({
                                         </div>
                                     )}
                                 </div>
-                            ) : (
-                                <div className={`rfi-verdict-card ${rfi.status.toLowerCase()}`}>
-                                    <div className="verdict-header">
-                                        <div className="verdict-status">
-                                            {(rfi.status === RFI_STATUS.APPROVED || rfi.status === RFI_STATUS.CONDITIONAL_APPROVE) && <CheckCircle size={24} />}
-                                            {rfi.status === RFI_STATUS.REJECTED && <XCircle size={24} />}
-                                            <span className="verdict-label">
-                                                {rfi.status === RFI_STATUS.CONDITIONAL_APPROVE ? 'Cond. Approved' : rfi.status.toUpperCase()}
-                                            </span>
+                            )}
+
+                            <div className="verdict-history-feed">
+                                {/* 1. Show all internal recommendations/signatures */}
+                                {rfi.internalReviews?.map((rev) => (
+                                    <div key={rev.id} className="verdict-bubble">
+                                        <div className="bubble-avatar">
+                                            <UserAvatar name={rev.reviewer?.name} avatarUrl={rev.reviewer?.avatar_url} size={40} />
                                         </div>
-                                        <div className="verdict-meta">Finalized by {rfi.reviewerName || 'Consultant'}</div>
-                                    </div>
-                                    {rfi.remarks && (
-                                        <>
-                                            <div className="attachment-label" style={{ marginBottom: '0.5rem', fontWeight: 700, fontSize: '0.75rem', color: '#64748b' }}>OFFICIAL REMARKS</div>
-                                            <div className="rfi-verdict-remarks"><p>"{rfi.remarks}"</p></div>
-                                        </>
-                                    )}
-                                    {rfi.images && rfi.images.length > 0 && (
-                                        <div className="rfi-verdict-attachments">
-                                            <div className="attachment-label">Proof & Attachments ({rfi.images.length})</div>
-                                            <div className="rfi-attachments-grid large">
-                                                {rfi.images.map((img, idx) => (
-                                                    <a key={idx} href={img} target="_blank" rel="noopener noreferrer" className="rfi-attachment-thumb">
-                                                        <img 
-                                                            src={img} 
-                                                            alt={`Attachment ${idx + 1}`}
-                                                            onError={(e) => {
-                                                                const thumbUrl = getThumbnailUrl(img, { width: 200, height: 200 });
-                                                                if (e.target.src !== thumbUrl) {
-                                                                    e.target.src = thumbUrl;
-                                                                }
-                                                            }}
-                                                        />
-                                                    </a>
-                                                ))}
+                                        <div className="bubble-content">
+                                            <div className="bubble-header">
+                                                <span className="bubble-name">{rev.reviewer?.name || 'Consultant'}</span>
+                                                <div className={`compact-status-badge ${rev.status_recommendation}`}>
+                                                    {rev.status_recommendation === 'conditional_approve' ? 'Cond. Approved' : rev.status_recommendation.toUpperCase()}
+                                                </div>
                                             </div>
+                                            <div className="bubble-remarks">{rev.remarks}</div>
                                         </div>
-                                    )}
-                                </div>
-                            )}
+                                    </div>
+                                ))}
 
-                            {rfi.status !== RFI_STATUS.PENDING && rfi.status !== RFI_STATUS.VERIFICATION_PENDING && onEditDecision && user.role === 'consultant' && (
-                                <div className="edit-decision-prominent-container">
-                                    <button 
-                                        className="btn-edit-decision-prominent"
-                                        onClick={() => onEditDecision(rfi)}
-                                    >
-                                        <Edit3 size={20} />
-                                        <span>Change Final Decision</span>
-                                    </button>
-                                    <p className="edit-decision-hint">Want to change your verdict? This will reset the previous remarks and proof images.</p>
-                                </div>
-                            )}
+                                {/* 2. Show the final official verdict if RFI is closed/finalized */}
+                                {rfi.status !== RFI_STATUS.PENDING && rfi.status !== RFI_STATUS.VERIFICATION_PENDING && (
+                                    <div className={`verdict-bubble final-verdict ${rfi.status.toLowerCase()}`}>
+                                        <div className="bubble-avatar">
+                                            <UserAvatar name={rfi.reviewerName} avatarUrl={rfi.reviewerAvatarUrl} size={40} />
+                                        </div>
+                                        <div className="bubble-content">
+                                            <div className="bubble-header">
+                                                <span className="bubble-name">{rfi.reviewerName || 'Consultant'} <span className="final-tag">(Final)</span></span>
+                                                <div className={`compact-status-badge ${rfi.status.toLowerCase()}`}>
+                                                    {rfi.status === RFI_STATUS.CONDITIONAL_APPROVE ? 'Cond. Approved' : rfi.status.toUpperCase()}
+                                                </div>
+                                            </div>
+                                            <div className="bubble-remarks">{rfi.remarks}</div>
+                                            {rfi.images && rfi.images.length > 0 && (
+                                                <div className="bubble-attachments">
+                                                    <div className="rfi-attachments-grid small">
+                                                        {rfi.images.map((img, idx) => (
+                                                            <a key={idx} href={img} target="_blank" rel="noopener noreferrer" className="rfi-attachment-thumb">
+                                                                <img src={img} alt="Proof" onError={(e) => { e.target.src = getThumbnailUrl(img, { width: 100, height: 100 }) }} />
+                                                            </a>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
 
+                            {/* Resolution section for contractors */}
                             {rfi.status === RFI_STATUS.CONDITIONAL_APPROVE && user.role === 'contractor' && (
-                                <div className="rfi-resolve-section-inline">
+                                <div className="rfi-resolve-section-inline" style={{ marginTop: '1rem' }}>
                                     <h4 className="resolve-title"><CheckCircle size={18} /> Resolve Conditions</h4>
                                     <p className="resolve-helper">Upload a final proof photo to complete this inspection.</p>
                                     <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={(e) => e.target.files && setResolveFile(e.target.files[0])} />
@@ -528,6 +533,111 @@ export default function RFIDetailModal({
                     .rfi-tab-btn { flex: 1; justify-content: center; padding: 1rem 0; }
                     .rfi-universal-body { padding: 1rem; }
                     .rfi-detail-grid-universal { grid-template-columns: 1fr; }
+                }
+                .btn-change-decision-compat {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    background: white;
+                    color: #475569;
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    padding: 6px 12px;
+                    border-radius: 8px;
+                    border: 1px solid #e2e8f0;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                }
+                .btn-change-decision-compat:hover {
+                    background: #f8fafc;
+                    border-color: #cbd5e1;
+                    color: #1e293b;
+                }
+
+                .verdict-history-feed {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                    margin-top: 0.5rem;
+                }
+                .verdict-bubble {
+                    background: white;
+                    border-radius: 20px;
+                    padding: 16px;
+                    display: flex;
+                    gap: 16px;
+                    border: 1px solid #f1f5f9;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+                    position: relative;
+                }
+                .verdict-bubble.final-verdict {
+                    border-left: 4px solid #06b6d4;
+                    background: #fcfdfe;
+                }
+                .verdict-bubble.final-verdict.approved { border-left-color: #22c55e; }
+                .verdict-bubble.final-verdict.rejected { border-left-color: #ef4444; }
+                .verdict-bubble.final-verdict.conditional_approve { border-left-color: #f59e0b; }
+
+                .bubble-content {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                }
+                .bubble-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .bubble-name {
+                    font-size: 0.95rem;
+                    font-weight: 700;
+                    color: #1e293b;
+                }
+                .final-tag {
+                    font-size: 0.7rem;
+                    font-weight: 600;
+                    color: #64748b;
+                    background: #f1f5f9;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    margin-left: 4px;
+                }
+                .bubble-remarks {
+                    font-size: 0.85rem;
+                    color: #475569;
+                    line-height: 1.5;
+                    margin: 0;
+                }
+                .bubble-attachments {
+                    margin-top: 8px;
+                    border-top: 1px solid #f1f5f9;
+                    padding-top: 8px;
+                }
+
+                .compact-status-badge {
+                    font-size: 0.7rem;
+                    font-weight: 700;
+                    padding: 4px 12px;
+                    border-radius: 99px;
+                    text-transform: capitalize;
+                }
+                .compact-status-badge.approved { background: #dcfce7; color: #166534; }
+                .compact-status-badge.rejected { background: #fee2e2; color: #991b1b; }
+                .compact-status-badge.conditional_approve { background: #fef3c7; color: #92400e; }
+                .compact-status-badge.cancelled { background: #f1f5f9; color: #475569; }
+
+                .rfi-attachments-grid.small {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 8px;
+                }
+                .rfi-attachments-grid.small .rfi-attachment-thumb {
+                    width: 60px;
+                    height: 60px;
+                    border-radius: 8px;
+                    overflow: hidden;
                 }
                 `}
             </style>

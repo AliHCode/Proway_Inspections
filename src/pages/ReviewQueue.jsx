@@ -1841,28 +1841,44 @@ export default function ReviewQueue() {
                 .sheet-history-item {
                     background: #fff;
                     border-radius: 12px;
-                    padding: 10px;
+                    padding: 12px;
                     border: 1px solid #f1f5f9;
                     box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+                    display: flex;
+                    gap: 12px;
                 }
                 .history-meta {
                     display: flex;
+                    flex-direction: column;
+                    gap: 2px;
+                    flex: 1;
+                }
+                .history-header {
+                    display: flex;
+                    justify-content: space-between;
                     align-items: center;
-                    gap: 8px;
-                    margin-bottom: 6px;
                 }
                 .history-name {
                     font-size: 0.8rem;
                     font-weight: 700;
                     color: #1e293b;
-                    flex: 1;
                 }
+                .history-badge {
+                    font-size: 0.65rem;
+                    font-weight: 800;
+                    padding: 2px 8px;
+                    border-radius: 6px;
+                }
+                .history-badge.approved { background: #dcfce7; color: #166534; }
+                .history-badge.conditional_approve { background: #fef3c7; color: #92400e; }
+                .history-badge.rejected { background: #fee2e2; color: #991b1b; }
+                
                 .history-remarks {
-                    font-size: 0.85rem;
+                    font-size: 0.8rem;
                     color: #475569;
                     margin: 0;
                     line-height: 1.4;
-                    padding-left: 32px;
+                    margin-top: 4px;
                 }
 
                 .sheet-finalize-card {

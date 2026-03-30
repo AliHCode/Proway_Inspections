@@ -1218,6 +1218,23 @@ export function RFIProvider({ children }) {
             const data = await logInternalReview(rfiId, statusRecommendation, remarks);
             if (!data) throw new Error("Failed to log review");
 
+            const targetRfi = rfis.find(r => r.id === rfiId);
+            if (targetRfi) {
+                // Progressive Notification: Notify the contractor that a review has been added
+                const rfiNo = targetRfi.customFields?.rfi_no || targetRfi.serialNo || '—';
+                let displayRec = statusRecommendation === 'conditional_approve' ? 'Conditionally Approved' : statusRecommendation.toUpperCase();
+                
+                // We reuse createNotification for the filer
+                if (targetRfi.filedBy && targetRfi.filedBy !== user.id) {
+                    await createNotification(
+                        targetRfi.filedBy,
+                        `New Review Added: #${rfiNo}`,
+                        `${user.name} has submitted a review: ${displayRec}. View current progress in the Review tab.`,
+                        rfiId
+                    );
+                }
+            }
+
             setRfis(prev => prev.map(r => {
                 if (r.id === rfiId) {
                     return { ...r, internalReviews: [...(r.internalReviews || []), data] };
