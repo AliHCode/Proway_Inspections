@@ -1,6 +1,6 @@
 import {
-    BarChart,
-    Bar,
+    AreaChart,
+    Area,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -19,22 +19,21 @@ export default function RfiTrendChart({ data }) {
 
     return (
         <div className="premium-card chart-container" style={{ width: '100%', height: '100%', minHeight: 400 }}>
-            <h3 className="chart-title" style={{ fontSize: '1rem', color: 'var(--clr-text-secondary)', fontWeight: 600, marginBottom: '2rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Weekly RFI Activity</h3>
+            <h3 className="chart-title" style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 600, marginBottom: '2rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Weekly RFI Activity</h3>
             <ResponsiveContainer width="100%" height={280}>
-                <BarChart
+                <AreaChart
                     data={data}
                     margin={{
-                        top: 20,
+                        top: 10,
                         right: 20,
                         left: -20,
                         bottom: 0,
                     }}
-                    barGap={0}
                 >
                     <defs>
-                        <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9} />
-                            <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.6} />
+                        <linearGradient id="areaShadow" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#1e293b" stopOpacity={0.05} />
+                            <stop offset="95%" stopColor="#1e293b" stopOpacity={0.01} />
                         </linearGradient>
                     </defs>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -42,36 +41,39 @@ export default function RfiTrendChart({ data }) {
                         dataKey="date"
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 11, fill: '#64748b', fontWeight: 500 }}
+                        tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 500 }}
                         dy={12}
                     />
                     <YAxis
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 11, fill: '#64748b', fontWeight: 500 }}
+                        tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 500 }}
                     />
                     <Tooltip
-                        cursor={{ fill: '#f8fafc' }}
+                        cursor={{ stroke: '#e2e8f0', strokeWidth: 1 }}
                         contentStyle={{
-                            borderRadius: '16px',
-                            border: 'none',
-                            background: '#0f172a',
-                            color: 'white',
-                            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                            borderRadius: '12px',
+                            border: '1px solid #e2e8f0',
+                            background: '#fff',
+                            color: '#1e293b',
+                            boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)',
                             fontSize: '13px',
-                            padding: '12px 16px'
+                            padding: '10px 14px'
                         }}
-                        itemStyle={{ color: '#3b82f6', fontWeight: 700 }}
+                        itemStyle={{ color: '#1e293b', fontWeight: 700 }}
                     />
-                    <Bar
+                    <Area
+                        type="monotone"
                         dataKey="value"
                         name="RFIs Filed"
-                        fill="url(#barGradient)"
-                        radius={[10, 10, 0, 0]}
-                        barSize={32}
-                        animationDuration={2000}
+                        stroke="#1e293b"
+                        strokeWidth={2}
+                        fill="url(#areaShadow)"
+                        dot={{ r: 3, fill: '#fff', stroke: '#1e293b', strokeWidth: 2, fillOpacity: 1 }}
+                        activeDot={{ r: 4, fill: '#fff', stroke: '#1e293b', strokeWidth: 2 }}
+                        animationDuration={1500}
                     />
-                </BarChart>
+                </AreaChart>
             </ResponsiveContainer>
         </div>
     );
