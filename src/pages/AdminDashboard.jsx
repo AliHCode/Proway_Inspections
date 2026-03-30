@@ -169,6 +169,189 @@ function SearchableSelect({ options, value, onChange, placeholder = "Search..." 
     );
 }
 
+// --- ProjectEditOverlay Component (Portal-based) ---
+function ProjectEditOverlay({ 
+    project, 
+    onClose, 
+    onSave,
+    editState, // { code, timezone, startNumber, subscriptionStatus, subscriptionEnd, isLocked, paymentRemarks, assignmentMode, showFilerInfo, showEscalatedBadge }
+    setEditState
+}) {
+    if (!project) return null;
+
+    return createPortal(
+        <div className="action-sheet-overlay open" onClick={onClose} style={{ zIndex: 10000 }}>
+            <div className="action-sheet-panel project-edit-panel open" onClick={e => e.stopPropagation()} style={{ 
+                maxWidth: '650px', 
+                height: 'auto', 
+                maxHeight: '90vh', 
+                borderRadius: '24px 24px 0 0',
+                display: 'flex',
+                flexDirection: 'column'
+            }}>
+                <div className="sheet-handle"></div>
+                
+                <div className="action-sheet-header" style={{ paddingBottom: '0.5rem', borderBottom: '1px solid #f1f5f9', marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ textAlign: 'left' }}>
+                            <h3 className="action-sheet-title" style={{ fontSize: '1.25rem' }}>Project Settings</h3>
+                            <p className="action-sheet-subtitle">{project.name}</p>
+                        </div>
+                        <button className="btn-close-hex" onClick={onClose} style={{ background: '#f1f5f9' }}>
+                            <X size={20} />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="action-sheet-body" style={{ overflowY: 'auto', flex: 1, paddingRight: '4px' }}>
+                    <div className="overlay-form-grid">
+                        {/* Section: Site Config */}
+                        <div className="overlay-section">
+                            <h4 className="overlay-section-title"><Globe size={14} /> Site Configuration</h4>
+                            <div className="form-grid">
+                                <div className="form-group">
+                                    <label>Project Code</label>
+                                    <input 
+                                        type="text" 
+                                        value={editState.code}
+                                        onChange={e => setEditState(prev => ({ ...prev, code: e.target.value }))}
+                                        placeholder="e.g. RR007"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>RFI Start #</label>
+                                    <input 
+                                        type="number" 
+                                        min="1"
+                                        value={editState.startNumber}
+                                        onChange={e => setEditState(prev => ({ ...prev, startNumber: e.target.value }))}
+                                    />
+                                </div>
+                                <div className="form-group full-width">
+                                    <label>Site Timezone</label>
+                                    <SearchableSelect 
+                                        options={ALL_TIMEZONES}
+                                        value={editState.timezone}
+                                        onChange={val => setEditState(prev => ({ ...prev, timezone: val }))}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Section: Access & Subscription */}
+                        <div className="overlay-section">
+                            <h4 className="overlay-section-title"><Shield size={14} /> Access & Subscription</h4>
+                            <div className="form-grid">
+                                <div className="form-group">
+                                    <label>Status</label>
+                                    <select 
+                                        value={editState.subscriptionStatus}
+                                        onChange={e => setEditState(prev => ({ ...prev, subscriptionStatus: e.target.value }))}
+                                    >
+                                        <option value="trial">Trial</option>
+                                        <option value="active">Active</option>
+                                        <option value="expired">Expired</option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label>Expiry Date</label>
+                                    <input 
+                                        type="date" 
+                                        value={editState.subscriptionEnd ? editState.subscriptionEnd.split('T')[0] : ''}
+                                        onChange={e => setEditState(prev => ({ ...prev, subscriptionEnd: e.target.value }))}
+                                    />
+                                </div>
+                                <div className="form-group full-width">
+                                    <label className="checkbox-label-modern">
+                                        <input 
+                                            type="checkbox"
+                                            checked={editState.isLocked}
+                                            onChange={e => setEditState(prev => ({ ...prev, isLocked: e.target.checked }))}
+                                        />
+                                        <div className="checkbox-meta">
+                                            <strong>Restrict Access (Manual Lock)</strong>
+                                            <p>When locked, no new RFIs can be filed by contractors.</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div className="form-group full-width">
+                                    <label>RFI Assignment Mode</label>
+                                    <div className="assignment-mode-toggle" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '4px' }}>
+                                        {[
+                                            { value: 'direct', label: 'Direct', desc: 'Contractor assigns consultant' },
+                                            { value: 'open', label: 'Open Queue', desc: 'First to act wins' },
+                                            { value: 'claim', label: 'Claim', desc: 'Consultants claim RFIs' }
+                                        ].map(opt => (
+                                            <button
+                                                key={opt.value}
+                                                type="button"
+                                                className={`mode-option ${editState.assignmentMode === opt.value ? 'active' : ''}`}
+                                                onClick={() => setEditState(prev => ({ ...prev, assignmentMode: opt.value }))}
+                                                style={{ flex: 1, padding: '0.5rem' }}
+                                            >
+                                                <span className="mode-label" style={{ fontSize: '0.8rem' }}>{opt.label}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="form-group full-width">
+                                    <label>Internal Payment Remarks</label>
+                                    <textarea 
+                                        value={editState.paymentRemarks}
+                                        onChange={e => setEditState(prev => ({ ...prev, paymentRemarks: e.target.value }))}
+                                        placeholder="Internal notes about billing or scope..."
+                                        rows={2}
+                                        style={{ resize: 'none' }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Section: Display Prefs */}
+                        <div className="overlay-section">
+                            <h4 className="overlay-section-title"><Eye size={14} /> Review Table Display Preferences</h4>
+                            <div className="form-grid">
+                                <div className="form-group full-width" style={{ display: 'flex', gap: '1rem' }}>
+                                    <label className="checkbox-label-modern" style={{ flex: 1 }}>
+                                        <input 
+                                            type="checkbox"
+                                            checked={editState.showFilerInfo}
+                                            onChange={e => setEditState(prev => ({ ...prev, showFilerInfo: e.target.checked }))}
+                                        />
+                                        <div className="checkbox-meta">
+                                            <strong>Show Contractor Info</strong>
+                                            <p>Avatars & Names in table.</p>
+                                        </div>
+                                    </label>
+                                    <label className="checkbox-label-modern" style={{ flex: 1 }}>
+                                        <input 
+                                            type="checkbox"
+                                            checked={editState.showEscalatedBadge}
+                                            onChange={e => setEditState(prev => ({ ...prev, showEscalatedBadge: e.target.checked }))}
+                                        />
+                                        <div className="checkbox-meta">
+                                            <strong>Escalated Badges</strong>
+                                            <p>Highlight old RFIs.</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="action-sheet-footer" style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '12px' }}>
+                    <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
+                    <button className="btn btn-primary" onClick={onSave} style={{ flex: 2, background: '#0f172a' }}>
+                        <Save size={18} /> Save All Changes
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+}
+
 export default function AdminDashboard() {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -700,7 +883,7 @@ export default function AdminDashboard() {
                                 <div key={p.id} className={`project-card-premium ${activeProject?.id === p.id ? 'active' : ''}`}
                                     onClick={() => changeActiveProject(p.id)}>
                                     
-                                    {p.id !== '00000000-0000-0000-0000-000000000000' && editingProject !== p.id && (
+                                    {p.id !== '00000000-0000-0000-0000-000000000000' && (
                                         <button 
                                             className="btn-delete-floating" 
                                             onClick={(e) => { e.stopPropagation(); handleDeleteProject(p.id); }}
@@ -716,246 +899,99 @@ export default function AdminDashboard() {
                                         </div>
                                         <div className="project-card-content">
                                             <div className="project-card-header-row">
-                                                <h3>{p.name}</h3>
-                                                {activeProject?.id === p.id && <span className="active-tag">Active</span>}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                    <h3>{p.name}</h3>
+                                                    {activeProject?.id === p.id && <span className="active-tag-condensed">ACTIVE</span>}
+                                                </div>
+                                                <span className={`subscription-pill ${p.subscription_status || 'trial'}`}>
+                                                    {p.subscription_status || 'trial'}
+                                                </span>
                                             </div>
                                             <p className="project-desc">{p.description || 'No description provided.'}</p>
                                         </div>
                                     </div>
 
-                                    <div className="project-card-details">
-                                        <div className="detail-item">
-                                            <span className="detail-label">Code</span>
-                                            {editingProject === p.id ? (
-                                                <input 
-                                                    className="detail-input"
-                                                    value={editCode}
-                                                    onChange={e => setEditCode(e.target.value)}
-                                                    onClick={e => e.stopPropagation()}
-                                                />
-                                            ) : (
-                                                <span className="detail-value">{p.code || '—'}</span>
-                                            )}
+                                    <div className="project-card-bento">
+                                        <div className="bento-box">
+                                            <span className="bento-label">CODE</span>
+                                            <span className="bento-value">{p.code || '—'}</span>
                                         </div>
-                                        <div className="detail-item">
-                                            <span className="detail-label">Timezone</span>
-                                            {editingProject === p.id ? (
-                                                <SearchableSelect 
-                                                    options={ALL_TIMEZONES}
-                                                    value={editTimezone}
-                                                    onChange={setEditTimezone}
-                                                />
-                                            ) : (
-                                                <span className="detail-value" title={p.timezone}>
-                                                    <Globe size={12} /> {p.timezone || 'UTC'}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="detail-item">
-                                            <span className="detail-label">RFI Start #</span>
-                                            {editingProject === p.id ? (
-                                                <input 
-                                                    type="number"
-                                                    min="1"
-                                                    className="detail-input"
-                                                    value={editStartNumber}
-                                                    onChange={e => setEditStartNumber(e.target.value)}
-                                                    onClick={e => e.stopPropagation()}
-                                                />
-                                            ) : (
-                                                <span className="detail-value">{p.rfi_start_number || 1}</span>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="project-card-details" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1rem', marginTop: '1rem' }}>
-                                        <div className="detail-item" style={{ flex: '1 1 100%' }}>
-                                            <span className="detail-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#475569', fontWeight: 700, marginBottom: '0.5rem' }}>
-                                                <Shield size={14} /> Subscription & Access Management
+                                        <div className="bento-box">
+                                            <span className="bento-label">TIMEZONE</span>
+                                            <span className="bento-value" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                <Globe size={12} /> {p.timezone?.split('/').pop().replace(/_/g, ' ') || 'UTC'}
                                             </span>
                                         </div>
-                                        
-                                        <div className="detail-item">
-                                            <span className="detail-label">Status</span>
-                                            {editingProject === p.id ? (
-                                                <select 
-                                                    className="detail-select"
-                                                    value={editSubscriptionStatus}
-                                                    onChange={e => setEditSubscriptionStatus(e.target.value)}
-                                                    onClick={e => e.stopPropagation()}
-                                                >
-                                                    <option value="trial">Trial</option>
-                                                    <option value="active">Active</option>
-                                                    <option value="expired">Expired</option>
-                                                </select>
-                                            ) : (
-                                                <span className={`detail-value status-pill ${p.subscription_status || 'trial'}`} style={{ 
-                                                    padding: '0.2rem 0.6rem', 
-                                                    borderRadius: '999px',
-                                                    fontSize: '0.75rem',
-                                                    fontWeight: 700,
-                                                    textTransform: 'uppercase',
-                                                    background: p.subscription_status === 'active' ? 'var(--clr-success-bg)' : p.subscription_status === 'expired' ? 'var(--clr-danger-bg)' : 'var(--clr-warning-bg)',
-                                                    color: p.subscription_status === 'active' ? 'var(--clr-success)' : p.subscription_status === 'expired' ? 'var(--clr-danger)' : 'var(--clr-warning)'
-                                                }}>
-                                                    {p.subscription_status || 'trial'}
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <div className="detail-item">
-                                            <span className="detail-label">Expiry Date</span>
-                                            {editingProject === p.id ? (
-                                                <input 
-                                                    type="date"
-                                                    className="detail-input"
-                                                    value={editSubscriptionEnd ? editSubscriptionEnd.split('T')[0] : ''}
-                                                    onChange={e => setEditSubscriptionEnd(e.target.value)}
-                                                    onClick={e => e.stopPropagation()}
-                                                />
-                                            ) : (
-                                                <span className="detail-value">
-                                                    <Clock size={12} /> {p.subscription_end ? new Date(p.subscription_end).toLocaleDateString() : 'No expiry'}
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <div className="detail-item">
-                                            <span className="detail-label">Manual Lock</span>
-                                            {editingProject === p.id ? (
-                                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={editIsLocked}
-                                                        onChange={e => setEditIsLocked(e.target.checked)}
-                                                        onClick={e => e.stopPropagation()}
-                                                    />
-                                                    <span style={{ fontSize: '0.85rem' }}>Restrict Access</span>
-                                                </label>
-                                            ) : (
-                                                <span className="detail-value" style={{ color: p.is_locked ? '#ef4444' : '#10b981' }}>
-                                                    {p.is_locked ? 'Locked' : 'Open'}
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {editingProject === p.id && (
-                                            <div className="detail-item" style={{ flex: '1 1 100%', marginTop: '0.5rem' }}>
-                                                <span className="detail-label">Payment Remarks</span>
-                                                <textarea 
-                                                    className="detail-input"
-                                                    style={{ height: '60px', resize: 'none' }}
-                                                    placeholder="Internal notes about payment..."
-                                                    value={editPaymentRemarks}
-                                                    onChange={e => setEditPaymentRemarks(e.target.value)}
-                                                    onClick={e => e.stopPropagation()}
-                                                />
-                                            </div>
-                                        )}
-
-                                        {/* Assignment Mode */}
-                                        <div className="detail-item" style={{ flex: '1 1 100%', marginTop: '0.5rem' }}>
-                                            <span className="detail-label">RFI Assignment Mode</span>
-                                            {editingProject === p.id ? (
-                                                <div className="assignment-mode-toggle" onClick={e => e.stopPropagation()}>
-                                                    {[
-                                                        { value: 'direct', label: 'Direct', desc: 'Contractor assigns a specific consultant' },
-                                                        { value: 'open', label: 'Open Queue', desc: 'All consultants see all RFIs, first to act wins' },
-                                                        { value: 'claim', label: 'Claim', desc: 'Consultants claim RFIs before reviewing' }
-                                                    ].map(opt => (
-                                                        <button
-                                                            key={opt.value}
-                                                            type="button"
-                                                            className={`mode-option ${editAssignmentMode === opt.value ? 'active' : ''}`}
-                                                            onClick={() => setEditAssignmentMode(opt.value)}
-                                                        >
-                                                            <span className="mode-label">{opt.label}</span>
-                                                            <span className="mode-desc">{opt.desc}</span>
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <span className="detail-value">
-                                                    <span className={`mode-badge mode-${p.assignment_mode || 'direct'}`}>
-                                                        {{ direct: '👤 Direct Assignment', open: '🌐 Open Queue', claim: '✋ Claim System' }[p.assignment_mode || 'direct']}
-                                                    </span>
-                                                </span>
-                                            )}
+                                        <div className="bento-box">
+                                            <span className="bento-label">RFI START #</span>
+                                            <span className="bento-value">{p.rfi_start_number || 1000}</span>
                                         </div>
                                     </div>
 
-                                    {/* Review Table Display Settings */}
-                                    {editingProject === p.id && (
-                                        <div className="project-card-details" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1rem', marginTop: '1rem' }}>
-                                            <div className="detail-item" style={{ flex: '1 1 100%' }}>
-                                                <span className="detail-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#475569', fontWeight: 700, marginBottom: '0.5rem' }}>
-                                                    <Eye size={14} /> Review Table Display
-                                                </span>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }} onClick={e => e.stopPropagation()}>
-                                                    <label style={{
-                                                        display: 'flex', alignItems: 'center', gap: '0.6rem',
-                                                        padding: '0.5rem 0.85rem', borderRadius: '10px', cursor: 'pointer',
-                                                        background: editShowFilerInfo ? '#ecfdf5' : '#f8fafc',
-                                                        border: `1px solid ${editShowFilerInfo ? '#a7f3d0' : '#e2e8f0'}`,
-                                                        transition: 'all 0.2s', fontSize: '0.85rem', fontWeight: 600,
-                                                        color: editShowFilerInfo ? '#059669' : '#64748b'
-                                                    }}>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={editShowFilerInfo}
-                                                            onChange={e => setEditShowFilerInfo(e.target.checked)}
-                                                            style={{ accentColor: '#059669' }}
-                                                        />
-                                                        Show Contractor Name & Avatar
-                                                    </label>
-                                                    <label style={{
-                                                        display: 'flex', alignItems: 'center', gap: '0.6rem',
-                                                        padding: '0.5rem 0.85rem', borderRadius: '10px', cursor: 'pointer',
-                                                        background: editShowEscalatedBadge ? '#fef2f2' : '#f8fafc',
-                                                        border: `1px solid ${editShowEscalatedBadge ? '#fecaca' : '#e2e8f0'}`,
-                                                        transition: 'all 0.2s', fontSize: '0.85rem', fontWeight: 600,
-                                                        color: editShowEscalatedBadge ? '#dc2626' : '#64748b'
-                                                    }}>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={editShowEscalatedBadge}
-                                                            onChange={e => setEditShowEscalatedBadge(e.target.checked)}
-                                                            style={{ accentColor: '#dc2626' }}
-                                                        />
-                                                        Show Escalated Badge
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="project-card-actions" onClick={e => e.stopPropagation()}>
-                                        {editingProject === p.id ? (
-                                            <>
-                                                <button className="btn-save" onClick={() => handleUpdateProjectDetails(p.id)}><Save size={14} /> Save Changes</button>
-                                                <button className="btn-cancel" onClick={() => setEditingProject(null)}><X size={14} /></button>
-                                            </>
-                                        ) : (
-                                            <button className="btn-edit" onClick={() => { 
-                                                setEditingProject(p.id); 
-                                                setEditCode(p.code || ''); 
-                                                setEditTimezone(p.timezone || 'UTC');
-                                                setEditSubscriptionStatus(p.subscription_status || 'trial');
-                                                setEditSubscriptionEnd(p.subscription_end || '');
-                                                setEditIsLocked(p.is_locked || false);
-                                                setEditPaymentRemarks(p.payment_remarks || '');
-                                                setEditStartNumber(p.rfi_start_number || 1);
-                                                setEditAssignmentMode(p.assignment_mode || 'direct');
-                                                setEditShowFilerInfo(p.show_filer_info !== false);
-                                                setEditShowEscalatedBadge(p.show_escalated_badge !== false);
-                                            }}>
-                                                Edit Project Details
-                                            </button>
-                                        )}
-                                    </div>
+                                    <button 
+                                        className="btn-edit-project-overlay" 
+                                        onClick={(e) => { 
+                                            e.stopPropagation();
+                                            setEditingProject(p);
+                                            setEditCode(p.code || ''); 
+                                            setEditTimezone(p.timezone || 'UTC');
+                                            setEditSubscriptionStatus(p.subscription_status || 'trial');
+                                            setEditSubscriptionEnd(p.subscription_end || '');
+                                            setEditIsLocked(p.is_locked || false);
+                                            setEditPaymentRemarks(p.payment_remarks || '');
+                                            setEditStartNumber(p.rfi_start_number || 1);
+                                            setEditAssignmentMode(p.assignment_mode || 'direct');
+                                            setEditShowFilerInfo(p.show_filer_info !== false);
+                                            setEditShowEscalatedBadge(p.show_escalated_badge !== false);
+                                        }}
+                                    >
+                                        Edit Project Details
+                                    </button>
                                 </div>
                             ))}
                         </div>
+
+                        {/* Project Edit Overlay */}
+                        {editingProject && (
+                            <ProjectEditOverlay 
+                                project={editingProject}
+                                onClose={() => setEditingProject(null)}
+                                onSave={() => handleUpdateProjectDetails(editingProject.id)}
+                                editState={{
+                                    code: editCode,
+                                    timezone: editTimezone,
+                                    startNumber: editStartNumber,
+                                    subscriptionStatus: editSubscriptionStatus,
+                                    subscriptionEnd: editSubscriptionEnd,
+                                    isLocked: editIsLocked,
+                                    paymentRemarks: editPaymentRemarks,
+                                    assignmentMode: editAssignmentMode,
+                                    showFilerInfo: editShowFilerInfo,
+                                    showEscalatedBadge: editShowEscalatedBadge
+                                }}
+                                setEditState={(update) => {
+                                    if (typeof update === 'function') {
+                                        const next = update({
+                                            code: editCode, timezone: editTimezone, startNumber: editStartNumber,
+                                            subscriptionStatus: editSubscriptionStatus, subscriptionEnd: editSubscriptionEnd,
+                                            isLocked: editIsLocked, paymentRemarks: editPaymentRemarks,
+                                            assignmentMode: editAssignmentMode, showFilerInfo: editShowFilerInfo,
+                                            showEscalatedBadge: editShowEscalatedBadge
+                                        });
+                                        setEditCode(next.code);
+                                        setEditTimezone(next.timezone);
+                                        setEditStartNumber(next.startNumber);
+                                        setEditSubscriptionStatus(next.subscriptionStatus);
+                                        setEditSubscriptionEnd(next.subscriptionEnd);
+                                        setEditIsLocked(next.isLocked);
+                                        setEditPaymentRemarks(next.paymentRemarks);
+                                        setEditAssignmentMode(next.assignmentMode);
+                                        setEditShowFilerInfo(next.showFilerInfo);
+                                        setEditShowEscalatedBadge(next.showEscalatedBadge);
+                                    }
+                                }}
+                            />
+                        )}
                     </div>
                 )}
 
@@ -1388,6 +1424,194 @@ export default function AdminDashboard() {
                 )}
 
             </main>
+            <style jsx>{`
+                /* Bento Style Project Cards */
+                .admin-project-grid-premium {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+                    gap: 1.5rem;
+                    margin-top: 1rem;
+                }
+                .project-card-premium {
+                    background: #ffffff;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 20px;
+                    padding: 1.5rem;
+                    position: relative;
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    cursor: pointer;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1.25rem;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                }
+                .project-card-premium:hover {
+                    border-color: #6366f1;
+                    transform: translateY(-4px);
+                    box-shadow: 0 12px 20px -8px rgba(99, 102, 241, 0.15);
+                }
+                .project-card-premium.active {
+                    border-color: #6366f1;
+                    background: #f8fafc;
+                }
+                .project-card-main {
+                    display: flex;
+                    gap: 1rem;
+                    align-items: flex-start;
+                }
+                .project-card-icon {
+                    width: 44px;
+                    height: 44px;
+                    background: #f1f5f9;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #64748b;
+                }
+                .project-card-content {
+                    flex: 1;
+                }
+                .project-card-header-row {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 0.25rem;
+                }
+                .project-card-header-row h3 {
+                    font-size: 1.1rem;
+                    font-weight: 700;
+                    color: #0f172a;
+                    margin: 0;
+                }
+                .project-desc {
+                    font-size: 0.85rem;
+                    color: #64748b;
+                    margin: 0;
+                    display: -webkit-box;
+                    -webkit-line-clamp: 1;
+                    -webkit-box-orient: vertical;
+                    overflow: hidden;
+                }
+                .active-tag-condensed {
+                    background: #0f172a;
+                    color: #fff;
+                    font-size: 0.65rem;
+                    font-weight: 800;
+                    padding: 2px 8px;
+                    border-radius: 6px;
+                    letter-spacing: 0.05em;
+                }
+                .subscription-pill {
+                    font-size: 0.7rem;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    padding: 2px 10px;
+                    border-radius: 20px;
+                }
+                .subscription-pill.active { background: #dcfce7; color: #15803d; }
+                .subscription-pill.trial { background: #fef9c3; color: #854d0e; }
+                .subscription-pill.expired { background: #fee2e2; color: #b91c1c; }
+
+                .project-card-bento {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 0.75rem;
+                    background: #f8fafc;
+                    padding: 1rem;
+                    border-radius: 16px;
+                }
+                .bento-box {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 2px;
+                }
+                .bento-label {
+                    font-size: 0.65rem;
+                    font-weight: 700;
+                    color: #94a3b8;
+                    letter-spacing: 0.05em;
+                }
+                .bento-value {
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    color: #334155;
+                }
+                .btn-edit-project-overlay {
+                    background: #0f172a;
+                    color: #fff;
+                    border: none;
+                    padding: 0.75rem;
+                    border-radius: 12px;
+                    font-weight: 700;
+                    font-size: 0.9rem;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .btn-edit-project-overlay:hover {
+                    background: #1e293b;
+                    transform: scale(1.02);
+                }
+
+                /* Overlay Styling */
+                .overlay-form-grid {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 2rem;
+                    padding: 0.5rem;
+                }
+                .overlay-section {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1rem;
+                }
+                .overlay-section-title {
+                    font-size: 0.75rem;
+                    font-weight: 800;
+                    color: #64748b;
+                    text-transform: uppercase;
+                    letter-spacing: 0.1em;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding-bottom: 0.5rem;
+                    border-bottom: 1px solid #f1f5f9;
+                }
+                .checkbox-label-modern {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 12px;
+                    padding: 1rem;
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .checkbox-label-modern:hover {
+                    border-color: #6366f1;
+                    background: #f5f3ff;
+                }
+                .checkbox-label-modern input {
+                    margin-top: 4px;
+                    width: 18px;
+                    height: 18px;
+                    accent-color: #6366f1;
+                }
+                .checkbox-meta strong {
+                    display: block;
+                    font-size: 0.9rem;
+                    color: #1e293b;
+                }
+                .checkbox-meta p {
+                    font-size: 0.75rem;
+                    color: #64748b;
+                    margin: 2px 0 0 0;
+                }
+                .project-edit-panel {
+                    padding: 2rem !important;
+                }
+            `}</style>
         </div>
     );
 }
