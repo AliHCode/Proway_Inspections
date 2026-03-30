@@ -16,6 +16,11 @@ export default function RFIDetailModal({
     orderedColumns = [], 
     onClose, 
     externalScrollTrigger,
+    onApprove,
+    onConditional,
+    onReject,
+    onCancel,
+    onEditDecision
 }) {
     const [activeTab, setActiveTab] = useState('review');
     const [tabScrollTrigger, setTabScrollTrigger] = useState(0);
