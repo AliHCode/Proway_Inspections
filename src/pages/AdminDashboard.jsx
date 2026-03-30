@@ -1678,11 +1678,13 @@ export default function AdminDashboard() {
                     transform: translateY(30px);
                     transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
                     box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+                    width: 95%;
                     max-width: 850px;
                     max-height: 85vh;
                     display: flex;
                     flex-direction: column;
                     overflow: hidden;
+                    border-radius: 28px; /* Standard rounding for centeted modal */
                 }
                 .action-sheet-overlay.open .action-sheet-panel.open,
                 .action-sheet-panel.open {
@@ -1696,6 +1698,9 @@ export default function AdminDashboard() {
                         padding: 0;
                     }
                     .action-sheet-panel {
+                        width: 100%;
+                        max-width: none;
+                        max-height: 92vh;
                         border-radius: 24px 24px 0 0;
                         transform: translateY(100%);
                     }
@@ -1752,8 +1757,19 @@ export default function AdminDashboard() {
 
                 /* Premium Overlay & Form Styles */
                 .project-edit-panel {
-                    border-radius: 32px 32px 0 0 !important;
-                    box-shadow: 0 -20px 60px rgba(15, 23, 42, 0.2) !important;
+                    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25) !important;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                }
+                
+                /* Specific Desktop Rounding */
+                @media (min-width: 641px) {
+                    .project-edit-panel {
+                        border-radius: 28px !important;
+                        transform: translateY(20px) scale(0.98);
+                    }
+                    .action-sheet-overlay.open .project-edit-panel.open {
+                        transform: translateY(0) scale(1);
+                    }
                 }
                 .project-edit-header .header-content {
                     display: flex;
@@ -1927,9 +1943,9 @@ export default function AdminDashboard() {
                     justify-content: center;
                     gap: 10px;
                     transition: all 0.2s;
-                    box-shadow: 0 8px 16px rgba(15, 23, 42, 0.15);
+                    box-shadow: 0 8px 16px rgba(15, 23, 42, 0.2);
                 }
-                .btn-premium-save:hover { transform: translateY(-1px); box-shadow: 0 10px 20px rgba(15, 23, 42, 0.2); }
+                .btn-premium-save:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15, 23, 42, 0.3); }
                 .btn-premium-save:active { transform: translateY(0); }
             `}</style>
         </div>
