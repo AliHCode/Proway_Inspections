@@ -75,7 +75,7 @@ EXECUTE FUNCTION public.handle_new_user_profile();
 -- 4. RFIs TABLE
 CREATE TABLE IF NOT EXISTS public.rfis (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  parent_id uuid REFERENCES public.rfis(id) ON DELETE SET NULL,
+  parent_id uuid REFERENCES public.rfis(id) ON DELETE CASCADE,
   serial_no integer NOT NULL,
   project_id uuid REFERENCES public.projects(id) NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   description text NOT NULL,
@@ -455,6 +455,10 @@ CREATE POLICY "Contractors can delete own RFIs" ON public.rfis
         AND public.is_project_accessible(project_id)
     );
 
+DROP POLICY IF EXISTS "Admins can delete any RFI" ON public.rfis;
+CREATE POLICY "Admins can delete any RFI" ON public.rfis 
+    FOR DELETE USING (public.is_admin());
+
 -- Security Audit Log Policies
 DROP POLICY IF EXISTS "Admins can view audit logs" ON public.security_audit_log;
 DROP POLICY IF EXISTS "Admins can manage audit logs" ON public.security_audit_log;
@@ -573,6 +577,10 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Admins can delete any comment" ON public.comments;
+CREATE POLICY "Admins can delete any comment" ON public.comments 
+    FOR DELETE USING (public.is_admin());
+
 -- Notifications Policies
 DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
 CREATE POLICY "Users can view own notifications" ON public.notifications 
@@ -587,6 +595,10 @@ CREATE POLICY "Users can view own notifications" ON public.notifications
 
 DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications;
 CREATE POLICY "Users can update own notifications" ON public.notifications FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admins can delete any notification" ON public.notifications;
+CREATE POLICY "Admins can delete any notification" ON public.notifications 
+    FOR DELETE USING (public.is_admin());
 
 DROP POLICY IF EXISTS "Authenticated users can insert notifications" ON public.notifications;
 CREATE POLICY "Authenticated users can insert notifications" ON public.notifications FOR INSERT WITH CHECK (auth.role() = 'authenticated');
@@ -614,6 +626,10 @@ CREATE POLICY "Users can delete own push subscriptions" ON public.push_subscript
 -- Audit Log Policies
 DROP POLICY IF EXISTS "Authenticated users can view audit logs" ON public.audit_log;
 CREATE POLICY "Authenticated users can view audit logs" ON public.audit_log FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Admins can delete audit logs" ON public.audit_log;
+CREATE POLICY "Admins can delete audit logs" ON public.audit_log 
+    FOR DELETE USING (public.is_admin());
 
 DROP POLICY IF EXISTS "Authenticated users can insert audit logs" ON public.audit_log;
 CREATE POLICY "Authenticated users can insert audit logs" ON public.audit_log FOR INSERT WITH CHECK (auth.role() = 'authenticated');
