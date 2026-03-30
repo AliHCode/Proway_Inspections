@@ -1142,12 +1142,30 @@ export default function ReviewQueue() {
                                 <div className="sheet-history-list">
                                     {actionSheetTarget.internalReviews.map((rev, idx) => (
                                         <div key={rev.id || idx} className="sheet-history-item">
-                                            <div className="history-meta">
-                                                <UserAvatar name={rev.reviewer?.name} url={rev.reviewer?.avatar_url} size={24} />
-                                                <span className="history-name">{rev.reviewer?.name}</span>
-                                                <StatusBadge status={rev.status_recommendation} />
+                                            <div className="bubble-avatar">
+                                                <UserAvatar name={rev.reviewer?.name} avatarUrl={rev.reviewer?.avatar_url} size={32} />
                                             </div>
-                                            {rev.remarks && <p className="history-remarks">{rev.remarks}</p>}
+                                            <div className="history-meta">
+                                                <div className="history-header">
+                                                    <span className="history-name">{rev.reviewer?.name || 'Consultant'}</span>
+                                                    <div className={`compact-status-badge ${rev.status_recommendation}`}>
+                                                        {rev.status_recommendation === 'conditional_approve' ? 'Cond. Approved' : rev.status_recommendation.toUpperCase()}
+                                                    </div>
+                                                </div>
+                                                <div className="history-remarks">{rev.remarks}</div>
+                                                
+                                                {rev.images && rev.images.length > 0 && (
+                                                    <div className="bubble-attachments" style={{ marginTop: '8px' }}>
+                                                        <div className="rfi-attachments-grid small">
+                                                            {rev.images.map((img, idx) => (
+                                                                <a key={idx} href={img} target="_blank" rel="noopener noreferrer" className="rfi-attachment-thumb" style={{ width: '50px', height: '50px' }}>
+                                                                    <img src={img} alt="Markup" />
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -1846,6 +1864,10 @@ export default function ReviewQueue() {
                     box-shadow: 0 1px 3px rgba(0,0,0,0.02);
                     display: flex;
                     gap: 12px;
+                    align-items: flex-start;
+                }
+                .bubble-avatar {
+                    flex-shrink: 0;
                 }
                 .history-meta {
                     display: flex;
@@ -1857,28 +1879,47 @@ export default function ReviewQueue() {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
+                    width: 100%;
+                    margin-bottom: 2px;
                 }
                 .history-name {
                     font-size: 0.8rem;
                     font-weight: 700;
                     color: #1e293b;
                 }
-                .history-badge {
+                
+                .compact-status-badge {
                     font-size: 0.65rem;
                     font-weight: 800;
                     padding: 2px 8px;
                     border-radius: 6px;
+                    text-transform: uppercase;
                 }
-                .history-badge.approved { background: #dcfce7; color: #166534; }
-                .history-badge.conditional_approve { background: #fef3c7; color: #92400e; }
-                .history-badge.rejected { background: #fee2e2; color: #991b1b; }
+                .compact-status-badge.approved { background: #dcfce7; color: #166534; }
+                .compact-status-badge.conditional_approve { background: #fef3c7; color: #92400e; }
+                .compact-status-badge.rejected { background: #fee2e2; color: #991b1b; }
                 
                 .history-remarks {
                     font-size: 0.8rem;
                     color: #475569;
                     margin: 0;
                     line-height: 1.4;
-                    margin-top: 4px;
+                }
+
+                .bubble-attachments .rfi-attachments-grid.small {
+                    display: flex;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                }
+                .bubble-attachments .rfi-attachment-thumb {
+                    border-radius: 8px;
+                    overflow: hidden;
+                    border: 1px solid #e2e8f0;
+                }
+                .bubble-attachments .rfi-attachment-thumb img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
                 }
 
                 .sheet-finalize-card {
