@@ -2159,6 +2159,7 @@ export function RFIProvider({ children }) {
                 addComment,
                 updateComment,
                 deleteComment,
+                submitInternalReview,
                 canUserEditRfi: (rfi) => canUserEditRfiRecord(rfi, user, activeProject),
                 canUserDiscussRfi: (rfi) => canUserDiscussRfiRecord(rfi, user, activeProject),
                 markNotificationRead,
