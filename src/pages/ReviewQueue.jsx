@@ -79,33 +79,31 @@ export default function ReviewQueue() {
     };
 
     const baseItems = useMemo(() => {
-        // Collect everything for today without duplicates
         const allSet = new Map();
+        const realToday = getToday();
         
-        // Items filed today
-        rfis.filter(r => r.filedDate?.startsWith(currentDate))
-            .forEach(r => {
-                const realToday = getToday();
-                if (currentDate < realToday && (r.status === 'pending' || r.status === 'verification_pending')) {
-                    // Do not show currently pending RFIs on past dates (they belong to 'today')
-                    return;
-                }
-                allSet.set(r.id, r);
-            });
-            
-        // Items reviewed today
+        // 1. Items reviewed/finalized on this specific date (Snapshot History)
         rfis.filter(r => r.reviewedAt?.startsWith(currentDate))
             .forEach(r => allSet.set(r.id, r));
             
-        // Include pending items from getReviewQueue (handles carryovers/history if needed)
-        queue.all.forEach(r => allSet.set(r.id, r));
-        
+        // 2. If viewing 'Today', include all active items in the queue (Carryovers + New)
+        if (currentDate === realToday) {
+            // These are items from 'today's' active work queue
+            queue.all.forEach(r => allSet.set(r.id, r));
+            
+            // Failsafe: Include items filed today that are pending
+            rfis.filter(r => r.filedDate?.startsWith(currentDate) && 
+                       (r.status === 'pending' || r.status === 'verification_pending'))
+                .forEach(r => allSet.set(r.id, r));
+        }
+            
         return Array.from(allSet.values());
     }, [rfis, currentDate, queue.all]);
 
     const FILTER_EXCLUDED_COLUMNS = new Set(['serial', 'actions', 'attachments']);
     const visibleColumns = useMemo(() => {
         let cols = orderedTableColumns;
+        
         if (assignmentMode !== 'direct') {
             cols = cols.filter(col => col.field_key !== 'assigned_to');
         }
@@ -525,7 +523,7 @@ export default function ReviewQueue() {
             // If claimed by someone else, show locked name badge for consultants
             if (rfi.assignedTo && rfi.assignedTo !== user.id && rfi.reviewedBy !== user.id) {
                 if (user?.role === 'consultant') {
-                    const claimerName = rfi.assigneeName || 'Another Consultant';
+                    const claimerName = rfi.assigneeName || rfi.reviewerName || 'Consultant';
                     return (
                         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                             <span className="badge-ghost-locked">
@@ -865,20 +863,6 @@ export default function ReviewQueue() {
                                                         {(() => {
                                                             const consultantName = rfi.reviewerName || rfi.assigneeName;
                                                             const isMe = rfi.reviewedBy === user.id || (rfi.status === 'pending' && rfi.assignedTo === user.id);
-                                                            
-                                                            if (assignmentMode === 'open') {
-                                                                if (consultantName) {
-                                                                    return <span className={`assign-badge ${isMe ? 'is-me' : ''}`}>{isMe ? <><UserPlus size={14} className="badge-icon" /> You</> : consultantName}</span>;
-                                                                }
-                                                                return <span className="assign-badge mode-open-badge">Open</span>;
-                                                            }
-                                                            
-                                                            if (assignmentMode === 'claim') {
-                                                                if (consultantName) {
-                                                                    return <span className={`assign-badge ${isMe ? 'is-me' : ''}`}>{isMe ? <><UserPlus size={14} className="badge-icon" /> You</> : consultantName}</span>;
-                                                                }
-                                                                return <span className="assign-badge mode-claim-badge">Unclaimed</span>;
-                                                            }
                                                             
                                                             // Direct mode
                                                             if (!consultantName) return <span className="text-muted">— Auto —</span>;

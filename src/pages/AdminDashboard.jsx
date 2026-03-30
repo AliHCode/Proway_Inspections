@@ -180,15 +180,8 @@ function ProjectEditOverlay({
     if (!project) return null;
 
     return createPortal(
-        <div className="action-sheet-overlay open" onClick={onClose} style={{ zIndex: 10000 }}>
-            <div className="action-sheet-panel project-edit-panel open" onClick={e => e.stopPropagation()} style={{ 
-                maxWidth: '650px', 
-                height: 'auto', 
-                maxHeight: '90vh', 
-                borderRadius: '24px 24px 0 0',
-                display: 'flex',
-                flexDirection: 'column'
-            }}>
+        <div className="action-sheet-overlay open" onClick={onClose}>
+            <div className="action-sheet-panel project-edit-panel open" onClick={e => e.stopPropagation()}>
                 <div className="sheet-handle"></div>
                 
                 <div className="action-sheet-header project-edit-header">
@@ -1671,33 +1664,56 @@ export default function AdminDashboard() {
                 .action-sheet-overlay.open {
                     opacity: 1;
                     visibility: visible;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 20px;
                 }
                 .action-sheet-panel {
-                    position: fixed;
-                    bottom: 0;
-                    left: 0;
-                    right: 0;
+                    position: relative;
                     background: #fff;
-                    border-top-left-radius: 24px;
-                    border-top-right-radius: 24px;
+                    border-radius: 24px;
                     padding: 24px 20px calc(24px + env(safe-area-inset-bottom, 0px));
                     z-index: 10001;
-                    transform: translateY(100%);
-                    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-                    box-shadow: 0 -10px 40px rgba(0,0,0,0.15);
+                    transform: translateY(30px);
+                    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
                     max-width: 650px;
-                    margin: 0 auto;
+                    width: 100%;
+                    max-height: 90vh;
+                    display: flex;
+                    flex-direction: column;
                 }
                 .action-sheet-overlay.open .action-sheet-panel.open,
                 .action-sheet-panel.open {
                     transform: translateY(0);
                 }
+                
+                /* Mobile Overrides if needed, but for now we stick to centered for premium feel */
+                @media (max-width: 640px) {
+                    .action-sheet-overlay.open {
+                        align-items: flex-end;
+                        padding: 0;
+                    }
+                    .action-sheet-panel {
+                        border-radius: 24px 24px 0 0;
+                        transform: translateY(100%);
+                    }
+                    .action-sheet-overlay.open .action-sheet-panel.open {
+                        transform: translateY(0);
+                    }
+                }
+
                 .sheet-handle {
                     width: 40px;
                     height: 5px;
                     background: #e2e8f0;
                     border-radius: 5px;
                     margin: -10px auto 15px;
+                    display: none;
+                }
+                @media (max-width: 640px) {
+                   .sheet-handle { display: block; }
                 }
                 .action-sheet-header {
                     margin-bottom: 24px;
