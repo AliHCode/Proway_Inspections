@@ -3,7 +3,7 @@ import { useProject } from '../context/ProjectContext';
 import {
     Menu, X, Briefcase, UserCircle,
     LayoutGrid, ScrollText, ListChecks, Activity, ChevronDown,
-    Building2, Database, FileSpreadsheet, Archive, Search,
+    Building2, Database, FileSpreadsheet, Archive,
     BarChart3, Settings2, LifeBuoy, Edit2,
     ShieldCheck, Power, GitBranch, Smartphone, FileSearch
 } from 'lucide-react';
@@ -14,6 +14,8 @@ import NotificationCenter from './NotificationCenter';
 import MFAEnrollmentModal from './MFAEnrollmentModal';
 import { toast } from 'react-hot-toast';
 import { syncPushSubscriptionForUser, unregisterCurrentPushSubscription } from '../utils/pushNotifications';
+
+let desktopSidebarShouldStayOpen = false;
 
 export default function Header() {
     const { user, logout, mfaFactors } = useAuth();
@@ -28,7 +30,7 @@ export default function Header() {
     const [mfaModalOpen, setMfaModalOpen] = useState(false);
     const [notifPermission, setNotifPermission] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported');
     const [pushBadge, setPushBadge] = useState({ state: 'checking', label: 'Push: Checking' });
-    const [desktopNavSearch, setDesktopNavSearch] = useState('');
+    const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(desktopSidebarShouldStayOpen);
 
     const projectRef = useRef(null);
     const menuRef = useRef(null);
@@ -306,75 +308,54 @@ export default function Header() {
         return sections;
     }, [contractorPermissions.canManageContractorPermissions, dashPath, isAdmin, isConsultant, isContractor, location.pathname]);
 
-    const filteredDesktopSections = useMemo(() => {
-        const term = desktopNavSearch.trim().toLowerCase();
-        if (!term) return navSections;
-
-        return navSections
-            .map((section) => ({
-                ...section,
-                items: section.items.filter((item) => item.label.toLowerCase().includes(term)),
-            }))
-            .filter((section) => section.items.length > 0);
-    }, [desktopNavSearch, navSections]);
-
     const mobileNavItems = navSections.flatMap((section) => section.items);
 
     return (
         <>
-            <aside className="desktop-sidebar-nav desktop-only" aria-label="Desktop navigation">
+            <aside
+                className={`desktop-sidebar-nav desktop-only ${desktopSidebarExpanded ? 'expanded' : ''}`}
+                aria-label="Desktop navigation"
+                onMouseEnter={() => {
+                    desktopSidebarShouldStayOpen = true;
+                    setDesktopSidebarExpanded(true);
+                }}
+                onMouseLeave={() => {
+                    desktopSidebarShouldStayOpen = false;
+                    setDesktopSidebarExpanded(false);
+                }}
+            >
                 <button className="desktop-sidebar-brand" onClick={() => handleMenuNavigation(dashPath)}>
                     <img
                         src="/dashboardlogo.png"
                         alt="ProWay Logo"
                         className="desktop-sidebar-brand-logo"
                     />
-                    <div className="desktop-sidebar-brand-copy">
-                        <strong>{user.name || 'User'}</strong>
-                        <span>{roleLabel} workspace</span>
-                    </div>
-                    <ChevronDown size={14} className="desktop-sidebar-brand-caret" />
                 </button>
 
-                <div className="desktop-sidebar-search">
-                    <Search size={16} />
-                    <input
-                        type="text"
-                        value={desktopNavSearch}
-                        onChange={(event) => setDesktopNavSearch(event.target.value)}
-                        placeholder="Quick search..."
-                    />
-                    <span className="desktop-sidebar-search-hint">Ctrl K</span>
-                </div>
-
                 <div className="desktop-sidebar-scroll">
-                    {filteredDesktopSections.length === 0 ? (
-                        <div className="desktop-sidebar-empty">No matching menu items</div>
-                    ) : (
-                        filteredDesktopSections.map((section) => (
-                            <div key={section.label || 'default'} className="desktop-sidebar-section">
-                                {section.label && <div className="desktop-sidebar-section-title">{section.label}</div>}
-                                <div className="desktop-sidebar-section-items">
-                                    {section.items.map((item) => {
-                                        const Icon = item.icon;
-                                        return (
-                                            <button
-                                                key={item.path}
-                                                onClick={() => handleMenuNavigation(item.path)}
-                                                className={`desktop-sidebar-item ${item.active ? 'active' : ''}`}
-                                            >
-                                                <span className="desktop-sidebar-item-icon">
-                                                    <Icon size={18} strokeWidth={1.8} />
-                                                </span>
-                                                <span className="desktop-sidebar-item-label">{item.label}</span>
-                                                <ChevronDown size={14} className="desktop-sidebar-item-caret" />
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                    {navSections.map((section) => (
+                        <div key={section.label || 'default'} className="desktop-sidebar-section">
+                            {section.label && <div className="desktop-sidebar-section-title">{section.label}</div>}
+                            <div className="desktop-sidebar-section-items">
+                                {section.items.map((item) => {
+                                    const Icon = item.icon;
+                                    return (
+                                        <button
+                                            key={item.path}
+                                            onClick={() => handleMenuNavigation(item.path)}
+                                            className={`desktop-sidebar-item ${item.active ? 'active' : ''}`}
+                                        >
+                                            <span className="desktop-sidebar-item-icon">
+                                                <Icon size={18} strokeWidth={1.8} />
+                                            </span>
+                                            <span className="desktop-sidebar-item-label">{item.label}</span>
+                                            <ChevronDown size={14} className="desktop-sidebar-item-caret" />
+                                        </button>
+                                    );
+                                })}
                             </div>
-                        ))
-                    )}
+                        </div>
+                    ))}
                 </div>
             </aside>
 
