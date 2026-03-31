@@ -61,9 +61,7 @@ const DEFAULT_TEMPLATE = {
         columnLabels: {},
         columnWidths: {},
         hiddenColumnKeys: [],
-        groupedHeaders: [
-            { title: 'Chainage', fromKey: 'chainage_from', toKey: 'chainage_to' },
-        ],
+        groupedHeaders: [],
     },
     canvas: {
         width: A4_LANDSCAPE_WIDTH,
@@ -566,72 +564,67 @@ export default function AdminFormatDesigner() {
         }));
     };
 
-    const previewHeaderKeys = useMemo(() => visiblePreviewColumns.map((column) => column.field_key), [visiblePreviewColumns]);
-
     const previewGroupedHeaders = useMemo(() => {
         return (template?.tableConfig?.groupedHeaders || [])
             .map((group) => {
-                const start = previewHeaderKeys.indexOf(group.fromKey);
-                const end = previewHeaderKeys.indexOf(group.toKey);
-                if (start < 0 || end < 0 || end <= start) return null;
-                return { ...group, start, end, span: end - start + 1 };
+                const columnKey = group.columnKey || group.fromKey || group.toKey;
+                const columnIndex = visiblePreviewColumns.findIndex((column) => column.field_key === columnKey);
+                if (columnIndex < 0) return null;
+                return {
+                    ...group,
+                    columnKey,
+                    columnIndex,
+                    leftLabel: group.leftLabel || group.fromLabel || 'Left',
+                    rightLabel: group.rightLabel || group.toLabel || 'Right',
+                };
             })
             .filter(Boolean)
-            .sort((a, b) => a.start - b.start);
-    }, [template?.tableConfig?.groupedHeaders, previewHeaderKeys]);
+            .filter((group, index, all) => all.findIndex((item) => item.columnKey === group.columnKey) === index)
+            .sort((a, b) => a.columnIndex - b.columnIndex);
+    }, [template?.tableConfig?.groupedHeaders, visiblePreviewColumns]);
 
     const groupedHeaderPreview = useMemo(() => {
-        if (previewGroupedHeaders.length === 0) {
-            return {
-                hasGroups: false,
-                topCells: visiblePreviewColumns.map((column) => ({
-                    key: column.field_key,
-                    fieldKey: column.field_key,
-                    label: template.tableConfig.columnLabels?.[column.field_key] || column.field_name,
-                    rowSpan: 1,
-                    colSpan: 1,
-                })),
-                secondRow: [],
-            };
-        }
-
+        const splitMap = new Map(previewGroupedHeaders.map((group) => [group.columnKey, group]));
+        const hasGroups = previewGroupedHeaders.length > 0;
         const topCells = [];
         const secondRow = [];
-        let index = 0;
+        const visualColumns = [];
 
-        while (index < visiblePreviewColumns.length) {
-            const group = previewGroupedHeaders.find((item) => item.start === index);
-            if (group) {
+        visiblePreviewColumns.forEach((column) => {
+            const split = splitMap.get(column.field_key);
+            const label = template.tableConfig.columnLabels?.[column.field_key] || column.field_name;
+            const width = getColumnWidthValue(column.field_key);
+
+            if (split) {
                 topCells.push({
-                    key: `group_${group.title}_${index}`,
-                    label: group.title,
-                    colSpan: group.span,
+                    key: column.field_key,
+                    fieldKey: column.field_key,
+                    label,
                     rowSpan: 1,
+                    colSpan: 2,
                 });
-                for (let inner = group.start; inner <= group.end; inner += 1) {
-                    const column = visiblePreviewColumns[inner];
-                    secondRow.push({
-                        key: column.field_key,
-                        fieldKey: column.field_key,
-                        label: template.tableConfig.columnLabels?.[column.field_key] || column.field_name,
-                    });
-                }
-                index += group.span;
-                continue;
+                secondRow.push(
+                    { key: `${column.field_key}_left`, fieldKey: column.field_key, label: split.leftLabel },
+                    { key: `${column.field_key}_right`, fieldKey: column.field_key, label: split.rightLabel }
+                );
+                visualColumns.push(
+                    { key: `${column.field_key}_left`, fieldKey: column.field_key, width: Math.max(30, Math.round(width / 2)) },
+                    { key: `${column.field_key}_right`, fieldKey: column.field_key, width: Math.max(30, Math.round(width / 2)) }
+                );
+                return;
             }
 
-            const column = visiblePreviewColumns[index];
             topCells.push({
                 key: column.field_key,
                 fieldKey: column.field_key,
-                label: template.tableConfig.columnLabels?.[column.field_key] || column.field_name,
-                rowSpan: 2,
+                label,
+                rowSpan: hasGroups ? 2 : 1,
                 colSpan: 1,
             });
-            index += 1;
-        }
+            visualColumns.push({ key: column.field_key, fieldKey: column.field_key, width });
+        });
 
-        return { hasGroups: true, topCells, secondRow };
+        return { hasGroups, topCells, secondRow, visualColumns, splitMap };
     }, [visiblePreviewColumns, previewGroupedHeaders, template.tableConfig.columnLabels]);
 
     const sortedElements = useMemo(() => {
@@ -910,36 +903,35 @@ export default function AdminFormatDesigner() {
     };
 
     const addGroupedHeader = () => {
-        if (previewColumns.length < 2) return;
-        const fromKey = previewColumns[0]?.field_key || '';
-        const toKey = previewColumns[1]?.field_key || fromKey;
+        if (exportColumnOptions.length === 0) return;
+        const columnKey = exportColumnOptions[0]?.field_key || '';
+        if (!columnKey) return;
         setTemplate((previous) => ({
             ...previous,
             tableConfig: {
                 ...previous.tableConfig,
                 groupedHeaders: [
                     ...(previous.tableConfig.groupedHeaders || []),
-                    { title: 'New Group', fromKey, toKey },
+                    { columnKey, leftLabel: 'Left', rightLabel: 'Right' },
                 ],
             },
         }));
     };
 
-    const addGroupedHeaderPreset = (title, fromCandidates = [], toCandidates = []) => {
-        const fromKey = fromCandidates.find((key) => exportColumnOptions.some((column) => column.field_key === key));
-        const toKey = toCandidates.find((key) => exportColumnOptions.some((column) => column.field_key === key));
+    const addGroupedHeaderPreset = (columnCandidates = [], leftLabel = 'From', rightLabel = 'To') => {
+        const columnKey = columnCandidates.find((key) => exportColumnOptions.some((column) => column.field_key === key));
 
-        if (!fromKey || !toKey) {
-            toast.error(`Couldn't find matching columns for ${title}`);
+        if (!columnKey) {
+            toast.error(`Couldn't find a matching column for this split`);
             return;
         }
 
         setTemplate((previous) => {
             const groupedHeaders = previous.tableConfig.groupedHeaders || [];
-            const existingIndex = groupedHeaders.findIndex((group) => group.fromKey === fromKey && group.toKey === toKey);
+            const existingIndex = groupedHeaders.findIndex((group) => (group.columnKey || group.fromKey || group.toKey) === columnKey);
             const nextGroups = existingIndex >= 0
-                ? groupedHeaders.map((group, index) => (index === existingIndex ? { ...group, title } : group))
-                : [...groupedHeaders, { title, fromKey, toKey }];
+                ? groupedHeaders.map((group, index) => (index === existingIndex ? { ...group, columnKey, leftLabel, rightLabel } : group))
+                : [...groupedHeaders, { columnKey, leftLabel, rightLabel }];
 
             return {
                 ...previous,
@@ -949,7 +941,7 @@ export default function AdminFormatDesigner() {
                 },
             };
         });
-        toast.success(`${title} split header ready`);
+        toast.success(`Header split ready`);
     };
 
     const updateGroupedHeader = (index, patch) => {
@@ -1471,19 +1463,19 @@ export default function AdminFormatDesigner() {
                     <div className="studio-grouped-header-block">
                         <div className="studio-section-heading">
                             <div>
-                                <h4>Grouped headers</h4>
-                                <p>Use this for spans like chainage or package grouping.</p>
+                                <h4>Visual split headers</h4>
+                                <p>Split one selected column header into a top title plus two custom lower labels.</p>
                             </div>
-                            <button className="terminal-btn" onClick={addGroupedHeader}>Add group</button>
+                            <button className="terminal-btn" onClick={addGroupedHeader}>Add split</button>
                         </div>
 
                         <div className="studio-tip-card compact">
-                            <strong>Split one header into two cells</strong>
-                            <p>For layouts like `Chainage` with `From` and `To` below it, use a grouped header. The top cell becomes the group title and the two lower columns stay as separate fields.</p>
+                            <strong>Visual split inside one column</strong>
+                            <p>Pick one column like `Chainage`. Its normal heading stays on top, and you can place your own custom labels like `From` and `To` underneath just for the export layout.</p>
                             <div className="studio-inline-actions">
                                 <button
                                     className="terminal-btn"
-                                    onClick={() => addGroupedHeaderPreset('Chainage', ['chainage_from', 'from_chainage'], ['chainage_to', 'to_chainage'])}
+                                    onClick={() => addGroupedHeaderPreset(['chainage_from_to', 'chainage', 'chainage_range'], 'From', 'To')}
                                 >
                                     Add Chainage split
                                 </button>
@@ -1492,33 +1484,29 @@ export default function AdminFormatDesigner() {
 
                         {(template.tableConfig.groupedHeaders || []).length === 0 && (
                             <div className="studio-tip-card">
-                                <strong>No grouped headers yet</strong>
-                                <p>Add one if your contractor summary has multi-column headers.</p>
+                                <strong>No split headers yet</strong>
+                                <p>Add one if a PDF header cell should show two custom lower labels for visual formatting.</p>
                             </div>
                         )}
 
                         {(template.tableConfig.groupedHeaders || []).map((group, index) => (
-                            <div key={`${group.title}_${index}`} className="studio-group-card">
-                                <div className="studio-input-group">
-                                    <label>Group title</label>
-                                    <input type="text" value={group.title} onChange={(event) => updateGroupedHeader(index, { title: event.target.value })} />
-                                </div>
+                            <div key={`${group.columnKey || group.fromKey || 'split'}_${index}`} className="studio-group-card">
                                 <div className="studio-prop-grid">
                                     <div className="studio-input-group">
-                                        <label>From</label>
-                                        <select value={group.fromKey} onChange={(event) => updateGroupedHeader(index, { fromKey: event.target.value })}>
-                                            {previewColumns.map((column) => (
+                                        <label>Column</label>
+                                        <select value={group.columnKey || group.fromKey || ''} onChange={(event) => updateGroupedHeader(index, { columnKey: event.target.value })}>
+                                            {exportColumnOptions.map((column) => (
                                                 <option key={column.field_key} value={column.field_key}>{column.field_name}</option>
                                             ))}
                                         </select>
                                     </div>
                                     <div className="studio-input-group">
-                                        <label>To</label>
-                                        <select value={group.toKey} onChange={(event) => updateGroupedHeader(index, { toKey: event.target.value })}>
-                                            {previewColumns.map((column) => (
-                                                <option key={column.field_key} value={column.field_key}>{column.field_name}</option>
-                                            ))}
-                                        </select>
+                                        <label>Lower left text</label>
+                                        <input type="text" value={group.leftLabel || group.fromLabel || ''} onChange={(event) => updateGroupedHeader(index, { leftLabel: event.target.value })} />
+                                    </div>
+                                    <div className="studio-input-group">
+                                        <label>Lower right text</label>
+                                        <input type="text" value={group.rightLabel || group.toLabel || ''} onChange={(event) => updateGroupedHeader(index, { rightLabel: event.target.value })} />
                                     </div>
                                 </div>
                                 <button className="terminal-btn studio-danger-btn" onClick={() => removeGroupedHeader(index)}>
@@ -1869,10 +1857,9 @@ export default function AdminFormatDesigner() {
                                                             <div className="studio-table-preview">
                                                                 <table>
                                                                     <colgroup>
-                                                                        {visiblePreviewColumns.map((column) => {
-                                                                            const width = getColumnWidthValue(column.field_key);
-                                                                            return <col key={column.field_key} style={{ width: `${width}px` }} />;
-                                                                        })}
+                                                                        {groupedHeaderPreview.visualColumns.map((column) => (
+                                                                            <col key={column.key} style={{ width: `${column.width}px` }} />
+                                                                        ))}
                                                                     </colgroup>
                                                                     <thead
                                                                         style={{
@@ -1884,7 +1871,7 @@ export default function AdminFormatDesigner() {
                                                                     >
                                                                         <tr>
                                                                             {groupedHeaderPreview.topCells.map((cell) => (
-                                                                                <th key={cell.key} colSpan={cell.colSpan} rowSpan={cell.rowSpan}>
+                                                                                <th key={cell.key} colSpan={cell.colSpan} rowSpan={cell.rowSpan} style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                                                                                     <div
                                                                                         className="studio-table-header-cell"
                                                                                         style={{ minHeight: `${(template.tableConfig.headRowHeight || 32) * (cell.rowSpan || 1)}px` }}
@@ -1904,7 +1891,7 @@ export default function AdminFormatDesigner() {
                                                                         {groupedHeaderPreview.hasGroups && (
                                                                             <tr>
                                                                                 {groupedHeaderPreview.secondRow.map((cell) => (
-                                                                                    <th key={cell.key}>
+                                                                                    <th key={cell.key} style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                                                                                         <div
                                                                                             className="studio-table-header-cell"
                                                                                             style={{ minHeight: `${template.tableConfig.headRowHeight || 32}px` }}
@@ -1929,11 +1916,22 @@ export default function AdminFormatDesigner() {
                                                                     >
                                                                         {[1, 2, 3, 4, 5].map((row) => (
                                                                             <tr key={row} style={{ height: `${template.tableConfig.bodyRowHeight || 28}px` }}>
-                                                                                {visiblePreviewColumns.map((column) => (
-                                                                                    <td key={`${column.field_key}_${row}`} style={{ height: `${template.tableConfig.bodyRowHeight || 28}px` }}>
-                                                                                        {row === 1 ? `Sample ${template.tableConfig.columnLabels?.[column.field_key] || column.field_name}` : ''}
-                                                                                    </td>
-                                                                                ))}
+                                                                                {visiblePreviewColumns.map((column) => {
+                                                                                    const hasSplit = groupedHeaderPreview.splitMap.has(column.field_key);
+                                                                                    return (
+                                                                                        <td
+                                                                                            key={`${column.field_key}_${row}`}
+                                                                                            colSpan={hasSplit ? 2 : 1}
+                                                                                            style={{
+                                                                                                height: `${template.tableConfig.bodyRowHeight || 28}px`,
+                                                                                                textAlign: column.field_key === 'description' ? 'left' : 'center',
+                                                                                                verticalAlign: 'middle',
+                                                                                            }}
+                                                                                        >
+                                                                                            {row === 1 ? `Sample ${template.tableConfig.columnLabels?.[column.field_key] || column.field_name}` : ''}
+                                                                                        </td>
+                                                                                    );
+                                                                                })}
                                                                             </tr>
                                                                         ))}
                                                                     </tbody>
@@ -2147,7 +2145,7 @@ export default function AdminFormatDesigner() {
                                     {selectedElement.type === 'table' && (
                                         <div className="studio-tip-card compact">
                                             <strong>Table block</strong>
-                                            <p>The table stays locked inside the table zone so the exported summary remains stable. Use the left panel to change colors, labels, and grouped headers.</p>
+                                            <p>The table stays locked inside the table zone so the exported summary remains stable. Use the left panel to change colors, labels, and visual split headers.</p>
                                         </div>
                                     )}
 

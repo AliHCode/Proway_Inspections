@@ -262,96 +262,96 @@ async function drawStudioOverlayElements(doc, template, layout, context = {}, op
 }
 
 function buildGroupedHeaderMeta(headerFieldKeys = [], groupedHeaders = []) {
-    const normalizedGroups = (groupedHeaders || [])
+    return (groupedHeaders || [])
         .map((group) => {
-            const start = headerFieldKeys.indexOf(group.fromKey);
-            const end = headerFieldKeys.indexOf(group.toKey);
-            if (start < 0 || end < 0 || end <= start) return null;
+            const columnKey = group.columnKey || group.fromKey || group.toKey;
+            const index = headerFieldKeys.indexOf(columnKey);
+            if (index < 0) return null;
             return {
-                title: group.title || 'Group',
-                start,
-                end,
-                span: end - start + 1,
+                columnKey,
+                index,
+                leftLabel: group.leftLabel || group.fromLabel || 'Left',
+                rightLabel: group.rightLabel || group.toLabel || 'Right',
             };
         })
         .filter(Boolean)
-        .sort((a, b) => a.start - b.start);
-
-    const nonOverlapping = [];
-    let lastEnd = -1;
-    normalizedGroups.forEach((g) => {
-        if (g.start > lastEnd) {
-            nonOverlapping.push(g);
-            lastEnd = g.end;
-        }
-    });
-
-    return nonOverlapping;
+        .filter((group, index, all) => all.findIndex((item) => item.columnKey === group.columnKey) === index)
+        .sort((a, b) => a.index - b.index);
 }
 
-function buildPdfHeadRows(headers, groups) {
-    if (!groups || groups.length === 0) return [headers];
+function buildPdfHeadRows(headers, fieldKeys, groups) {
+    if (!groups || groups.length === 0) {
+        return [headers.map((header) => ({ content: header, styles: { halign: 'center', valign: 'middle' } }))];
+    }
 
+    const splitMap = new Map(groups.map((group) => [group.columnKey, group]));
     const topRow = [];
     const bottomRow = [];
 
-    let idx = 0;
-    while (idx < headers.length) {
-        const group = groups.find((g) => g.start === idx);
-        if (group) {
-            topRow.push({ content: group.title, colSpan: group.span, styles: { halign: 'center' } });
-            for (let j = group.start; j <= group.end; j++) {
-                bottomRow.push(headers[j]);
-            }
-            idx += group.span;
-            continue;
+    headers.forEach((header, index) => {
+        const fieldKey = fieldKeys[index];
+        const split = splitMap.get(fieldKey);
+        if (split) {
+            topRow.push({ content: header, colSpan: 2, styles: { halign: 'center', valign: 'middle' } });
+            bottomRow.push(
+                { content: split.leftLabel, styles: { halign: 'center', valign: 'middle' } },
+                { content: split.rightLabel, styles: { halign: 'center', valign: 'middle' } }
+            );
+            return;
         }
 
-        topRow.push({ content: headers[idx], rowSpan: 2, styles: { valign: 'middle', halign: 'center' } });
-        idx += 1;
-    }
+        topRow.push({ content: header, rowSpan: 2, styles: { valign: 'middle', halign: 'center' } });
+    });
 
     return [topRow, bottomRow];
 }
 
-function buildExcelGroupedHeaderRows(headers, groups, startRowIndex) {
+function buildExcelGroupedHeaderRows(headers, fieldKeys, groups, startRowIndex) {
     if (!groups || groups.length === 0) {
         return {
             rows: [headers],
             merges: [],
             bodyStartRow: startRowIndex + 1,
+            visualFieldKeys: fieldKeys,
         };
     }
 
-    const topRow = Array(headers.length).fill('');
-    const bottomRow = Array(headers.length).fill('');
+    const splitMap = new Map(groups.map((group) => [group.columnKey, group]));
+    const topRow = [];
+    const bottomRow = [];
     const merges = [];
+    const visualFieldKeys = [];
 
     headers.forEach((header, idx) => {
-        const group = groups.find((g) => idx >= g.start && idx <= g.end);
-        if (!group) {
-            topRow[idx] = header;
+        const fieldKey = fieldKeys[idx];
+        const split = splitMap.get(fieldKey);
+        const startCol = topRow.length;
+
+        if (split) {
+            topRow.push(header, '');
+            bottomRow.push(split.leftLabel, split.rightLabel);
+            visualFieldKeys.push(fieldKey, fieldKey);
             merges.push({
-                s: { r: startRowIndex, c: idx },
-                e: { r: startRowIndex + 1, c: idx },
+                s: { r: startRowIndex, c: startCol },
+                e: { r: startRowIndex, c: startCol + 1 },
             });
             return;
         }
 
-        if (idx === group.start) {
-            topRow[idx] = group.title;
-            merges.push({
-                s: { r: startRowIndex, c: group.start },
-                e: { r: startRowIndex, c: group.end },
-            });
-        }
-        bottomRow[idx] = header;
+        topRow.push(header);
+        bottomRow.push('');
+        visualFieldKeys.push(fieldKey);
+        merges.push({
+            s: { r: startRowIndex, c: startCol },
+            e: { r: startRowIndex + 1, c: startCol },
+        });
     });
 
     return {
         rows: [topRow, bottomRow],
         merges,
         bodyStartRow: startRowIndex + 2,
+        visualFieldKeys,
     };
 }
 
@@ -362,15 +362,41 @@ function resolveColumnWidthMap(columnWidthMap = {}, template = null) {
     };
 }
 
-function buildPdfColumnStyles(doc, fieldKeys = [], columnWidthMap = {}, leftMargin = 14, rightMargin = 14) {
+function buildVisualColumnSlots(fieldKeys = [], groups = [], columnWidthMap = {}) {
+    const splitMap = new Map(groups.map((group) => [group.columnKey, group]));
+    return fieldKeys.flatMap((fieldKey) => {
+        if (splitMap.has(fieldKey)) {
+            const totalWidth = sanitizeColumnWidth(columnWidthMap[fieldKey]);
+            const halfWidth = Math.max(30, Math.round(totalWidth / 2));
+            return [
+                { key: `${fieldKey}_left`, fieldKey, widthPx: halfWidth },
+                { key: `${fieldKey}_right`, fieldKey, widthPx: halfWidth },
+            ];
+        }
+
+        return [{ key: fieldKey, fieldKey, widthPx: sanitizeColumnWidth(columnWidthMap[fieldKey]) }];
+    });
+}
+
+function buildVisualBodyRows(body = [], fieldKeys = [], groups = []) {
+    const splitMap = new Map(groups.map((group) => [group.columnKey, group]));
+    return body.map((row) => fieldKeys.flatMap((fieldKey, index) => (
+        splitMap.has(fieldKey)
+            ? [{ content: row[index], colSpan: 2 }]
+            : [row[index]]
+    )));
+}
+
+function buildPdfColumnStyles(doc, visualColumns = [], leftMargin = 14, rightMargin = 14) {
     const pageWidth = doc.internal.pageSize.getWidth();
     const availableWidth = Math.max(120, pageWidth - leftMargin - rightMargin);
 
     // Gather proportional raw widths — no minimum floor so everything scales freely
-    const rawWidths = fieldKeys.map((fieldKey) => {
+    const rawWidths = visualColumns.map((column) => {
+        const fieldKey = column.fieldKey;
         if (fieldKey === 'filed_date' || fieldKey === 'review_date') return 72;
         if (!fieldKey) return 50;
-        const px = sanitizeColumnWidth(columnWidthMap[fieldKey]);
+        const px = sanitizeColumnWidth(column.widthPx);
         return px * PDF_PX_TO_PT || 50;
     });
 
@@ -474,6 +500,8 @@ export function exportToExcel(rfis, filename = 'RFI_Report', projectFields = [],
     const fieldKeys = exportData.fieldKeys;
     const body = exportData.body;
     const groupedMeta = buildGroupedHeaderMeta(fieldKeys, template.table.groupedHeaders || []);
+    const visualColumns = buildVisualColumnSlots(fieldKeys, groupedMeta, resolvedColumnWidthMap);
+    const visualBody = buildVisualBodyRows(body, fieldKeys, groupedMeta);
     const aoa = [];
 
     aoa.push([template.header.title || filename]);
@@ -487,32 +515,48 @@ export function exportToExcel(rfis, filename = 'RFI_Report', projectFields = [],
     }
     aoa.push([]);
     const headerStart = aoa.length;
-    const groupedHeaderRows = buildExcelGroupedHeaderRows(headers, groupedMeta, headerStart);
+    const groupedHeaderRows = buildExcelGroupedHeaderRows(headers, fieldKeys, groupedMeta, headerStart);
     aoa.push(...groupedHeaderRows.rows);
-    aoa.push(...body);
+    aoa.push(...visualBody.map((row) => row.map((cell) => (typeof cell === 'object' ? cell.content : cell))));
 
     const worksheet = XLSX.utils.aoa_to_sheet(aoa);
     const workbook = XLSX.utils.book_new();
 
     const headerLineCount = aoa.length - (1 + body.length);
-    const mergeEnd = Math.max(0, headers.length - 1);
+    const mergeEnd = Math.max(0, groupedHeaderRows.visualFieldKeys.length - 1);
     const baseMerges = Array.from({ length: Math.max(0, headerLineCount - groupedHeaderRows.rows.length) }, (_, idx) => ({
         s: { r: idx, c: 0 },
         e: { r: idx, c: mergeEnd },
     }));
-    worksheet['!merges'] = [...baseMerges, ...groupedHeaderRows.merges];
+    const bodyMerges = [];
+    visualBody.forEach((row, rowIndex) => {
+        let colCursor = 0;
+        row.forEach((cell) => {
+            const span = typeof cell === 'object' && cell?.colSpan ? cell.colSpan : 1;
+            if (span > 1) {
+                bodyMerges.push({
+                    s: { r: groupedHeaderRows.bodyStartRow + rowIndex, c: colCursor },
+                    e: { r: groupedHeaderRows.bodyStartRow + rowIndex, c: colCursor + span - 1 },
+                });
+            }
+            colCursor += span;
+        });
+    });
+    worksheet['!merges'] = [...baseMerges, ...groupedHeaderRows.merges, ...bodyMerges];
 
     // Auto-size columns roughly
-    const cols = headers.map((key, index) => {
+    const cols = visualColumns.map((column) => {
+        const sourceIndex = fieldKeys.indexOf(column.fieldKey);
+        const key = headers[sourceIndex] || column.fieldKey;
         const defaultWch = Math.max(
             key.length,
-            ...body.map(row => (row[index] ? row[index].toString().length : 0))
+            ...body.map(row => (row[sourceIndex] ? row[sourceIndex].toString().length : 0))
         ) + 2;
-        const mappedFieldKey = fieldKeys[index];
+        const mappedFieldKey = column.fieldKey;
         if (!mappedFieldKey || mappedFieldKey === 'filed_date' || mappedFieldKey === 'review_date') {
             return { wch: defaultWch };
         }
-        const px = sanitizeColumnWidth(resolvedColumnWidthMap[mappedFieldKey]);
+        const px = sanitizeColumnWidth(column.widthPx);
         return { wch: Math.max(defaultWch, widthPxToExcelChars(px)) };
     });
     worksheet['!cols'] = cols;
@@ -577,12 +621,14 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
     const fieldKeys = exportData.fieldKeys;
     const body = exportData.body;
     const groupedMeta = buildGroupedHeaderMeta(fieldKeys, template.table.groupedHeaders || []);
-    const pdfHeadRows = buildPdfHeadRows(headers, groupedMeta);
-    const statusIndex = fieldKeys.indexOf('status');
+    const pdfHeadRows = buildPdfHeadRows(headers, fieldKeys, groupedMeta);
+    const visualColumns = buildVisualColumnSlots(fieldKeys, groupedMeta, resolvedColumnWidthMap);
+    const visualBody = buildVisualBodyRows(body, fieldKeys, groupedMeta);
+    const statusIndex = visualColumns.findIndex((column) => column.fieldKey === 'status');
     const tableLeft = Math.max(layout.margin, layout.table.x);
     const tableRight = Math.max(layout.margin, pageWidth - (layout.table.x + layout.table.w));
     const tableW = pageWidth - tableLeft - tableRight;
-    const { columnStyles, fitScale } = buildPdfColumnStyles(doc, fieldKeys, resolvedColumnWidthMap, tableLeft, tableRight);
+    const { columnStyles, fitScale } = buildPdfColumnStyles(doc, visualColumns, tableLeft, tableRight);
     // When many columns squeeze the table, reduce font sizes & padding proportionally
     const fontShrink = Math.min(1, Math.max(0.55, fitScale));
     const baseFontBody = template.table.compactMode ? (template.table.bodyFontSize - 1) : template.table.bodyFontSize;
@@ -595,7 +641,7 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
 
     autoTable(doc, {
         head: pdfHeadRows,
-        body: body,
+        body: visualBody,
         startY: Math.max(32, layout.table.y),
         theme: 'grid',
         margin: { left: tableLeft, right: tableRight },
@@ -610,6 +656,8 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
             lineWidth: 0.4,
             lineColor: [0, 0, 0],
             textColor: [0, 0, 0],
+            halign: 'center',
+            valign: 'middle',
         },
         headStyles: {
             fillColor: hexToRgb(template.table.headFillColor, [30, 41, 59]),
@@ -620,9 +668,14 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
             minCellHeight: headRowHeight,
             lineWidth: 0.5,
             lineColor: [0, 0, 0],
+            halign: 'center',
+            valign: 'middle',
         },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         didParseCell: function (data) {
+            if (data.section === 'body' && visualColumns[data.column.index]?.fieldKey === 'description') {
+                data.cell.styles.halign = 'left';
+            }
             if (statusIndex >= 0 && data.section === 'body' && data.column.index === statusIndex) {
                 const status = data.cell.raw;
                 if (status === 'APPROVED') data.cell.styles.textColor = [16, 185, 129];
@@ -762,12 +815,14 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
     const fieldKeys = exportData.fieldKeys;
     const body = exportData.body;
     const groupedMeta = buildGroupedHeaderMeta(fieldKeys, template.table.groupedHeaders || []);
-    const pdfHeadRows = buildPdfHeadRows(headers, groupedMeta);
-    const statusIndex = fieldKeys.indexOf('status');
+    const pdfHeadRows = buildPdfHeadRows(headers, fieldKeys, groupedMeta);
+    const visualColumns = buildVisualColumnSlots(fieldKeys, groupedMeta, resolvedColumnWidthMap);
+    const visualBody = buildVisualBodyRows(body, fieldKeys, groupedMeta);
+    const statusIndex = visualColumns.findIndex((column) => column.fieldKey === 'status');
     const tableLeft = Math.max(layout.margin, layout.table.x);
     const tableRight = Math.max(layout.margin, pageWidth - (layout.table.x + layout.table.w));
     const tableW = pageWidth - tableLeft - tableRight;
-    const { columnStyles, fitScale: dailyFitScale } = buildPdfColumnStyles(doc, fieldKeys, resolvedColumnWidthMap, tableLeft, tableRight);
+    const { columnStyles, fitScale: dailyFitScale } = buildPdfColumnStyles(doc, visualColumns, tableLeft, tableRight);
     const dFontShrink = Math.min(1, Math.max(0.55, dailyFitScale));
     const dBaseFontBody = template.table.compactMode ? (template.table.bodyFontSize - 1) : template.table.bodyFontSize;
     const dBodyFontSize = Math.max(5, dBaseFontBody * PDF_COMPACT_FACTOR * dFontShrink);
@@ -778,7 +833,7 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
 
     autoTable(doc, {
         head: pdfHeadRows,
-        body: body,
+        body: visualBody,
         startY: statsY + boxH + 10,
         theme: 'grid',
         margin: { left: tableLeft, right: tableRight },
@@ -793,6 +848,8 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
             lineWidth: 0.4,
             lineColor: [0, 0, 0],
             textColor: [0, 0, 0],
+            halign: 'center',
+            valign: 'middle',
         },
         headStyles: {
             fillColor: hexToRgb(template.table.headFillColor, [30, 41, 59]),
@@ -803,9 +860,14 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
             minCellHeight: dHeadRowHeight,
             lineWidth: 0.5,
             lineColor: [0, 0, 0],
+            halign: 'center',
+            valign: 'middle',
         },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         didParseCell: function (data) {
+            if (data.section === 'body' && visualColumns[data.column.index]?.fieldKey === 'description') {
+                data.cell.styles.halign = 'left';
+            }
             if (statusIndex >= 0 && data.section === 'body' && data.column.index === statusIndex) {
                 const status = data.cell.raw;
                 if (status === 'APPROVED') data.cell.styles.textColor = [16, 185, 129];
