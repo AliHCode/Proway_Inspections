@@ -156,11 +156,12 @@ Deno.serve(async (req: Request) => {
       const month = String(now.getUTCMonth() + 1).padStart(2, '0');
       const objectKey = `rfi-scans/${rfi.project_id}/${now.getUTCFullYear()}/${month}/${rfi.id}/${crypto.randomUUID()}-${originalFileName}`;
 
+      const disp = contentDisposition(originalFileName, 'inline');
       const command = new PutObjectCommand({
         Bucket: r2Bucket,
         Key: objectKey,
         ContentType: contentType,
-        ContentDisposition: contentDisposition(originalFileName, 'inline'),
+        ContentDisposition: disp,
       });
 
       const uploadUrl = await getSignedUrl(r2, command, { expiresIn: 600 });
@@ -169,7 +170,10 @@ Deno.serve(async (req: Request) => {
         objectKey,
         expiresIn: 600,
         method: 'PUT',
-        headers: { 'Content-Type': contentType },
+        headers: { 
+          'Content-Type': contentType,
+          'Content-Disposition': disp
+        },
       });
     }
 
