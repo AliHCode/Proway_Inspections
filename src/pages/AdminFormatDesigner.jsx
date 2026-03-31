@@ -52,6 +52,10 @@ const DEFAULT_TEMPLATE = {
     tableConfig: {
         headFillColor: '#1e293b',
         headTextColor: '#ffffff',
+        headFontSize: 10,
+        bodyFontSize: 11,
+        headFontFamily: 'helvetica',
+        bodyFontFamily: 'helvetica',
         columnLabels: {},
         columnWidths: {},
         hiddenColumnKeys: [],
@@ -75,6 +79,16 @@ const TOOL_TABS = [
     { id: 'columns', label: 'Table', icon: Columns },
     { id: 'page', label: 'Page', icon: Settings },
 ];
+
+const FONT_OPTIONS = [
+    { value: 'helvetica', label: 'Helvetica', css: 'Helvetica, Arial, sans-serif' },
+    { value: 'times', label: 'Times New Roman', css: '"Times New Roman", Times, serif' },
+    { value: 'courier', label: 'Courier New', css: '"Courier New", Courier, monospace' },
+];
+
+function getCanvasFontStack(fontFamily) {
+    return FONT_OPTIONS.find((option) => option.value === fontFamily)?.css || FONT_OPTIONS[0].css;
+}
 
 function deepClone(value) {
     return JSON.parse(JSON.stringify(value));
@@ -330,8 +344,10 @@ function buildExportTemplateFromStudio(studioTemplate) {
         table: {
             headFillColor: studioTemplate?.tableConfig?.headFillColor || '#1e293b',
             headTextColor: studioTemplate?.tableConfig?.headTextColor || '#ffffff',
-            bodyFontSize: 11,
-            headFontSize: 10,
+            bodyFontSize: studioTemplate?.tableConfig?.bodyFontSize || 11,
+            headFontSize: studioTemplate?.tableConfig?.headFontSize || 10,
+            bodyFontFamily: studioTemplate?.tableConfig?.bodyFontFamily || 'helvetica',
+            headFontFamily: studioTemplate?.tableConfig?.headFontFamily || 'helvetica',
             compactMode: false,
             headerLayerHeight: 110,
             columnLabels: studioTemplate?.tableConfig?.columnLabels || {},
@@ -703,6 +719,7 @@ export default function AdminFormatDesigner() {
             content: type === 'text' ? 'New text block' : '',
             styles: type === 'text'
                 ? {
+                    fontFamily: 'helvetica',
                     fontSize: 14,
                     fontWeight: 600,
                     textAlign: 'left',
@@ -1305,6 +1322,63 @@ export default function AdminFormatDesigner() {
                         </div>
                     </div>
 
+                    <div className="studio-prop-grid">
+                        <div className="studio-input-group">
+                            <label>Header font</label>
+                            <select
+                                value={template.tableConfig.headFontFamily || 'helvetica'}
+                                onChange={(event) => setTemplate((previous) => ({
+                                    ...previous,
+                                    tableConfig: { ...previous.tableConfig, headFontFamily: event.target.value },
+                                }))}
+                            >
+                                {FONT_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="studio-input-group">
+                            <label>Header size</label>
+                            <input
+                                type="number"
+                                min="6"
+                                max="24"
+                                value={template.tableConfig.headFontSize || 10}
+                                onChange={(event) => setTemplate((previous) => ({
+                                    ...previous,
+                                    tableConfig: { ...previous.tableConfig, headFontSize: Number(event.target.value) },
+                                }))}
+                            />
+                        </div>
+                        <div className="studio-input-group">
+                            <label>Body font</label>
+                            <select
+                                value={template.tableConfig.bodyFontFamily || 'helvetica'}
+                                onChange={(event) => setTemplate((previous) => ({
+                                    ...previous,
+                                    tableConfig: { ...previous.tableConfig, bodyFontFamily: event.target.value },
+                                }))}
+                            >
+                                {FONT_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="studio-input-group">
+                            <label>Body size</label>
+                            <input
+                                type="number"
+                                min="6"
+                                max="24"
+                                value={template.tableConfig.bodyFontSize || 11}
+                                onChange={(event) => setTemplate((previous) => ({
+                                    ...previous,
+                                    tableConfig: { ...previous.tableConfig, bodyFontSize: Number(event.target.value) },
+                                }))}
+                            />
+                        </div>
+                    </div>
+
                     <div className="studio-section-list">
                         {exportColumnOptions.map((column) => {
                             const width = getColumnWidthValue(column.field_key);
@@ -1671,6 +1745,7 @@ export default function AdminFormatDesigner() {
                                                                 className="studio-text-preview"
                                                                 style={{
                                                                     color: element.styles?.color || '#0f172a',
+                                                                    fontFamily: getCanvasFontStack(element.styles?.fontFamily),
                                                                     fontSize: `${element.styles?.fontSize || 14}px`,
                                                                     fontWeight: element.styles?.fontWeight || 600,
                                                                     textAlign: element.styles?.textAlign || 'left',
@@ -1725,7 +1800,14 @@ export default function AdminFormatDesigner() {
                                                                             return <col key={column.field_key} style={{ width: `${width}px` }} />;
                                                                         })}
                                                                     </colgroup>
-                                                                    <thead style={{ background: template.tableConfig.headFillColor, color: template.tableConfig.headTextColor }}>
+                                                                    <thead
+                                                                        style={{
+                                                                            background: template.tableConfig.headFillColor,
+                                                                            color: template.tableConfig.headTextColor,
+                                                                            fontFamily: getCanvasFontStack(template.tableConfig.headFontFamily),
+                                                                            fontSize: `${template.tableConfig.headFontSize || 10}px`,
+                                                                        }}
+                                                                    >
                                                                         <tr>
                                                                             {groupedHeaderPreview.topCells.map((cell) => (
                                                                                 <th key={cell.key} colSpan={cell.colSpan} rowSpan={cell.rowSpan}>
@@ -1759,7 +1841,12 @@ export default function AdminFormatDesigner() {
                                                                             </tr>
                                                                         )}
                                                                     </thead>
-                                                                    <tbody>
+                                                                    <tbody
+                                                                        style={{
+                                                                            fontFamily: getCanvasFontStack(template.tableConfig.bodyFontFamily),
+                                                                            fontSize: `${template.tableConfig.bodyFontSize || 11}px`,
+                                                                        }}
+                                                                    >
                                                                         {[1, 2, 3, 4, 5].map((row) => (
                                                                             <tr key={row}>
                                                                                 {visiblePreviewColumns.map((column) => (
@@ -1884,6 +1971,17 @@ export default function AdminFormatDesigner() {
                                             </div>
 
                                             <div className="studio-prop-grid">
+                                                <div className="studio-input-group">
+                                                    <label>Font</label>
+                                                    <select
+                                                        value={selectedElement.styles?.fontFamily || 'helvetica'}
+                                                        onChange={(event) => updateElementStyle(selectedElement.id, { fontFamily: event.target.value })}
+                                                    >
+                                                        {FONT_OPTIONS.map((option) => (
+                                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
                                                 <div className="studio-input-group">
                                                     <label>Font size</label>
                                                     <input type="number" value={selectedElement.styles?.fontSize || 14} onChange={(event) => updateElementStyle(selectedElement.id, { fontSize: Number(event.target.value) })} />

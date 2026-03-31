@@ -23,6 +23,8 @@ const DEFAULT_EXPORT_TEMPLATE = {
         headTextColor: '#ffffff',
         bodyFontSize: 11,
         headFontSize: 10,
+        bodyFontFamily: 'helvetica',
+        headFontFamily: 'helvetica',
         compactMode: false,
         headerLayerHeight: 110,
         columnLabels: {},
@@ -181,6 +183,10 @@ function getPdfFontStyle(weight) {
     return Number(weight || 400) >= 700 ? 'bold' : 'normal';
 }
 
+function resolvePdfFontFamily(fontFamily) {
+    return ['helvetica', 'times', 'courier'].includes(fontFamily) ? fontFamily : 'helvetica';
+}
+
 async function drawStudioOverlayElements(doc, template, layout, context = {}, options = {}) {
     const elements = Array.isArray(template?.studioDesigner?.elements) ? template.studioDesigner.elements : [];
     if (elements.length === 0) return false;
@@ -236,7 +242,7 @@ async function drawStudioOverlayElements(doc, template, layout, context = {}, op
             }
 
             doc.setTextColor(...hexToRgb(element.styles?.color, [15, 23, 42]));
-            doc.setFont('helvetica', getPdfFontStyle(element.styles?.fontWeight));
+            doc.setFont(resolvePdfFontFamily(element.styles?.fontFamily), getPdfFontStyle(element.styles?.fontWeight));
             doc.setFontSize(rect.fontSize);
 
             const align = element.styles?.textAlign || 'left';
@@ -583,6 +589,7 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
         columnStyles,
         styles: {
             fontSize: bodyFontSize,
+            font: resolvePdfFontFamily(template.table.bodyFontFamily),
             cellPadding: cellPad,
             overflow: 'linebreak',
             lineWidth: 0.4,
@@ -592,6 +599,7 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
         headStyles: {
             fillColor: hexToRgb(template.table.headFillColor, [30, 41, 59]),
             textColor: hexToRgb(template.table.headTextColor, [255, 255, 255]),
+            font: resolvePdfFontFamily(template.table.headFontFamily),
             fontSize: headFontSize,
             fontStyle: 'bold',
             lineWidth: 0.5,
@@ -761,7 +769,7 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
         styles: {
             fontSize: dBodyFontSize,
             cellPadding: dCellPad,
-            font: 'helvetica',
+            font: resolvePdfFontFamily(template.table.bodyFontFamily),
             overflow: 'linebreak',
             lineWidth: 0.4,
             lineColor: [0, 0, 0],
@@ -770,6 +778,7 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
         headStyles: {
             fillColor: hexToRgb(template.table.headFillColor, [30, 41, 59]),
             textColor: hexToRgb(template.table.headTextColor, [255, 255, 255]),
+            font: resolvePdfFontFamily(template.table.headFontFamily),
             fontStyle: 'bold',
             fontSize: dHeadFontSize,
             lineWidth: 0.5,

@@ -12482,7 +12482,8 @@ body,
 .studio-table-preview td {
   border: 1px solid #0f172a;
   padding: 0.25rem 0.3rem;
-  font-size: 0.62rem;
+  font-size: inherit;
+  font-family: inherit;
   vertical-align: top;
 }
 
