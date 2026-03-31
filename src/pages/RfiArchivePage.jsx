@@ -198,72 +198,39 @@ export default function RfiArchivePage() {
     return (
         <div className="page-wrapper premium-dashboard">
             <Header />
-            <main className="dashboard-page" style={{ gap: '1.25rem' }}>
-                <section style={{
-                    borderRadius: '24px',
-                    padding: '1.5rem',
-                    background: 'linear-gradient(145deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))',
-                    color: '#f8fafc',
-                    boxShadow: '0 28px 60px rgba(15,23,42,0.18)',
-                    border: '1px solid rgba(148,163,184,0.16)',
-                }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                        <div>
-                            <div style={{ fontSize: '0.76rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#38bdf8', fontWeight: 800, marginBottom: '0.35rem' }}>
-                                Shared Archive
-                            </div>
-                            <h1 style={{ margin: 0, fontSize: '1.85rem' }}>RFI Scanned Documents</h1>
-                            <p style={{ margin: '0.55rem 0 0', maxWidth: '760px', color: '#cbd5e1', lineHeight: 1.6 }}>
-                                Contractors upload final scanned PDF copies after approval, and consultants can preview or download them from the same project archive.
-                            </p>
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
-                            <span style={{ padding: '0.45rem 0.8rem', borderRadius: '999px', background: 'rgba(15,23,42,0.5)', border: '1px solid rgba(148,163,184,0.18)', fontWeight: 700 }}>
-                                {activeProject?.name || 'No active project'}
-                            </span>
-                            <span style={{ padding: '0.45rem 0.8rem', borderRadius: '999px', background: 'rgba(15,23,42,0.5)', border: '1px solid rgba(148,163,184,0.18)', fontWeight: 700 }}>
-                                {visibleRfis.length} ready RFIs
-                            </span>
-                        </div>
+            <main className="dashboard-page rfi-archive-page">
+                <section className="rfi-archive-topbar">
+                    <div className="rfi-archive-topbar-copy">
+                        <span className="rfi-archive-kicker">Shared archive</span>
+                        <h1>RFI Archive</h1>
+                    </div>
+                    <div className="rfi-archive-topbar-meta">
+                        <span className="rfi-archive-pill">{activeProject?.name || 'No active project'}</span>
+                        <span className="rfi-archive-pill">{visibleRfis.length} ready RFIs</span>
                     </div>
                 </section>
 
-                <section className="rfi-archive-layout" style={{
-                    display: 'grid',
-                    gap: '1rem',
-                    alignItems: 'start',
-                }}>
-                    <aside style={{
-                        borderRadius: '20px',
-                        border: '1px solid rgba(148,163,184,0.14)',
-                        background: 'rgba(255,255,255,0.92)',
-                        boxShadow: '0 20px 50px rgba(15,23,42,0.08)',
-                        overflow: 'hidden',
-                    }}>
-                        <div style={{ padding: '1rem', borderBottom: '1px solid #e2e8f0' }}>
-                            <div style={{ position: 'relative' }}>
-                                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                                <input
-                                    type="text"
-                                    value={search}
-                                    onChange={(event) => setSearch(event.target.value)}
-                                    placeholder="Search by RFI no, location, description"
-                                    style={{
-                                        width: '100%',
-                                        borderRadius: '14px',
-                                        border: '1px solid #cbd5e1',
-                                        padding: '0.8rem 0.85rem 0.8rem 2.25rem',
-                                        fontSize: '0.9rem',
-                                        background: '#f8fafc',
-                                    }}
-                                />
-                            </div>
+                <section className="rfi-archive-layout rfi-archive-shell">
+                    <aside className="rfi-archive-rail">
+                        <div className="rfi-archive-search">
+                            <Search size={16} />
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={(event) => setSearch(event.target.value)}
+                                placeholder="Search RFI no, location, description"
+                            />
                         </div>
 
-                        <div style={{ maxHeight: '70vh', overflow: 'auto', padding: '0.75rem' }}>
+                        <div className="rfi-archive-rail-head">
+                            <strong>Ready RFIs</strong>
+                            <span>{visibleRfis.length}</span>
+                        </div>
+
+                        <div className="rfi-archive-rail-list">
                             {visibleRfis.length === 0 ? (
-                                <div style={{ padding: '1rem', color: '#64748b', lineHeight: 1.6 }}>
-                                    No approved RFIs are ready for scanned-copy archiving on this project yet.
+                                <div className="rfi-archive-empty compact">
+                                    No approved RFIs are ready yet.
                                 </div>
                             ) : (
                                 visibleRfis.map((rfi) => {
@@ -271,30 +238,22 @@ export default function RfiArchivePage() {
                                     return (
                                         <button
                                             key={rfi.id}
+                                            type="button"
+                                            className={`rfi-archive-item ${isActive ? 'active' : ''}`}
                                             onClick={() => setSelectedRfiId(rfi.id)}
-                                            style={{
-                                                width: '100%',
-                                                textAlign: 'left',
-                                                borderRadius: '16px',
-                                                padding: '0.95rem',
-                                                marginBottom: '0.75rem',
-                                                border: isActive ? '1px solid #38bdf8' : '1px solid #e2e8f0',
-                                                background: isActive ? 'linear-gradient(180deg, rgba(14,165,233,0.08), rgba(255,255,255,0.98))' : '#ffffff',
-                                                boxShadow: isActive ? '0 12px 30px rgba(14,165,233,0.12)' : 'none',
-                                                cursor: 'pointer',
-                                            }}
                                         >
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center' }}>
-                                                <strong style={{ color: '#0f172a', fontSize: '0.95rem' }}>
+                                            <div className="rfi-archive-item-top">
+                                                <strong className="rfi-archive-item-title">
                                                     #{rfi.customFields?.rfi_no || rfi.serialNo}
                                                 </strong>
                                                 <StatusBadge status={rfi.status} />
                                             </div>
-                                            <div style={{ marginTop: '0.55rem', color: '#334155', fontWeight: 600, lineHeight: 1.45 }}>
+                                            <div className="rfi-archive-item-desc">
                                                 {rfi.description || 'No description'}
                                             </div>
-                                            <div style={{ marginTop: '0.55rem', color: '#64748b', fontSize: '0.82rem' }}>
-                                                {rfi.location || 'No location'} | Filed {rfi.filedDate}
+                                            <div className="rfi-archive-item-meta">
+                                                <span>{rfi.location || 'No location'}</span>
+                                                <span>{rfi.filedDate || 'No filed date'}</span>
                                             </div>
                                         </button>
                                     );
@@ -303,200 +262,141 @@ export default function RfiArchivePage() {
                         </div>
                     </aside>
 
-                    <section style={{
-                        borderRadius: '20px',
-                        border: '1px solid rgba(148,163,184,0.14)',
-                        background: 'rgba(255,255,255,0.96)',
-                        boxShadow: '0 20px 50px rgba(15,23,42,0.08)',
-                        padding: '1.1rem',
-                    }}>
+                    <section className="rfi-archive-main">
                         {!selectedRfi ? (
-                            <div style={{ padding: '2rem', color: '#64748b' }}>
-                                Select an approved RFI from the left to manage its scanned copies.
+                            <div className="rfi-archive-empty">
+                                Select an approved RFI to open its scanned archive.
                             </div>
                         ) : (
                             <>
-                                <div style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    gap: '1rem',
-                                    flexWrap: 'wrap',
-                                    alignItems: 'flex-start',
-                                    paddingBottom: '1rem',
-                                    borderBottom: '1px solid #e2e8f0',
-                                }}>
-                                    <div>
-                                        <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                            <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a' }}>
+                                <div className="rfi-archive-main-head">
+                                    <div className="rfi-archive-rfi-copy">
+                                        <div className="rfi-archive-rfi-row">
+                                            <h2 className="rfi-archive-rfi-title">
                                                 RFI #{selectedRfi.customFields?.rfi_no || selectedRfi.serialNo}
                                             </h2>
                                             <StatusBadge status={selectedRfi.status} />
                                         </div>
-                                        <p style={{ margin: '0.45rem 0 0', color: '#475569', lineHeight: 1.6 }}>
+                                        <div className="rfi-archive-rfi-desc">
                                             {selectedRfi.description || 'No description'}
-                                        </p>
-                                        <div style={{ marginTop: '0.6rem', color: '#64748b', fontSize: '0.86rem' }}>
-                                            {selectedRfi.location || 'No location'} | Filed by {selectedRfi.filerName || 'Contractor'} | Reviewed {selectedRfi.reviewedAt ? formatDateTime(selectedRfi.reviewedAt) : 'Not recorded'}
+                                        </div>
+                                        <div className="rfi-archive-rfi-meta">
+                                            <span>{selectedRfi.location || 'No location'}</span>
+                                            <span>Filed by {selectedRfi.filerName || 'Contractor'}</span>
+                                            <span>{selectedRfi.reviewedAt ? `Reviewed ${formatDateTime(selectedRfi.reviewedAt)}` : 'Review time not recorded'}</span>
                                         </div>
                                     </div>
-                                    <div style={{ padding: '0.75rem 0.9rem', borderRadius: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', minWidth: '180px' }}>
-                                        <div style={{ color: '#64748b', fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
-                                            Archive Count
-                                        </div>
-                                        <div style={{ marginTop: '0.35rem', fontSize: '1.4rem', fontWeight: 800, color: '#0f172a' }}>
-                                            {documentCount}
-                                        </div>
+
+                                    <div className="rfi-archive-stat">
+                                        <span>Files</span>
+                                        <strong>{documentCount}</strong>
                                     </div>
                                 </div>
 
                                 {canUploadForSelected && (
-                                    <div style={{
-                                        marginTop: '1rem',
-                                        borderRadius: '18px',
-                                        border: '1px dashed #38bdf8',
-                                        background: 'linear-gradient(180deg, rgba(14,165,233,0.06), rgba(248,250,252,0.9))',
-                                        padding: '1rem',
-                                    }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                                            <div>
-                                                <strong style={{ display: 'block', color: '#0f172a' }}>Upload final scanned PDFs</strong>
-                                                <span style={{ color: '#475569', fontSize: '0.86rem' }}>
-                                                    PDF files go to Cloudflare R2 and become visible to consultants on this same page.
-                                                </span>
-                                            </div>
-                                            <label style={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '0.5rem',
-                                                padding: '0.8rem 1rem',
-                                                borderRadius: '14px',
-                                                background: '#ffffff',
-                                                border: '1px solid #cbd5e1',
-                                                cursor: 'pointer',
-                                                fontWeight: 700,
-                                                color: '#0f172a',
-                                            }}>
-                                                <Upload size={16} />
+                                    <div className="rfi-archive-upload-bar">
+                                        <div className="rfi-archive-upload-copy">
+                                            <strong>Upload scanned PDFs</strong>
+                                            {pendingFiles.length > 0 && (
+                                                <span>{pendingFiles.length} file{pendingFiles.length > 1 ? 's' : ''} selected</span>
+                                            )}
+                                        </div>
+
+                                        <div className="rfi-archive-upload-actions">
+                                            <label className="rfi-archive-action-btn">
+                                                <Upload size={15} />
                                                 Pick PDFs
                                                 <input type="file" accept="application/pdf,.pdf" multiple hidden onChange={handleFilePick} />
                                             </label>
+                                            {pendingFiles.length > 0 && (
+                                                <>
+                                                    <button type="button" className="rfi-archive-action-btn primary" onClick={handleUpload} disabled={uploading}>
+                                                        <Upload size={15} />
+                                                        {uploading ? 'Uploading...' : 'Upload'}
+                                                    </button>
+                                                    <button type="button" className="rfi-archive-action-btn" onClick={() => setPendingFiles([])} disabled={uploading}>
+                                                        Clear
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
-
-                                        {pendingFiles.length > 0 && (
-                                            <div style={{ marginTop: '0.9rem' }}>
-                                                <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '0.85rem' }}>
-                                                    {pendingFiles.map((file) => (
-                                                        <div
-                                                            key={`${file.name}-${file.lastModified}`}
-                                                            style={{
-                                                                display: 'flex',
-                                                                justifyContent: 'space-between',
-                                                                gap: '0.75rem',
-                                                                padding: '0.7rem 0.85rem',
-                                                                borderRadius: '12px',
-                                                                background: '#ffffff',
-                                                                border: '1px solid #e2e8f0',
-                                                            }}
-                                                        >
-                                                            <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', minWidth: 0 }}>
-                                                                <FileText size={16} color="#0f172a" />
-                                                                <span style={{ color: '#0f172a', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</span>
-                                                            </div>
-                                                            <span style={{ color: '#64748b', fontSize: '0.82rem' }}>{formatBytes(file.size)}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                                                    <button className="btn-command" onClick={handleUpload} disabled={uploading}>
-                                                        <Upload size={16} /> {uploading ? 'Uploading...' : `Upload ${pendingFiles.length} file${pendingFiles.length > 1 ? 's' : ''}`}
-                                                    </button>
-                                                    <button className="btn btn-ghost" onClick={() => setPendingFiles([])} disabled={uploading}>
-                                                        Clear list
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
                                     </div>
                                 )}
 
-                                <div style={{ marginTop: '1rem' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.9rem' }}>
-                                        <div>
-                                            <h3 style={{ margin: 0, color: '#0f172a' }}>Scanned Copies</h3>
-                                            <p style={{ margin: '0.25rem 0 0', color: '#64748b', fontSize: '0.86rem' }}>
-                                                Preview inside the app or download the original PDF.
-                                            </p>
-                                        </div>
-                                        <span style={{ color: '#64748b', fontSize: '0.84rem' }}>
-                                            Page {docPage + 1} of {totalPages}
-                                        </span>
+                                {pendingFiles.length > 0 && (
+                                    <div className="rfi-archive-pending-list">
+                                        {pendingFiles.map((file) => (
+                                            <div key={`${file.name}-${file.lastModified}`} className="rfi-archive-pending-file">
+                                                <div className="rfi-archive-pending-copy">
+                                                    <FileText size={15} />
+                                                    <span>{file.name}</span>
+                                                </div>
+                                                <small>{formatBytes(file.size)}</small>
+                                            </div>
+                                        ))}
                                     </div>
+                                )}
 
-                                    {loadingDocs ? (
-                                        <div style={{ padding: '1.5rem', borderRadius: '16px', border: '1px dashed #cbd5e1', color: '#64748b' }}>
-                                            Loading scanned documents...
-                                        </div>
-                                    ) : documents.length === 0 ? (
-                                        <div style={{ padding: '1.5rem', borderRadius: '16px', border: '1px dashed #cbd5e1', color: '#64748b' }}>
-                                            No scanned copies uploaded for this RFI yet.
-                                        </div>
-                                    ) : (
-                                        <div style={{ display: 'grid', gap: '0.75rem' }}>
-                                            {documents.map((document) => (
-                                                <div
-                                                    key={document.id}
-                                                    style={{
-                                                        display: 'flex',
-                                                        justifyContent: 'space-between',
-                                                        gap: '1rem',
-                                                        flexWrap: 'wrap',
-                                                        padding: '0.9rem 1rem',
-                                                        borderRadius: '16px',
-                                                        border: '1px solid #e2e8f0',
-                                                        background: '#ffffff',
-                                                    }}
-                                                >
-                                                    <div style={{ minWidth: 0 }}>
-                                                        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
-                                                            <FileText size={18} color="#0f172a" />
-                                                            <strong style={{ color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                                {document.original_file_name}
-                                                            </strong>
-                                                        </div>
-                                                        <div style={{ marginTop: '0.45rem', color: '#64748b', fontSize: '0.84rem' }}>
-                                                            {formatBytes(document.file_size_bytes)} | Uploaded {formatDateTime(document.uploaded_at)}
-                                                        </div>
+                                <div className="rfi-archive-section-head">
+                                    <strong>Scanned Copies</strong>
+                                    <span>Page {docPage + 1} of {totalPages}</span>
+                                </div>
+
+                                {loadingDocs ? (
+                                    <div className="rfi-archive-empty compact">
+                                        Loading scanned documents...
+                                    </div>
+                                ) : documents.length === 0 ? (
+                                    <div className="rfi-archive-empty compact">
+                                        No scanned copies uploaded for this RFI yet.
+                                    </div>
+                                ) : (
+                                    <div className="rfi-archive-doc-list">
+                                        {documents.map((document) => (
+                                            <div key={document.id} className="rfi-archive-doc-row">
+                                                <div className="rfi-archive-doc-copy">
+                                                    <div className="rfi-archive-doc-icon">
+                                                        <FileText size={17} />
                                                     </div>
-
-                                                    <div style={{ display: 'flex', gap: '0.55rem', flexWrap: 'wrap' }}>
-                                                        <button className="btn btn-ghost" onClick={() => handleOpenDocument(document.id, 'preview')}>
-                                                            <Eye size={16} /> Preview
-                                                        </button>
-                                                        <button className="btn btn-ghost" onClick={() => handleOpenDocument(document.id, 'download')}>
-                                                            <Download size={16} /> Download
-                                                        </button>
-                                                        {canUploadForSelected && (
-                                                            <button className="btn btn-ghost" style={{ color: '#b91c1c' }} onClick={() => handleDeleteDocument(document.id)}>
-                                                                <Trash2 size={16} /> Remove
-                                                            </button>
-                                                        )}
+                                                    <div className="rfi-archive-doc-text">
+                                                        <strong className="rfi-archive-doc-name">{document.original_file_name}</strong>
+                                                        <span className="rfi-archive-doc-meta">
+                                                            {formatBytes(document.file_size_bytes)} • {formatDateTime(document.uploaded_at)}
+                                                        </span>
                                                     </div>
                                                 </div>
-                                            ))}
-                                        </div>
-                                    )}
 
-                                    {documentCount > PAGE_SIZE && (
-                                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
-                                            <button className="btn btn-ghost" onClick={() => setDocPage((value) => Math.max(0, value - 1))} disabled={docPage === 0}>
-                                                Previous
-                                            </button>
-                                            <button className="btn btn-ghost" onClick={() => setDocPage((value) => Math.min(totalPages - 1, value + 1))} disabled={docPage >= totalPages - 1}>
-                                                Next
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
+                                                <div className="rfi-archive-doc-actions">
+                                                    <button type="button" className="rfi-archive-action-btn" onClick={() => handleOpenDocument(document.id, 'preview')}>
+                                                        <Eye size={15} />
+                                                        Preview
+                                                    </button>
+                                                    <button type="button" className="rfi-archive-action-btn" onClick={() => handleOpenDocument(document.id, 'download')}>
+                                                        <Download size={15} />
+                                                        Download
+                                                    </button>
+                                                    {canUploadForSelected && (
+                                                        <button type="button" className="rfi-archive-action-btn danger" onClick={() => handleDeleteDocument(document.id)}>
+                                                            <Trash2 size={15} />
+                                                            Remove
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {documentCount > PAGE_SIZE && (
+                                    <div className="rfi-archive-pagination">
+                                        <button type="button" className="rfi-archive-action-btn" onClick={() => setDocPage((value) => Math.max(0, value - 1))} disabled={docPage === 0}>
+                                            Previous
+                                        </button>
+                                        <button type="button" className="rfi-archive-action-btn" onClick={() => setDocPage((value) => Math.min(totalPages - 1, value + 1))} disabled={docPage >= totalPages - 1}>
+                                            Next
+                                        </button>
+                                    </div>
+                                )}
                             </>
                         )}
                     </section>
@@ -504,43 +404,16 @@ export default function RfiArchivePage() {
             </main>
 
             {previewState.open && (
-                <div style={{
-                    position: 'fixed',
-                    inset: 0,
-                    background: 'rgba(15,23,42,0.55)',
-                    zIndex: 1100,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '1rem',
-                }}>
-                    <div style={{
-                        width: 'min(1100px, 100%)',
-                        height: 'min(88vh, 900px)',
-                        borderRadius: '22px',
-                        background: '#ffffff',
-                        boxShadow: '0 32px 80px rgba(15,23,42,0.25)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        overflow: 'hidden',
-                    }}>
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            gap: '1rem',
-                            alignItems: 'center',
-                            padding: '1rem 1.15rem',
-                            borderBottom: '1px solid #e2e8f0',
-                        }}>
-                            <div style={{ minWidth: 0 }}>
-                                <strong style={{ display: 'block', color: '#0f172a' }}>{previewState.fileName}</strong>
-                                <span style={{ color: '#64748b', fontSize: '0.82rem' }}>Signed preview link from Cloudflare R2</span>
-                            </div>
-                            <button className="btn btn-ghost" onClick={() => setPreviewState({ open: false, url: '', fileName: '' })}>
-                                <X size={16} /> Close
+                <div className="rfi-archive-preview-backdrop">
+                    <div className="rfi-archive-preview-modal">
+                        <div className="rfi-archive-preview-head">
+                            <strong>{previewState.fileName}</strong>
+                            <button type="button" className="rfi-archive-action-btn" onClick={() => setPreviewState({ open: false, url: '', fileName: '' })}>
+                                <X size={15} />
+                                Close
                             </button>
                         </div>
-                        <iframe title={previewState.fileName} src={previewState.url} style={{ flex: 1, border: 'none', width: '100%' }} />
+                        <iframe title={previewState.fileName} src={previewState.url} className="rfi-archive-preview-frame" />
                     </div>
                 </div>
             )}
