@@ -12,7 +12,7 @@ import {
     Users, Shield, UserX, UserCheck, RefreshCw,
     FolderPlus, Trash2, Plus, GripVertical, ArrowUp, ArrowDown, Save,
     Building, Columns3, UserPlus, X, AlertCircle, Clock, Globe, Briefcase,
-    Search, ChevronDown, LifeBuoy, MessageSquare, Send, ArrowRight, Tag, Paperclip, Paintbrush, Eye, Settings2
+    Search, ChevronDown, LifeBuoy, MessageSquare, Send, ArrowRight, Tag, Paperclip, Paintbrush, Eye, Settings2, FileSpreadsheet
 } from 'lucide-react';
 
 const STYLE_COLORS = [
@@ -932,6 +932,20 @@ export default function AdminDashboard() {
                                 {stats.unassigned > 0 && <span className="ustat-pill ustat-info">🔔 {stats.unassigned} Unassigned</span>}
                             </div>
                         )}
+                        <button
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => navigate('/admin/export-format')}
+                            title="Open daily summary PDF designer"
+                        >
+                            <Paintbrush size={15} /> Summary PDF
+                        </button>
+                        <button
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => navigate('/admin/rfi-templates')}
+                            title="Open contractor Excel template mapping"
+                        >
+                            <FileSpreadsheet size={15} /> RFI Templates
+                        </button>
                         <button className="btn btn-ghost btn-sm btn-refresh-global" 
                             onClick={() => { activeTab === 'users' ? fetchUsers() : fetchProjects(); }} 
                             disabled={loading}

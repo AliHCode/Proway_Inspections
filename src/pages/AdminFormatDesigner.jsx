@@ -514,7 +514,10 @@ export default function AdminFormatDesigner() {
     }, [interaction, zoom, template?.canvas?.snapToGrid]);
 
     const handleSave = async () => {
-        const exportTemplate = buildExportTemplateFromStudio(template, activeProject?.name || '');
+        const exportTemplate = {
+            ...(activeProject?.export_template || {}),
+            ...buildExportTemplateFromStudio(template, activeProject?.name || ''),
+        };
         setSaving(true);
         const result = await saveProjectExportTemplate(exportTemplate);
         setSaving(false);
@@ -523,7 +526,7 @@ export default function AdminFormatDesigner() {
                 localStorage.removeItem(draftStorageKey);
             }
             setHasDraft(false);
-            toast.success('Studio design deployed');
+            toast.success('Daily summary PDF format saved');
         }
         else toast.error(result?.error || 'Save failed');
     };
@@ -536,7 +539,7 @@ export default function AdminFormatDesigner() {
             <div className="studio-terminal-frame no-margin">
                 <header className="terminal-titlebar">
                     <div className="terminal-window-dots"><div className="window-dot red"></div><div className="window-dot yellow"></div><div className="window-dot green"></div></div>
-                    <div className="terminal-app-title">Visual Studio V2 // Genesis Mode</div>
+                    <div className="terminal-app-title">Daily Summary PDF Studio</div>
                     <div className="terminal-actions">
                         {hasDraft && <span style={{ fontSize: '0.72rem', color: '#facc15', marginRight: '0.45rem' }}>Draft auto-saved</span>}
                         <button className="terminal-btn" onClick={() => setTemplate(deepClone(DEFAULT_TEMPLATE))}><RotateCcw size={14} /> Reset</button>

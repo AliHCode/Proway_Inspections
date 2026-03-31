@@ -17,6 +17,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminDataManager from './pages/AdminDataManager';
 import UsersPage from './pages/UsersPage';
 import AdminFormatDesigner from './pages/AdminFormatDesigner';
+import AdminExcelTemplatePage from './pages/AdminExcelTemplatePage';
 import PendingApproval from './pages/PendingApproval';
 import SummaryPage from './pages/SummaryPage';
 import RegisteredDevicesPage from './pages/RegisteredDevicesPage';
@@ -76,6 +77,7 @@ function AppRoutes() {
             <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><UsersPage /></ProtectedRoute>} />
             <Route path="/admin/export-format" element={<ProtectedRoute allowedRoles={['admin']}><AdminFormatDesigner /></ProtectedRoute>} />
+            <Route path="/admin/rfi-templates" element={<ProtectedRoute allowedRoles={['admin']}><AdminExcelTemplatePage /></ProtectedRoute>} />
             <Route path="/admin/registered-devices" element={<ProtectedRoute allowedRoles={['admin']}><RegisteredDevicesPage /></ProtectedRoute>} />
             <Route path="/admin/data-manager" element={<ProtectedRoute allowedRoles={['admin']}><AdminDataManager /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />

@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
-import { X, Calendar, MapPin, Tag, MessageSquare, History, List, Upload, CheckCircle, ClipboardList, XCircle, Hand, Ban, Edit3, Users } from 'lucide-react';
+import { X, Calendar, MapPin, Tag, MessageSquare, History, List, Upload, CheckCircle, ClipboardList, XCircle, Hand, Ban, Edit3, Users, FileDown } from 'lucide-react';
 import ThreadedComments from './ThreadedComments';
 import AuditLog from './AuditLog';
 import StatusBadge from './StatusBadge';
@@ -20,7 +20,8 @@ export default function RFIDetailModal({
     onConditional,
     onReject,
     onCancel,
-    onEditDecision
+    onEditDecision,
+    onDownloadCustomReport
 }) {
     const [activeTab, setActiveTab] = useState('review');
     const [tabScrollTrigger, setTabScrollTrigger] = useState(0);
@@ -127,9 +128,21 @@ export default function RFIDetailModal({
                             </div>
                             <p>{mergedData.description || mergedData.inspection_type || 'RFI Details'}</p>
                         </div>
-                        <button className="btn-close-hex" onClick={onClose}>
-                            <X size={20} />
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                            {onDownloadCustomReport && (
+                                <button
+                                    className="btn-change-decision-compat"
+                                    onClick={() => onDownloadCustomReport(rfi)}
+                                    title="Download custom Excel report"
+                                >
+                                    <FileDown size={14} />
+                                    <span>Custom Report</span>
+                                </button>
+                            )}
+                            <button className="btn-close-hex" onClick={onClose}>
+                                <X size={20} />
+                            </button>
+                        </div>
                     </div>
                 </div>
 

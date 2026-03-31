@@ -4,7 +4,7 @@ import {
     LogOut, Menu, X, Building, Shield, User, Briefcase, UserCircle, 
     LayoutGrid, ScrollText, ListChecks, BellRing, Smartphone, 
     GitBranch, BarChart3, Settings2, LifeBuoy, Edit2, 
-    ShieldCheck, Power, Activity, ChevronDown, Info, Building2, Database
+    ShieldCheck, Power, Activity, ChevronDown, Info, Building2, Database, FileSpreadsheet
 } from 'lucide-react';
 import { useRFI } from '../context/RFIContext';
 import { useCallback, useEffect, useState, useRef } from 'react';
@@ -281,7 +281,13 @@ export default function Header() {
                                     onClick={() => handleMenuNavigation('/admin/export-format')}
                                     className={`desktop-nav-link ${location.pathname === '/admin/export-format' ? 'active' : ''}`}
                                 >
-                                    Export Format
+                                    Daily Summary PDF
+                                </button>
+                                <button
+                                    onClick={() => handleMenuNavigation('/admin/rfi-templates')}
+                                    className={`desktop-nav-link ${location.pathname === '/admin/rfi-templates' ? 'active' : ''}`}
+                                >
+                                    RFI Templates
                                 </button>
                                 <button
                                     onClick={() => handleMenuNavigation('/admin/registered-devices')}
@@ -484,7 +490,14 @@ export default function Header() {
                                             className={`header-dropdown-item-premium ${location.pathname === '/admin/export-format' ? 'active' : ''}`}
                                         >
                                             <div className="menu-icon-box"><Shield size={18} strokeWidth={1.5} /></div>
-                                            <span>Project Export Format</span>
+                                            <span>Daily Summary PDF</span>
+                                        </button>
+                                        <button
+                                            onClick={() => handleMenuNavigation('/admin/rfi-templates')}
+                                            className={`header-dropdown-item-premium ${location.pathname === '/admin/rfi-templates' ? 'active' : ''}`}
+                                        >
+                                            <div className="menu-icon-box"><FileSpreadsheet size={18} strokeWidth={1.5} /></div>
+                                            <span>RFI Excel Templates</span>
                                         </button>
                                         <button
                                             onClick={() => handleMenuNavigation('/admin/registered-devices')}

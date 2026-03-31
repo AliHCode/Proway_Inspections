@@ -15,6 +15,7 @@ import CreateRevisionModal from '../components/CreateRevisionModal';
 import { Plus, Trash2, Send, RefreshCw, X, MessageSquare, FileDown, Table, ClipboardList, Brush, Maximize2, Minimize2, RotateCcw, List } from 'lucide-react';
 import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
 import { useProject } from '../context/ProjectContext';
+import { exportMappedRfiWorkbook, hasContractorExcelTemplate } from '../utils/contractorExcelTemplate';
 
 export default function DailyRFISheet() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -46,6 +47,7 @@ export default function DailyRFISheet() {
     const [activeTab, setActiveTab] = useState('daily');
     const [revisionTarget, setRevisionTarget] = useState(null);
     const [showAllRejected, setShowAllRejected] = useState(false);
+    const [exportingCustomWorkbook, setExportingCustomWorkbook] = useState(false);
 
     const { newRfis } = getRFIsForDate(currentDate);
 
@@ -104,6 +106,7 @@ export default function DailyRFISheet() {
     // Determines what to show in the table
     const currentRfis = activeTab === 'daily' ? dailyRfis : activeRejectedRfis;
     const editableRows = contractorPermissions.canFileRfis ? newRows : [];
+    const customWorkbookEnabled = hasContractorExcelTemplate(activeProject?.export_template);
 
     const reportRfis = rfis ? rfis.filter(r =>
         r.filedBy === user.id &&
@@ -246,6 +249,34 @@ export default function DailyRFISheet() {
             images: [...payload.existingImages, ...uploaded],
             customFields: payload.customFields || {},
         });
+    }
+
+    async function handleExportCustomWorkbook(items, fileName) {
+        if (!items || items.length === 0) {
+            toast.error('No RFIs available for custom export.');
+            return;
+        }
+
+        setExportingCustomWorkbook(true);
+        try {
+            await exportMappedRfiWorkbook({
+                rfis: items,
+                projectTemplate: activeProject?.export_template,
+                fileName,
+            });
+            toast.success('Custom Excel workbook generated.');
+        } catch (error) {
+            console.error('Custom workbook export failed:', error);
+            toast.error(error.message || 'Failed to generate custom workbook.');
+        } finally {
+            setExportingCustomWorkbook(false);
+        }
+    }
+
+    async function handleDownloadSingleCustomReport(rfi) {
+        if (!rfi) return;
+        const rfiNo = rfi.customFields?.rfi_no || `RFI_${rfi.serialNo || 'Report'}`;
+        await handleExportCustomWorkbook([rfi], `${rfiNo}_Custom_Report`);
     }
 
     // ─── Draft Persistence ───
@@ -547,6 +578,15 @@ export default function DailyRFISheet() {
                                 <button className="btn btn-sm btn-ghost" onClick={() => { setDetailTarget(rfi); setEditTarget(null); setMarkupTarget(null); scrollToPageBottom(); }} title="View Review & Details">
                                     <ClipboardList size={14} />
                                 </button>
+                                {customWorkbookEnabled && (
+                                    <button
+                                        className="btn btn-sm btn-ghost"
+                                        onClick={() => handleDownloadSingleCustomReport(rfi)}
+                                        title="Download custom contractor report"
+                                    >
+                                        <FileDown size={14} />
+                                    </button>
+                                )}
                             </div>
                         </td>
                     );
@@ -558,6 +598,15 @@ export default function DailyRFISheet() {
                             <button className="btn btn-sm btn-ghost" onClick={() => { setDetailTarget(rfi); setEditTarget(null); setMarkupTarget(null); scrollToPageBottom(); }} title="View Review & Details">
                                 <ClipboardList size={14} />
                             </button>
+                            {customWorkbookEnabled && (
+                                <button
+                                    className="btn btn-sm btn-ghost"
+                                    onClick={() => handleDownloadSingleCustomReport(rfi)}
+                                    title="Download custom contractor report"
+                                >
+                                    <FileDown size={14} />
+                                </button>
+                            )}
                             {rfi.status === RFI_STATUS.REJECTED && (
                                 <button className="btn btn-sm btn-action" onClick={(e) => handleCreateRevision(rfi, e)} title="Create new revision from this rejected RFI" style={{ backgroundColor: 'var(--clr-brand-primary)', color: 'white', borderColor: 'var(--clr-brand-primary)' }}>
                                     <Plus size={14} />
@@ -752,6 +801,17 @@ export default function DailyRFISheet() {
 
                         {currentRfis.length > 0 && (
                             <div className="export-actions review-export-actions" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                {activeTab === 'daily' && customWorkbookEnabled && (
+                                    <button
+                                        className="btn btn-sm"
+                                        style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '600', padding: '0.4rem 0.75rem' }}
+                                        onClick={() => handleExportCustomWorkbook(currentRfis, `Contractor_RFI_Workbook_${currentDate}`)}
+                                        disabled={exportingCustomWorkbook}
+                                        title="Export custom contractor workbook"
+                                    >
+                                        <FileDown size={17} /> {exportingCustomWorkbook ? 'Custom...' : 'Custom Excel'}
+                                    </button>
+                                )}
                                 <button
                                     className="btn btn-sm"
                                     style={{ backgroundColor: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
@@ -937,6 +997,7 @@ export default function DailyRFISheet() {
                     rfi={detailTarget}
                     projectFields={projectFields}
                     orderedColumns={orderedTableColumns}
+                    onDownloadCustomReport={customWorkbookEnabled ? handleDownloadSingleCustomReport : undefined}
                     onClose={() => setDetailTarget(null)}
                 />
             )}
