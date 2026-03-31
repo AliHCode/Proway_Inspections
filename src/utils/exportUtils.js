@@ -5,6 +5,7 @@ import { formatDateDisplay } from './rfiLogic';
 import { sanitizeColumnWidth, widthPxToExcelChars } from './tableLayout';
 
 const PDF_PX_TO_PT = 0.6;
+const PX_TO_MM = 0.264583;
 const PDF_SAFE_MARGIN = 10;
 const PDF_COMPACT_FACTOR = 1;
 // Columns to exclude from PDF (shown only on screen)
@@ -25,6 +26,8 @@ const DEFAULT_EXPORT_TEMPLATE = {
         headFontSize: 10,
         bodyFontFamily: 'helvetica',
         headFontFamily: 'helvetica',
+        headRowHeight: 32,
+        bodyRowHeight: 28,
         compactMode: false,
         headerLayerHeight: 110,
         columnLabels: {},
@@ -514,6 +517,15 @@ export function exportToExcel(rfis, filename = 'RFI_Report', projectFields = [],
     });
     worksheet['!cols'] = cols;
 
+    const rowConfig = Array.from({ length: aoa.length }, () => ({}));
+    groupedHeaderRows.rows.forEach((_, index) => {
+        rowConfig[headerStart + index] = { hpx: template.table.headRowHeight || 32 };
+    });
+    body.forEach((_, index) => {
+        rowConfig[groupedHeaderRows.bodyStartRow + index] = { hpx: template.table.bodyRowHeight || 28 };
+    });
+    worksheet['!rows'] = rowConfig;
+
     XLSX.utils.book_append_sheet(workbook, worksheet, 'RFIs');
     XLSX.writeFile(workbook, `${filename}.xlsx`);
 }
@@ -578,6 +590,8 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
     const bodyFontSize = Math.max(5, baseFontBody * PDF_COMPACT_FACTOR * fontShrink);
     const headFontSize = Math.max(5, baseFontHead * PDF_COMPACT_FACTOR * fontShrink);
     const cellPad = Math.max(0.6, (template.table.compactMode ? 1.25 : 1.6) * fontShrink);
+    const bodyRowHeight = Math.max(4, (template.table.bodyRowHeight || 28) * PX_TO_MM * fontShrink);
+    const headRowHeight = Math.max(4, (template.table.headRowHeight || 32) * PX_TO_MM * fontShrink);
 
     autoTable(doc, {
         head: pdfHeadRows,
@@ -591,6 +605,7 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
             fontSize: bodyFontSize,
             font: resolvePdfFontFamily(template.table.bodyFontFamily),
             cellPadding: cellPad,
+            minCellHeight: bodyRowHeight,
             overflow: 'linebreak',
             lineWidth: 0.4,
             lineColor: [0, 0, 0],
@@ -602,6 +617,7 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
             font: resolvePdfFontFamily(template.table.headFontFamily),
             fontSize: headFontSize,
             fontStyle: 'bold',
+            minCellHeight: headRowHeight,
             lineWidth: 0.5,
             lineColor: [0, 0, 0],
         },
@@ -757,6 +773,8 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
     const dBodyFontSize = Math.max(5, dBaseFontBody * PDF_COMPACT_FACTOR * dFontShrink);
     const dHeadFontSize = Math.max(5, template.table.headFontSize * PDF_COMPACT_FACTOR * dFontShrink);
     const dCellPad = Math.max(0.6, (template.table.compactMode ? 1.25 : 1.6) * dFontShrink);
+    const dBodyRowHeight = Math.max(4, (template.table.bodyRowHeight || 28) * PX_TO_MM * dFontShrink);
+    const dHeadRowHeight = Math.max(4, (template.table.headRowHeight || 32) * PX_TO_MM * dFontShrink);
 
     autoTable(doc, {
         head: pdfHeadRows,
@@ -770,6 +788,7 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
             fontSize: dBodyFontSize,
             cellPadding: dCellPad,
             font: resolvePdfFontFamily(template.table.bodyFontFamily),
+            minCellHeight: dBodyRowHeight,
             overflow: 'linebreak',
             lineWidth: 0.4,
             lineColor: [0, 0, 0],
@@ -781,6 +800,7 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
             font: resolvePdfFontFamily(template.table.headFontFamily),
             fontStyle: 'bold',
             fontSize: dHeadFontSize,
+            minCellHeight: dHeadRowHeight,
             lineWidth: 0.5,
             lineColor: [0, 0, 0],
         },

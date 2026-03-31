@@ -56,6 +56,8 @@ const DEFAULT_TEMPLATE = {
         bodyFontSize: 11,
         headFontFamily: 'helvetica',
         bodyFontFamily: 'helvetica',
+        headRowHeight: 32,
+        bodyRowHeight: 28,
         columnLabels: {},
         columnWidths: {},
         hiddenColumnKeys: [],
@@ -348,6 +350,8 @@ function buildExportTemplateFromStudio(studioTemplate) {
             headFontSize: studioTemplate?.tableConfig?.headFontSize || 10,
             bodyFontFamily: studioTemplate?.tableConfig?.bodyFontFamily || 'helvetica',
             headFontFamily: studioTemplate?.tableConfig?.headFontFamily || 'helvetica',
+            headRowHeight: studioTemplate?.tableConfig?.headRowHeight || 32,
+            bodyRowHeight: studioTemplate?.tableConfig?.bodyRowHeight || 28,
             compactMode: false,
             headerLayerHeight: 110,
             columnLabels: studioTemplate?.tableConfig?.columnLabels || {},
@@ -452,6 +456,7 @@ export default function AdminFormatDesigner() {
     const [selectedZoneName, setSelectedZoneName] = useState(null);
     const [panMode, setPanMode] = useState(false);
     const [isPanning, setIsPanning] = useState(false);
+    const [inlineTextEditId, setInlineTextEditId] = useState(null);
 
     const stageViewportRef = useRef(null);
 
@@ -636,6 +641,12 @@ export default function AdminFormatDesigner() {
     const selectedElement = useMemo(() => {
         return template.elements.find((element) => element.id === selectedId) || null;
     }, [template.elements, selectedId]);
+
+    useEffect(() => {
+        if (!selectedElement || selectedElement.type !== 'text') {
+            setInlineTextEditId(null);
+        }
+    }, [selectedElement]);
 
     const visibleElementCount = useMemo(() => {
         return template.elements.filter((element) => element.visible !== false).length;
@@ -1351,6 +1362,19 @@ export default function AdminFormatDesigner() {
                             />
                         </div>
                         <div className="studio-input-group">
+                            <label>Header row height</label>
+                            <input
+                                type="number"
+                                min="20"
+                                max="120"
+                                value={template.tableConfig.headRowHeight || 32}
+                                onChange={(event) => setTemplate((previous) => ({
+                                    ...previous,
+                                    tableConfig: { ...previous.tableConfig, headRowHeight: Number(event.target.value) },
+                                }))}
+                            />
+                        </div>
+                        <div className="studio-input-group">
                             <label>Body font</label>
                             <select
                                 value={template.tableConfig.bodyFontFamily || 'helvetica'}
@@ -1374,6 +1398,19 @@ export default function AdminFormatDesigner() {
                                 onChange={(event) => setTemplate((previous) => ({
                                     ...previous,
                                     tableConfig: { ...previous.tableConfig, bodyFontSize: Number(event.target.value) },
+                                }))}
+                            />
+                        </div>
+                        <div className="studio-input-group">
+                            <label>Data row height</label>
+                            <input
+                                type="number"
+                                min="20"
+                                max="120"
+                                value={template.tableConfig.bodyRowHeight || 28}
+                                onChange={(event) => setTemplate((previous) => ({
+                                    ...previous,
+                                    tableConfig: { ...previous.tableConfig, bodyRowHeight: Number(event.target.value) },
                                 }))}
                             />
                         </div>
@@ -1729,6 +1766,14 @@ export default function AdminFormatDesigner() {
                                                     id={`el_${element.id}`}
                                                     className={`studio-v2-element ${selectedId === element.id ? 'selected' : ''} ${isHidden ? 'is-hidden' : ''}`}
                                                     onMouseDown={(event) => startInteraction(event, element.id, 'move')}
+                                                    onDoubleClick={(event) => {
+                                                        if (element.type !== 'text' || panMode) return;
+                                                        event.preventDefault();
+                                                        event.stopPropagation();
+                                                        setSelectedId(element.id);
+                                                        setSelectedZoneName(null);
+                                                        setInlineTextEditId(element.id);
+                                                    }}
                                                     style={{
                                                         left: `${element.x}px`,
                                                         top: `${element.y}px`,
@@ -1741,19 +1786,48 @@ export default function AdminFormatDesigner() {
                                                 >
                                                     <div className="studio-element-shell">
                                                         {element.type === 'text' && (
-                                                            <div
-                                                                className="studio-text-preview"
-                                                                style={{
-                                                                    color: element.styles?.color || '#0f172a',
-                                                                    fontFamily: getCanvasFontStack(element.styles?.fontFamily),
-                                                                    fontSize: `${element.styles?.fontSize || 14}px`,
-                                                                    fontWeight: element.styles?.fontWeight || 600,
-                                                                    textAlign: element.styles?.textAlign || 'left',
-                                                                    background: element.styles?.backgroundColor || 'transparent',
-                                                                }}
-                                                            >
-                                                                {element.content}
-                                                            </div>
+                                                            inlineTextEditId === element.id ? (
+                                                                <textarea
+                                                                    className="studio-text-inline-editor"
+                                                                    autoFocus
+                                                                    rows={Math.max(2, String(element.content || '').split('\n').length)}
+                                                                    value={element.content || ''}
+                                                                    onChange={(event) => updateElement(element.id, { content: event.target.value })}
+                                                                    onBlur={() => setInlineTextEditId(null)}
+                                                                    onMouseDown={(event) => event.stopPropagation()}
+                                                                    onClick={(event) => event.stopPropagation()}
+                                                                    onKeyDown={(event) => {
+                                                                        if (event.key === 'Escape') {
+                                                                            setInlineTextEditId(null);
+                                                                        }
+                                                                        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                                                                            setInlineTextEditId(null);
+                                                                        }
+                                                                    }}
+                                                                    style={{
+                                                                        color: element.styles?.color || '#0f172a',
+                                                                        fontFamily: getCanvasFontStack(element.styles?.fontFamily),
+                                                                        fontSize: `${element.styles?.fontSize || 14}px`,
+                                                                        fontWeight: element.styles?.fontWeight || 600,
+                                                                        textAlign: element.styles?.textAlign || 'left',
+                                                                        background: element.styles?.backgroundColor || '#ffffff',
+                                                                    }}
+                                                                />
+                                                            ) : (
+                                                                <div
+                                                                    className="studio-text-preview"
+                                                                    style={{
+                                                                        color: element.styles?.color || '#0f172a',
+                                                                        fontFamily: getCanvasFontStack(element.styles?.fontFamily),
+                                                                        fontSize: `${element.styles?.fontSize || 14}px`,
+                                                                        fontWeight: element.styles?.fontWeight || 600,
+                                                                        textAlign: element.styles?.textAlign || 'left',
+                                                                        background: element.styles?.backgroundColor || 'transparent',
+                                                                    }}
+                                                                >
+                                                                    {element.content}
+                                                                </div>
+                                                            )
                                                         )}
 
                                                         {element.type === 'image' && (
@@ -1811,7 +1885,10 @@ export default function AdminFormatDesigner() {
                                                                         <tr>
                                                                             {groupedHeaderPreview.topCells.map((cell) => (
                                                                                 <th key={cell.key} colSpan={cell.colSpan} rowSpan={cell.rowSpan}>
-                                                                                    <div className="studio-table-header-cell">
+                                                                                    <div
+                                                                                        className="studio-table-header-cell"
+                                                                                        style={{ minHeight: `${(template.tableConfig.headRowHeight || 32) * (cell.rowSpan || 1)}px` }}
+                                                                                    >
                                                                                         <span>{cell.label}</span>
                                                                                         {cell.fieldKey && (
                                                                                             <button
@@ -1828,7 +1905,10 @@ export default function AdminFormatDesigner() {
                                                                             <tr>
                                                                                 {groupedHeaderPreview.secondRow.map((cell) => (
                                                                                     <th key={cell.key}>
-                                                                                        <div className="studio-table-header-cell">
+                                                                                        <div
+                                                                                            className="studio-table-header-cell"
+                                                                                            style={{ minHeight: `${template.tableConfig.headRowHeight || 32}px` }}
+                                                                                        >
                                                                                             <span>{cell.label}</span>
                                                                                             <button
                                                                                                 className="studio-table-col-resizer"
@@ -1848,9 +1928,9 @@ export default function AdminFormatDesigner() {
                                                                         }}
                                                                     >
                                                                         {[1, 2, 3, 4, 5].map((row) => (
-                                                                            <tr key={row}>
+                                                                            <tr key={row} style={{ height: `${template.tableConfig.bodyRowHeight || 28}px` }}>
                                                                                 {visiblePreviewColumns.map((column) => (
-                                                                                    <td key={`${column.field_key}_${row}`}>
+                                                                                    <td key={`${column.field_key}_${row}`} style={{ height: `${template.tableConfig.bodyRowHeight || 28}px` }}>
                                                                                         {row === 1 ? `Sample ${template.tableConfig.columnLabels?.[column.field_key] || column.field_name}` : ''}
                                                                                     </td>
                                                                                 ))}
@@ -1935,6 +2015,18 @@ export default function AdminFormatDesigner() {
                                         </button>
                                     </div>
 
+                                    {selectedElement.type === 'text' && (
+                                        <div className="studio-input-group studio-quick-text-group">
+                                            <label>Quick text edit</label>
+                                            <textarea
+                                                rows={2}
+                                                value={selectedElement.content || ''}
+                                                onChange={(event) => updateElement(selectedElement.id, { content: event.target.value })}
+                                            />
+                                            <small>Double-click the text on the canvas for direct in-place editing.</small>
+                                        </div>
+                                    )}
+
                                     <div className="studio-prop-grid">
                                         <div className="studio-input-group">
                                             <label>X</label>
@@ -1962,7 +2054,7 @@ export default function AdminFormatDesigner() {
                                     {selectedElement.type === 'text' && (
                                         <>
                                             <div className="studio-input-group">
-                                                <label>Content</label>
+                                                <label>Content details</label>
                                                 <textarea
                                                     rows={4}
                                                     value={selectedElement.content || ''}
