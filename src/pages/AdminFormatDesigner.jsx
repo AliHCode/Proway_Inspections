@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
+import { useRef } from 'react';
 import {
     ChevronDown,
     ChevronLeft,
@@ -26,6 +27,7 @@ import {
 import toast from 'react-hot-toast';
 import Header from '../components/Header';
 import { useProject } from '../context/ProjectContext';
+import { getDefaultColumnWidth, sanitizeColumnWidth } from '../utils/tableLayout';
 
 const A4_LANDSCAPE_WIDTH = 1123;
 const A4_LANDSCAPE_HEIGHT = 794;
@@ -51,6 +53,8 @@ const DEFAULT_TEMPLATE = {
         headFillColor: '#1e293b',
         headTextColor: '#ffffff',
         columnLabels: {},
+        columnWidths: {},
+        hiddenColumnKeys: [],
         groupedHeaders: [
             { title: 'Chainage', fromKey: 'chainage_from', toKey: 'chainage_to' },
         ],
@@ -105,6 +109,14 @@ function normalizeStudioTemplate(rawTemplate) {
                     ...base.tableConfig.columnLabels,
                     ...(studio?.tableConfig?.columnLabels || {}),
                 },
+                columnWidths: {
+                    ...base.tableConfig.columnWidths,
+                    ...(rawTemplate?.table?.columnWidths || {}),
+                    ...(studio?.tableConfig?.columnWidths || {}),
+                },
+                hiddenColumnKeys: Array.isArray(studio?.tableConfig?.hiddenColumnKeys)
+                    ? studio.tableConfig.hiddenColumnKeys
+                    : base.tableConfig.hiddenColumnKeys,
                 groupedHeaders: studio?.tableConfig?.groupedHeaders || rawTemplate?.table?.groupedHeaders || base.tableConfig.groupedHeaders,
             },
             canvas: {
@@ -132,6 +144,13 @@ function normalizeStudioTemplate(rawTemplate) {
                     ...base.tableConfig.columnLabels,
                     ...(rawTemplate.tableConfig?.columnLabels || {}),
                 },
+                columnWidths: {
+                    ...base.tableConfig.columnWidths,
+                    ...(rawTemplate.tableConfig?.columnWidths || {}),
+                },
+                hiddenColumnKeys: Array.isArray(rawTemplate.tableConfig?.hiddenColumnKeys)
+                    ? rawTemplate.tableConfig.hiddenColumnKeys
+                    : base.tableConfig.hiddenColumnKeys,
                 groupedHeaders: rawTemplate.tableConfig?.groupedHeaders || base.tableConfig.groupedHeaders,
             },
             canvas: {
@@ -209,6 +228,8 @@ function normalizeStudioTemplate(rawTemplate) {
         headFillColor: legacy?.table?.headFillColor || converted.tableConfig.headFillColor,
         headTextColor: legacy?.table?.headTextColor || converted.tableConfig.headTextColor,
         columnLabels: legacy?.table?.columnLabels || {},
+        columnWidths: legacy?.table?.columnWidths || {},
+        hiddenColumnKeys: legacy?.table?.hiddenColumnKeys || [],
         groupedHeaders: legacy?.table?.groupedHeaders || [],
     };
 
@@ -314,6 +335,8 @@ function buildExportTemplateFromStudio(studioTemplate) {
             compactMode: false,
             headerLayerHeight: 110,
             columnLabels: studioTemplate?.tableConfig?.columnLabels || {},
+            columnWidths: studioTemplate?.tableConfig?.columnWidths || {},
+            hiddenColumnKeys: studioTemplate?.tableConfig?.hiddenColumnKeys || [],
             groupedHeaders: studioTemplate?.tableConfig?.groupedHeaders || [],
         },
         footer: {
@@ -398,7 +421,7 @@ function getResizeHandleStyle(position) {
 }
 
 export default function AdminFormatDesigner() {
-    const { activeProject, orderedTableColumns, saveProjectExportTemplate } = useProject();
+    const { activeProject, orderedTableColumns, columnWidthMap, saveProjectExportTemplate } = useProject();
     const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
     const [saving, setSaving] = useState(false);
     const [selectedId, setSelectedId] = useState(null);
@@ -411,6 +434,10 @@ export default function AdminFormatDesigner() {
     const [inspectorTab, setInspectorTab] = useState('inspector');
     const [showTopHeader, setShowTopHeader] = useState(true);
     const [selectedZoneName, setSelectedZoneName] = useState(null);
+    const [panMode, setPanMode] = useState(false);
+    const [isPanning, setIsPanning] = useState(false);
+
+    const stageViewportRef = useRef(null);
 
     const draftStorageKey = useMemo(() => {
         if (!activeProject?.id) return '';
@@ -473,7 +500,52 @@ export default function AdminFormatDesigner() {
         return (orderedTableColumns || []).filter((column) => column.field_key !== 'actions');
     }, [orderedTableColumns]);
 
-    const previewHeaderKeys = useMemo(() => previewColumns.map((column) => column.field_key), [previewColumns]);
+    const exportColumnOptions = useMemo(() => {
+        const extras = [
+            { field_key: 'remarks', field_name: 'Remarks', is_virtual: true },
+            { field_key: 'filed_date', field_name: 'Filed Date', is_virtual: true },
+            { field_key: 'review_date', field_name: 'Review Date', is_virtual: true },
+        ];
+        const seen = new Set();
+        return [...previewColumns, ...extras].filter((column) => {
+            if (!column?.field_key || seen.has(column.field_key)) return false;
+            seen.add(column.field_key);
+            return true;
+        });
+    }, [previewColumns]);
+
+    const hiddenColumnKeys = useMemo(() => (
+        new Set(template?.tableConfig?.hiddenColumnKeys || [])
+    ), [template?.tableConfig?.hiddenColumnKeys]);
+
+    const visiblePreviewColumns = useMemo(() => (
+        exportColumnOptions.filter((column) => !hiddenColumnKeys.has(column.field_key))
+    ), [exportColumnOptions, hiddenColumnKeys]);
+
+    const getColumnWidthValue = (fieldKey) => (
+        sanitizeColumnWidth(
+            template?.tableConfig?.columnWidths?.[fieldKey],
+            sanitizeColumnWidth(columnWidthMap?.[fieldKey], getDefaultColumnWidth(fieldKey))
+        )
+    );
+
+    const updateColumnWidth = (fieldKey, value) => {
+        setTemplate((previous) => ({
+            ...previous,
+            tableConfig: {
+                ...previous.tableConfig,
+                columnWidths: {
+                    ...(previous.tableConfig?.columnWidths || {}),
+                    [fieldKey]: sanitizeColumnWidth(
+                        value,
+                        sanitizeColumnWidth(columnWidthMap?.[fieldKey], getDefaultColumnWidth(fieldKey))
+                    ),
+                },
+            },
+        }));
+    };
+
+    const previewHeaderKeys = useMemo(() => visiblePreviewColumns.map((column) => column.field_key), [visiblePreviewColumns]);
 
     const previewGroupedHeaders = useMemo(() => {
         return (template?.tableConfig?.groupedHeaders || [])
@@ -491,8 +563,9 @@ export default function AdminFormatDesigner() {
         if (previewGroupedHeaders.length === 0) {
             return {
                 hasGroups: false,
-                topCells: previewColumns.map((column) => ({
+                topCells: visiblePreviewColumns.map((column) => ({
                     key: column.field_key,
+                    fieldKey: column.field_key,
                     label: template.tableConfig.columnLabels?.[column.field_key] || column.field_name,
                     rowSpan: 1,
                     colSpan: 1,
@@ -505,7 +578,7 @@ export default function AdminFormatDesigner() {
         const secondRow = [];
         let index = 0;
 
-        while (index < previewColumns.length) {
+        while (index < visiblePreviewColumns.length) {
             const group = previewGroupedHeaders.find((item) => item.start === index);
             if (group) {
                 topCells.push({
@@ -515,9 +588,10 @@ export default function AdminFormatDesigner() {
                     rowSpan: 1,
                 });
                 for (let inner = group.start; inner <= group.end; inner += 1) {
-                    const column = previewColumns[inner];
+                    const column = visiblePreviewColumns[inner];
                     secondRow.push({
                         key: column.field_key,
+                        fieldKey: column.field_key,
                         label: template.tableConfig.columnLabels?.[column.field_key] || column.field_name,
                     });
                 }
@@ -525,9 +599,10 @@ export default function AdminFormatDesigner() {
                 continue;
             }
 
-            const column = previewColumns[index];
+            const column = visiblePreviewColumns[index];
             topCells.push({
                 key: column.field_key,
+                fieldKey: column.field_key,
                 label: template.tableConfig.columnLabels?.[column.field_key] || column.field_name,
                 rowSpan: 2,
                 colSpan: 1,
@@ -536,7 +611,7 @@ export default function AdminFormatDesigner() {
         }
 
         return { hasGroups: true, topCells, secondRow };
-    }, [previewColumns, previewGroupedHeaders, template.tableConfig.columnLabels]);
+    }, [visiblePreviewColumns, previewGroupedHeaders, template.tableConfig.columnLabels]);
 
     const sortedElements = useMemo(() => {
         return [...template.elements].sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0));
@@ -549,6 +624,21 @@ export default function AdminFormatDesigner() {
     const visibleElementCount = useMemo(() => {
         return template.elements.filter((element) => element.visible !== false).length;
     }, [template.elements]);
+
+    const toggleHiddenColumn = (fieldKey) => {
+        setTemplate((previous) => {
+            const current = new Set(previous.tableConfig.hiddenColumnKeys || []);
+            if (current.has(fieldKey)) current.delete(fieldKey);
+            else current.add(fieldKey);
+            return {
+                ...previous,
+                tableConfig: {
+                    ...previous.tableConfig,
+                    hiddenColumnKeys: Array.from(current),
+                },
+            };
+        });
+    };
 
     const updateCanvas = (patch) => {
         setTemplate((previous) => ({
@@ -808,8 +898,8 @@ export default function AdminFormatDesigner() {
     };
 
     const addGroupedHeaderPreset = (title, fromCandidates = [], toCandidates = []) => {
-        const fromKey = fromCandidates.find((key) => previewColumns.some((column) => column.field_key === key));
-        const toKey = toCandidates.find((key) => previewColumns.some((column) => column.field_key === key));
+        const fromKey = fromCandidates.find((key) => exportColumnOptions.some((column) => column.field_key === key));
+        const toKey = toCandidates.find((key) => exportColumnOptions.some((column) => column.field_key === key));
 
         if (!fromKey || !toKey) {
             toast.error(`Couldn't find matching columns for ${title}`);
@@ -856,7 +946,19 @@ export default function AdminFormatDesigner() {
         }));
     };
 
+    function startColumnResize(event, fieldKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        setInteraction({
+            targetType: 'column-resize',
+            fieldKey,
+            startX: event.clientX,
+            startWidth: getColumnWidthValue(fieldKey),
+        });
+    }
+
     function startInteraction(event, id, mode, handle = null) {
+        if (panMode && event.button === 0) return;
         event.preventDefault();
         event.stopPropagation();
         setSelectedId(id);
@@ -875,6 +977,7 @@ export default function AdminFormatDesigner() {
     }
 
     function startZoneInteraction(event, zoneName, mode, handle = null) {
+        if (panMode && event.button === 0) return;
         event.preventDefault();
         event.stopPropagation();
         setSelectedId(null);
@@ -892,10 +995,44 @@ export default function AdminFormatDesigner() {
         });
     }
 
+    function startStagePan(event) {
+        const isMiddleMouse = event.button === 1;
+        const isLeftPan = panMode && event.button === 0;
+        if (!isMiddleMouse && !isLeftPan) return;
+
+        const viewport = stageViewportRef.current;
+        if (!viewport) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        setInteraction({
+            targetType: 'pan',
+            startX: event.clientX,
+            startY: event.clientY,
+            startScrollLeft: viewport.scrollLeft,
+            startScrollTop: viewport.scrollTop,
+        });
+        setIsPanning(true);
+    }
+
     useEffect(() => {
         if (!interaction) return;
 
         function onMouseMove(event) {
+            if (interaction.targetType === 'pan') {
+                const viewport = stageViewportRef.current;
+                if (!viewport) return;
+                viewport.scrollLeft = interaction.startScrollLeft - (event.clientX - interaction.startX);
+                viewport.scrollTop = interaction.startScrollTop - (event.clientY - interaction.startY);
+                return;
+            }
+
+            if (interaction.targetType === 'column-resize') {
+                const nextWidth = interaction.startWidth + ((event.clientX - interaction.startX) / zoom);
+                updateColumnWidth(interaction.fieldKey, nextWidth);
+                return;
+            }
+
             const dx = (event.clientX - interaction.startX) / zoom;
             const dy = (event.clientY - interaction.startY) / zoom;
             const grid = template?.canvas?.snapToGrid ? GRID_SIZE : 1;
@@ -981,6 +1118,7 @@ export default function AdminFormatDesigner() {
         }
 
         function onMouseUp() {
+            setIsPanning(false);
             setInteraction(null);
         }
 
@@ -1168,28 +1306,55 @@ export default function AdminFormatDesigner() {
                     </div>
 
                     <div className="studio-section-list">
-                        {previewColumns.map((column) => (
-                            <div key={column.field_key} className="studio-input-group">
-                                <label>{column.field_key}</label>
-                                <input
-                                    type="text"
-                                    value={template.tableConfig.columnLabels?.[column.field_key] ?? column.field_name}
-                                    onChange={(event) => {
-                                        const value = event.target.value;
-                                        setTemplate((previous) => ({
-                                            ...previous,
-                                            tableConfig: {
-                                                ...previous.tableConfig,
-                                                columnLabels: {
-                                                    ...previous.tableConfig.columnLabels,
-                                                    [column.field_key]: value,
-                                                },
-                                            },
-                                        }));
-                                    }}
-                                />
-                            </div>
-                        ))}
+                        {exportColumnOptions.map((column) => {
+                            const width = getColumnWidthValue(column.field_key);
+                            const isHidden = hiddenColumnKeys.has(column.field_key);
+                            return (
+                                <div key={column.field_key} className="studio-column-card">
+                                    <div className="studio-input-group">
+                                        <label>{column.field_key}</label>
+                                        <input
+                                            type="text"
+                                            value={template.tableConfig.columnLabels?.[column.field_key] ?? column.field_name}
+                                            onChange={(event) => {
+                                                const value = event.target.value;
+                                                setTemplate((previous) => ({
+                                                    ...previous,
+                                                    tableConfig: {
+                                                        ...previous.tableConfig,
+                                                        columnLabels: {
+                                                            ...previous.tableConfig.columnLabels,
+                                                            [column.field_key]: value,
+                                                        },
+                                                    },
+                                                }));
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="studio-column-meta with-editor">
+                                        <div className="studio-inline-width-editor">
+                                            <label>Width</label>
+                                            <input
+                                                type="number"
+                                                min="30"
+                                                max="640"
+                                                value={width}
+                                                onChange={(event) => updateColumnWidth(column.field_key, event.target.value)}
+                                            />
+                                            <span>px</span>
+                                        </div>
+                                        <label className="studio-inline-checkbox">
+                                            <input
+                                                type="checkbox"
+                                                checked={!isHidden}
+                                                onChange={() => toggleHiddenColumn(column.field_key)}
+                                            />
+                                            <span>Include in PDF/Excel</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
 
                     <div className="studio-grouped-header-block">
@@ -1295,13 +1460,12 @@ export default function AdminFormatDesigner() {
         <div className="format-studio-page studio-pro-page">
             <Header />
             <div className={`studio-pro-shell ${showTopHeader ? '' : 'header-collapsed'}`}>
-                <header className={`studio-pro-topbar ${showTopHeader ? '' : 'is-collapsed'}`}>
+                {showTopHeader && (
+                <header className="studio-pro-topbar">
                     <div className="studio-pro-title">
                         <div className="studio-pro-kicker">Admin Export Studio</div>
                         <h1>Daily Summary Designer</h1>
-                        {showTopHeader && (
-                            <p>Build the contractor summary layout with table styling, freeform header content, logos, notes blocks, and signature areas in one place.</p>
-                        )}
+                        <p>Build the contractor summary layout with table styling, freeform header content, logos, notes blocks, and signature areas in one place.</p>
                     </div>
 
                     <div className="studio-pro-actions">
@@ -1325,6 +1489,7 @@ export default function AdminFormatDesigner() {
                         </div>
                     </div>
                 </header>
+                )}
 
                 <div className={`studio-pro-body ${showToolsPanel ? '' : 'tools-collapsed'} ${showInspectorPanel ? '' : 'inspector-collapsed'}`}>
                     <aside className={`studio-panel studio-tools-panel ${showToolsPanel ? '' : 'is-collapsed'}`}>
@@ -1383,6 +1548,14 @@ export default function AdminFormatDesigner() {
                             </div>
 
                             <div className="studio-toolbar-group">
+                                {!showTopHeader && (
+                                    <button className="terminal-btn" onClick={() => setShowTopHeader(true)}>
+                                        <ChevronDown size={14} /> Expand header
+                                    </button>
+                                )}
+                                <button className={`terminal-btn ${panMode ? 'active' : ''}`} onClick={() => setPanMode((value) => !value)}>
+                                    <Move size={14} /> {panMode ? 'Pan On' : 'Pan Off'}
+                                </button>
                                 <button className="terminal-btn" onClick={() => updateCanvas({ showGrid: !template.canvas.showGrid })}>
                                     <Grid2x2 size={14} /> {template.canvas.showGrid ? 'Hide Grid' : 'Show Grid'}
                                 </button>
@@ -1396,7 +1569,12 @@ export default function AdminFormatDesigner() {
                         </div>
 
                         <div
-                            className={`studio-stage-viewport studio-stage-viewport--pro ${template.canvas.showGrid ? 'show-grid' : 'hide-grid'}`}
+                            ref={stageViewportRef}
+                            className={`studio-stage-viewport studio-stage-viewport--pro ${template.canvas.showGrid ? 'show-grid' : 'hide-grid'} ${panMode ? 'pan-mode' : ''} ${isPanning ? 'is-panning' : ''}`}
+                            onMouseDownCapture={startStagePan}
+                            onAuxClick={(event) => {
+                                if (event.button === 1) event.preventDefault();
+                            }}
                             onClick={() => {
                                 setSelectedId(null);
                                 setSelectedZoneName(null);
@@ -1484,7 +1662,7 @@ export default function AdminFormatDesigner() {
                                                         height: `${element.h}px`,
                                                         transform: `rotate(${element.rotation || 0}deg)`,
                                                         zIndex: element.zIndex || 1,
-                                                        cursor: 'move',
+                                                        cursor: isPanning ? 'grabbing' : panMode ? 'grab' : 'move',
                                                     }}
                                                 >
                                                     <div className="studio-element-shell">
@@ -1540,18 +1718,43 @@ export default function AdminFormatDesigner() {
 
                                                         {element.type === 'table' && (
                                                             <div className="studio-table-preview">
-                                                                <div className="studio-table-preview-badge">Summary table preview</div>
                                                                 <table>
+                                                                    <colgroup>
+                                                                        {visiblePreviewColumns.map((column) => {
+                                                                            const width = getColumnWidthValue(column.field_key);
+                                                                            return <col key={column.field_key} style={{ width: `${width}px` }} />;
+                                                                        })}
+                                                                    </colgroup>
                                                                     <thead style={{ background: template.tableConfig.headFillColor, color: template.tableConfig.headTextColor }}>
                                                                         <tr>
                                                                             {groupedHeaderPreview.topCells.map((cell) => (
-                                                                                <th key={cell.key} colSpan={cell.colSpan} rowSpan={cell.rowSpan}>{cell.label}</th>
+                                                                                <th key={cell.key} colSpan={cell.colSpan} rowSpan={cell.rowSpan}>
+                                                                                    <div className="studio-table-header-cell">
+                                                                                        <span>{cell.label}</span>
+                                                                                        {cell.fieldKey && (
+                                                                                            <button
+                                                                                                className="studio-table-col-resizer"
+                                                                                                onMouseDown={(event) => startColumnResize(event, cell.fieldKey)}
+                                                                                                title={`Resize ${cell.label}`}
+                                                                                            />
+                                                                                        )}
+                                                                                    </div>
+                                                                                </th>
                                                                             ))}
                                                                         </tr>
                                                                         {groupedHeaderPreview.hasGroups && (
                                                                             <tr>
                                                                                 {groupedHeaderPreview.secondRow.map((cell) => (
-                                                                                    <th key={cell.key}>{cell.label}</th>
+                                                                                    <th key={cell.key}>
+                                                                                        <div className="studio-table-header-cell">
+                                                                                            <span>{cell.label}</span>
+                                                                                            <button
+                                                                                                className="studio-table-col-resizer"
+                                                                                                onMouseDown={(event) => startColumnResize(event, cell.fieldKey)}
+                                                                                                title={`Resize ${cell.label}`}
+                                                                                            />
+                                                                                        </div>
+                                                                                    </th>
                                                                                 ))}
                                                                             </tr>
                                                                         )}
@@ -1559,7 +1762,7 @@ export default function AdminFormatDesigner() {
                                                                     <tbody>
                                                                         {[1, 2, 3, 4, 5].map((row) => (
                                                                             <tr key={row}>
-                                                                                {previewColumns.map((column) => (
+                                                                                {visiblePreviewColumns.map((column) => (
                                                                                     <td key={`${column.field_key}_${row}`}>
                                                                                         {row === 1 ? `Sample ${template.tableConfig.columnLabels?.[column.field_key] || column.field_name}` : ''}
                                                                                     </td>

@@ -16,6 +16,7 @@ function createEmptyMapping() {
         cell: '',
         fieldKey: '',
         label: '',
+        prefix: '',
     };
 }
 
@@ -151,8 +152,9 @@ export default function AdminExcelTemplatePage() {
                     cell: String(mapping.cell || '').trim().toUpperCase(),
                     fieldKey: String(mapping.fieldKey || '').trim(),
                     label: String(mapping.label || '').trim(),
+                    prefix: typeof mapping.prefix === 'string' ? mapping.prefix : '',
                 }))
-                .filter((mapping) => mapping.cell && mapping.fieldKey);
+                .filter((mapping) => mapping.cell && (mapping.fieldKey || mapping.prefix));
 
             const nextProjectTemplate = mergeContractorExcelTemplateConfig(activeProject.export_template, {
                 ...draft,
@@ -348,7 +350,7 @@ export default function AdminExcelTemplatePage() {
                                         key={`${index}_${mapping.cell}_${mapping.fieldKey}`}
                                         style={{
                                             display: 'grid',
-                                            gridTemplateColumns: '140px minmax(0, 1fr) auto',
+                                            gridTemplateColumns: '140px 220px minmax(0, 1fr) auto',
                                             gap: '0.75rem',
                                             alignItems: 'center',
                                             borderRadius: '16px',
@@ -364,6 +366,13 @@ export default function AdminExcelTemplatePage() {
                                             onChange={(event) => updateMapping(index, { cell: event.target.value.toUpperCase() })}
                                             placeholder="Cell e.g. B10"
                                         />
+                                        <input
+                                            type="text"
+                                            className="premium-input"
+                                            value={mapping.prefix || ''}
+                                            onChange={(event) => updateMapping(index, { prefix: event.target.value })}
+                                            placeholder="Prefix / fixed text"
+                                        />
                                         <select
                                             className="premium-select"
                                             value={mapping.fieldKey}
@@ -375,7 +384,7 @@ export default function AdminExcelTemplatePage() {
                                                 });
                                             }}
                                         >
-                                            <option value="">Select RFI field</option>
+                                            <option value="">No dropdown field</option>
                                             {fieldOptions.map((option) => (
                                                 <option key={option.key} value={option.key}>
                                                     {option.label} ({option.key})
@@ -385,13 +394,20 @@ export default function AdminExcelTemplatePage() {
                                         <button className="btn btn-ghost" onClick={() => removeMapping(index)} title="Remove mapping">
                                             <Trash2 size={15} />
                                         </button>
+                                        <div style={{ gridColumn: '2 / 4', marginTop: '-0.15rem', fontSize: '0.82rem', color: '#64748b' }}>
+                                            {mapping.fieldKey
+                                                ? 'Output: prefix + selected field value. If the field is blank, the prefix is still kept.'
+                                                : 'Output: fixed text only. Leave the dropdown empty for the same value on every generated sheet.'}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
                         )}
 
                         <div style={{ padding: '0.95rem 1rem', borderRadius: '14px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e3a8a', fontSize: '0.9rem' }}>
-                            Use the blank contractor sheet as your base. The exporter overwrites only the mapped cells. If a contractor uploads a sample sheet with old values in other cells, those unchanged cells stay exactly as they are in the template.
+                            Use the blank contractor sheet as your base. Each mapped cell can now be:
+                            <strong> field only</strong>, <strong>prefix + field</strong>, or <strong>fixed text only</strong>.
+                            The exporter overwrites only the mapped cells. If a contractor uploads a sample sheet with old values in other cells, those unchanged cells stay exactly as they are in the template.
                         </div>
                     </div>
                 </section>

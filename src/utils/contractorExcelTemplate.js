@@ -122,6 +122,21 @@ function getMappedFieldValue(rfi, fieldKey) {
     }
 }
 
+function buildMappedCellValue(rfi, mapping) {
+    const prefix = typeof mapping?.prefix === 'string' ? mapping.prefix : '';
+    const rawFieldValue = mapping?.fieldKey ? getMappedFieldValue(rfi, mapping.fieldKey) : null;
+    const fieldValue = rawFieldValue == null ? '' : String(rawFieldValue);
+
+    if (mapping?.fieldKey) {
+        if (fieldValue !== '') {
+            return `${prefix}${fieldValue}`;
+        }
+        return prefix || null;
+    }
+
+    return prefix || null;
+}
+
 async function loadExcelJsModule() {
     const mod = await import('exceljs');
     return mod.default || mod;
@@ -178,6 +193,7 @@ export function getContractorExcelTemplateConfig(projectTemplate = null) {
                     cell: String(item.cell || '').trim().toUpperCase(),
                     fieldKey: String(item.fieldKey || '').trim(),
                     label: String(item.label || '').trim(),
+                    prefix: typeof item.prefix === 'string' ? item.prefix : '',
                 }))
             : [],
     };
@@ -270,13 +286,13 @@ export async function exportMappedRfiWorkbook({
         throw new Error('The selected template sheet could not be found.');
     }
 
-    const mappings = (config.mappings || []).filter((item) => item.cell && item.fieldKey);
+    const mappings = (config.mappings || []).filter((item) => item.cell && (item.fieldKey || item.prefix));
     const templateModel = JSON.parse(JSON.stringify(templateSheet.model));
     let existingNames = new Set(workbook.worksheets.map((sheet) => sheet.name));
 
     const fillWorksheet = (worksheet, rfi) => {
         mappings.forEach((mapping) => {
-            const value = getMappedFieldValue(rfi, mapping.fieldKey);
+            const value = buildMappedCellValue(rfi, mapping);
             worksheet.getCell(mapping.cell).value = value == null || value === '' ? null : value;
         });
     };

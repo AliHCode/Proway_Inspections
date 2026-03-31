@@ -26,6 +26,8 @@ const DEFAULT_EXPORT_TEMPLATE = {
         compactMode: false,
         headerLayerHeight: 110,
         columnLabels: {},
+        columnWidths: {},
+        hiddenColumnKeys: [],
         groupedHeaders: [],
     },
     footer: {
@@ -344,6 +346,13 @@ function buildExcelGroupedHeaderRows(headers, groups, startRowIndex) {
     };
 }
 
+function resolveColumnWidthMap(columnWidthMap = {}, template = null) {
+    return {
+        ...(columnWidthMap || {}),
+        ...(template?.table?.columnWidths || {}),
+    };
+}
+
 function buildPdfColumnStyles(doc, fieldKeys = [], columnWidthMap = {}, leftMargin = 14, rightMargin = 14) {
     const pageWidth = doc.internal.pageSize.getWidth();
     const availableWidth = Math.max(120, pageWidth - leftMargin - rightMargin);
@@ -376,10 +385,11 @@ function buildPdfColumnStyles(doc, fieldKeys = [], columnWidthMap = {}, leftMarg
  */
 function buildExportColumns(orderedTableColumns = [], template = null) {
     const columnLabels = template?.table?.columnLabels || {};
+    const hiddenColumnKeys = new Set(template?.table?.hiddenColumnKeys || []);
     const columns = [];
 
     const orderedVisible = orderedTableColumns.length > 0
-        ? orderedTableColumns.filter((c) => c.field_key !== 'actions' && !PDF_EXCLUDED_COLUMNS.has(c.field_key))
+        ? orderedTableColumns.filter((c) => c.field_key !== 'actions' && !PDF_EXCLUDED_COLUMNS.has(c.field_key) && !hiddenColumnKeys.has(c.field_key))
         : [
             { field_key: 'serial', field_name: 'Serial No' },
             { field_key: 'description', field_name: 'Description' },
@@ -401,15 +411,18 @@ function buildExportColumns(orderedTableColumns = [], template = null) {
         });
     });
 
-    if (!columns.some((c) => c.key === 'status')) {
+    if (!hiddenColumnKeys.has('status') && !columns.some((c) => c.key === 'status')) {
         columns.push({ key: 'status', label: columnLabels.status || 'Status' });
     }
-    if (!columns.some((c) => c.key === 'remarks')) {
+    if (!hiddenColumnKeys.has('remarks') && !columns.some((c) => c.key === 'remarks')) {
         columns.push({ key: 'remarks', label: columnLabels.remarks || 'Remarks' });
     }
-
-    columns.push({ key: 'filed_date', label: columnLabels.filed_date || 'Filed Date' });
-    columns.push({ key: 'review_date', label: columnLabels.review_date || 'Review Date' });
+    if (!hiddenColumnKeys.has('filed_date')) {
+        columns.push({ key: 'filed_date', label: columnLabels.filed_date || 'Filed Date' });
+    }
+    if (!hiddenColumnKeys.has('review_date')) {
+        columns.push({ key: 'review_date', label: columnLabels.review_date || 'Review Date' });
+    }
 
     return columns;
 }
@@ -446,6 +459,7 @@ export function exportToExcel(rfis, filename = 'RFI_Report', projectFields = [],
     }
 
     const template = normalizeExportTemplate(projectTemplate, filename);
+    const resolvedColumnWidthMap = resolveColumnWidthMap(columnWidthMap, template);
     const exportData = prepareDataForExport(rfis, projectFields, template);
     const headers = exportData.headers;
     const fieldKeys = exportData.fieldKeys;
@@ -489,7 +503,7 @@ export function exportToExcel(rfis, filename = 'RFI_Report', projectFields = [],
         if (!mappedFieldKey || mappedFieldKey === 'filed_date' || mappedFieldKey === 'review_date') {
             return { wch: defaultWch };
         }
-        const px = sanitizeColumnWidth(columnWidthMap[mappedFieldKey]);
+        const px = sanitizeColumnWidth(resolvedColumnWidthMap[mappedFieldKey]);
         return { wch: Math.max(defaultWch, widthPxToExcelChars(px)) };
     });
     worksheet['!cols'] = cols;
@@ -509,6 +523,7 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
 
     const doc = new jsPDF('landscape'); // Landscape for better table fit
     const template = normalizeExportTemplate(projectTemplate, title);
+    const resolvedColumnWidthMap = resolveColumnWidthMap(columnWidthMap, template);
     const pageWidth = doc.internal.pageSize.getWidth();
     const layout = getPdfLayoutMap(doc, template);
     const leftLogo = await srcToDataUrl(template.header.leftLogoUrl);
@@ -549,7 +564,7 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
     const tableLeft = Math.max(layout.margin, layout.table.x);
     const tableRight = Math.max(layout.margin, pageWidth - (layout.table.x + layout.table.w));
     const tableW = pageWidth - tableLeft - tableRight;
-    const { columnStyles, fitScale } = buildPdfColumnStyles(doc, fieldKeys, columnWidthMap, tableLeft, tableRight);
+    const { columnStyles, fitScale } = buildPdfColumnStyles(doc, fieldKeys, resolvedColumnWidthMap, tableLeft, tableRight);
     // When many columns squeeze the table, reduce font sizes & padding proportionally
     const fontShrink = Math.min(1, Math.max(0.55, fitScale));
     const baseFontBody = template.table.compactMode ? (template.table.bodyFontSize - 1) : template.table.bodyFontSize;
@@ -607,6 +622,7 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
 
     const doc = new jsPDF('landscape');
     const template = normalizeExportTemplate(projectTemplate, 'RFI Summary');
+    const resolvedColumnWidthMap = resolveColumnWidthMap(columnWidthMap, template);
     const pageWidth = doc.internal.pageSize.getWidth();
     const layout = getPdfLayoutMap(doc, template);
     const leftLogo = await srcToDataUrl(template.header.leftLogoUrl);
@@ -727,7 +743,7 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
     const tableLeft = Math.max(layout.margin, layout.table.x);
     const tableRight = Math.max(layout.margin, pageWidth - (layout.table.x + layout.table.w));
     const tableW = pageWidth - tableLeft - tableRight;
-    const { columnStyles, fitScale: dailyFitScale } = buildPdfColumnStyles(doc, fieldKeys, columnWidthMap, tableLeft, tableRight);
+    const { columnStyles, fitScale: dailyFitScale } = buildPdfColumnStyles(doc, fieldKeys, resolvedColumnWidthMap, tableLeft, tableRight);
     const dFontShrink = Math.min(1, Math.max(0.55, dailyFitScale));
     const dBaseFontBody = template.table.compactMode ? (template.table.bodyFontSize - 1) : template.table.bodyFontSize;
     const dBodyFontSize = Math.max(5, dBaseFontBody * PDF_COMPACT_FACTOR * dFontShrink);
