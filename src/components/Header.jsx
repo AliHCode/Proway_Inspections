@@ -1,13 +1,14 @@
 import { useAuth } from '../context/AuthContext';
 import { useProject } from '../context/ProjectContext';
-import { 
-    LogOut, Menu, X, Building, Shield, User, Briefcase, UserCircle, 
-    LayoutGrid, ScrollText, ListChecks, BellRing, Smartphone, 
-    GitBranch, BarChart3, Settings2, LifeBuoy, Edit2, 
-    ShieldCheck, Power, Activity, ChevronDown, Info, Building2, Database, FileSpreadsheet, Archive
+import {
+    Menu, X, Briefcase, UserCircle,
+    LayoutGrid, ScrollText, ListChecks, Activity, ChevronDown,
+    Building2, Database, FileSpreadsheet, Archive, Search,
+    BarChart3, Settings2, LifeBuoy, Edit2,
+    ShieldCheck, Power, GitBranch, Smartphone, FileSearch
 } from 'lucide-react';
 import { useRFI } from '../context/RFIContext';
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import NotificationCenter from './NotificationCenter';
 import MFAEnrollmentModal from './MFAEnrollmentModal';
@@ -15,22 +16,20 @@ import { toast } from 'react-hot-toast';
 import { syncPushSubscriptionForUser, unregisterCurrentPushSubscription } from '../utils/pushNotifications';
 
 export default function Header() {
-    const { user, logout } = useAuth();
+    const { user, logout, mfaFactors } = useAuth();
     const { projects, activeProject, changeActiveProject, contractorPermissions } = useProject();
+    const { notifications } = useRFI() || { notifications: [] };
     const navigate = useNavigate();
     const location = useLocation();
+
     const [menuOpen, setMenuOpen] = useState(false);
     const [projectMenuOpen, setProjectMenuOpen] = useState(false);
     const [notifMenuOpen, setNotifMenuOpen] = useState(false);
     const [mfaModalOpen, setMfaModalOpen] = useState(false);
-    const { mfaFactors } = useAuth();
-    const isMFAEnabled = mfaFactors.some(f => f.status === 'verified');
     const [notifPermission, setNotifPermission] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported');
-    const { notifications } = useRFI() || { notifications: [] };
     const [pushBadge, setPushBadge] = useState({ state: 'checking', label: 'Push: Checking' });
-    const [pushEnabled, setPushEnabled] = useState(true);
-    
-    // Refs for click-away detection
+    const [desktopNavSearch, setDesktopNavSearch] = useState('');
+
     const projectRef = useRef(null);
     const menuRef = useRef(null);
     const notifRef = useRef(null);
@@ -40,7 +39,7 @@ export default function Header() {
     const isContractor = user.role === 'contractor';
     const isAdmin = user.role === 'admin';
     const isConsultant = user.role === 'consultant';
-    const canManageNotifications = isContractor || isConsultant;
+    const isMFAEnabled = mfaFactors.some((factor) => factor.status === 'verified');
     const dashPath = isAdmin ? '/admin' : isContractor ? '/contractor' : '/consultant';
     const roleLabel = isAdmin ? 'Admin' : isContractor ? 'Contractor' : 'Consultant';
     const nameInitials = user.name
@@ -48,16 +47,9 @@ export default function Header() {
             .split(' ')
             .filter(Boolean)
             .slice(0, 2)
-            .map(part => part[0].toUpperCase())
+            .map((part) => part[0].toUpperCase())
             .join('')
         : 'U';
-
-    const getNotificationButtonLabel = () => {
-        if (notifPermission === 'granted') return 'Notifications Enabled';
-        if (notifPermission === 'denied') return 'Notifications Blocked (Browser)';
-        if (notifPermission === 'unsupported') return 'Notifications Not Supported';
-        return 'Enable Notifications';
-    };
 
     const refreshPushBadge = useCallback(async () => {
         if (typeof window === 'undefined') return;
@@ -81,7 +73,7 @@ export default function Header() {
             const subscription = await registration.pushManager.getSubscription();
             setPushBadge(
                 subscription
-                     ? { state: 'subscribed', label: 'Push: Subscribed' }
+                    ? { state: 'subscribed', label: 'Push: Subscribed' }
                     : { state: 'granted-no-sub', label: 'Push: Granted (Not Subscribed)' }
             );
         } catch {
@@ -105,22 +97,17 @@ export default function Header() {
     }, [user?.id, refreshPushBadge]);
 
     useEffect(() => {
-        // Defensive reset in case a modal/page left the body scroll lock behind.
         document.body.classList.remove('no-scroll');
     }, [location.pathname]);
 
-    // Click-away listener for all header dropdowns
     useEffect(() => {
         const handleClickOutside = (event) => {
-            // Close Project Menu if clicked outside
             if (projectMenuOpen && projectRef.current && !projectRef.current.contains(event.target)) {
                 setProjectMenuOpen(false);
             }
-            // Close User Menu if clicked outside
             if (menuOpen && menuRef.current && !menuRef.current.contains(event.target)) {
                 setMenuOpen(false);
             }
-            // Close Notification Tray if clicked outside
             if (notifMenuOpen && notifRef.current && !notifRef.current.contains(event.target)) {
                 setNotifMenuOpen(false);
             }
@@ -137,30 +124,28 @@ export default function Header() {
             return;
         }
 
-        // Handle Unsubscribe
         if (pushBadge.state === 'subscribed') {
             try {
                 if (user?.id) {
                     const res = await unregisterCurrentPushSubscription(user.id);
-                    if (res.status === 'removed') toast.success("Push notifications disabled.");
+                    if (res.status === 'removed') toast.success('Push notifications disabled.');
                 }
             } catch (err) {
                 console.error('Error unsubscribing:', err);
-                toast.error("Failed to disable push notifications.");
+                toast.error('Failed to disable push notifications.');
             }
             await refreshPushBadge();
             return;
         }
 
-        // Handle ALREADY granted OS permission but no active subscription
         if (Notification.permission === 'granted') {
             setNotifPermission('granted');
             if (user?.id) {
                 try {
                     const res = await syncPushSubscriptionForUser(user.id);
-                    if (res.status === 'missing-vapid-key') toast.error("System Error: Missing VAPID Key.");
-                    else if (res.status === 'registered') toast.success("Push notifications enabled!");
-                    else toast.error("Failed to subscribe: " + res.status);
+                    if (res.status === 'missing-vapid-key') toast.error('System Error: Missing VAPID Key.');
+                    else if (res.status === 'registered') toast.success('Push notifications enabled!');
+                    else toast.error(`Failed to subscribe: ${res.status}`);
                 } catch (error) {
                     console.error('Error syncing push subscription:', error);
                     toast.error(`Failed to sync: ${error.message || error.statusText || 'Unknown error'}`);
@@ -170,23 +155,20 @@ export default function Header() {
             return;
         }
 
-        // Handle requesting NEW permission
         const result = await Notification.requestPermission();
         setNotifPermission(result);
         if (result === 'granted' && user?.id) {
             try {
                 const res = await syncPushSubscriptionForUser(user.id);
-                if (res.status === 'missing-vapid-key') toast.error("System Error: Missing VAPID Key.");
-                else if (res.status === 'registered') toast.success("Push notifications enabled!");
-                else toast.error("Failed to subscribe: " + res.status);
+                if (res.status === 'missing-vapid-key') toast.error('System Error: Missing VAPID Key.');
+                else if (res.status === 'registered') toast.success('Push notifications enabled!');
+                else toast.error(`Failed to subscribe: ${res.status}`);
             } catch (error) {
                 console.error('Error syncing push subscription:', error);
                 toast.error(`Failed to subscribe: ${error.message || error.statusText || 'Unknown error'}`);
             }
-            await refreshPushBadge();
-            return;
         } else if (result === 'denied') {
-            toast.error("Permission denied. Please enable notifications in your browser settings.");
+            toast.error('Permission denied. Please enable notifications in your browser settings.');
         }
 
         await refreshPushBadge();
@@ -202,127 +184,214 @@ export default function Header() {
         setMenuOpen(false);
     };
 
+    const navSections = useMemo(() => {
+        const sections = [
+            {
+                label: 'Overview',
+                items: [
+                    {
+                        label: 'Dashboard',
+                        path: dashPath,
+                        icon: LayoutGrid,
+                        active: location.pathname === dashPath,
+                    },
+                ],
+            },
+        ];
+
+        if (isContractor) {
+            sections.push({
+                label: 'Workspace',
+                items: [
+                    {
+                        label: 'Daily RFI Sheet',
+                        path: '/contractor/rfi-sheet',
+                        icon: ScrollText,
+                        active: location.pathname.includes('rfi-sheet'),
+                    },
+                    ...(contractorPermissions.canManageContractorPermissions
+                        ? [{
+                            label: 'Team Access',
+                            path: '/contractor/team',
+                            icon: Briefcase,
+                            active: location.pathname.includes('/contractor/team'),
+                        }]
+                        : []),
+                    {
+                        label: 'Summary',
+                        path: '/contractor/summary',
+                        icon: BarChart3,
+                        active: location.pathname.includes('/contractor/summary'),
+                    },
+                    {
+                        label: 'RFI Archive',
+                        path: '/contractor/archive',
+                        icon: Archive,
+                        active: location.pathname.includes('/contractor/archive'),
+                    },
+                ],
+            });
+        }
+
+        if (isConsultant) {
+            sections.push({
+                label: 'Review',
+                items: [
+                    {
+                        label: 'Review RFI',
+                        path: '/consultant/review',
+                        icon: FileSearch,
+                        active: location.pathname.includes('/consultant/review'),
+                    },
+                    {
+                        label: 'Rejection Journey',
+                        path: '/consultant/rejection-journey',
+                        icon: GitBranch,
+                        active: location.pathname.includes('/consultant/rejection-journey'),
+                    },
+                    {
+                        label: 'Summary',
+                        path: '/consultant/summary',
+                        icon: BarChart3,
+                        active: location.pathname.includes('/consultant/summary'),
+                    },
+                    {
+                        label: 'RFI Archive',
+                        path: '/consultant/archive',
+                        icon: Archive,
+                        active: location.pathname.includes('/consultant/archive'),
+                    },
+                ],
+            });
+        }
+
+        if (isAdmin) {
+            sections.push({
+                label: 'Administration',
+                items: [
+                    {
+                        label: 'Users',
+                        path: '/admin/users',
+                        icon: UserCircle,
+                        active: location.pathname === '/admin/users',
+                    },
+                    {
+                        label: 'Daily Summary PDF',
+                        path: '/admin/export-format',
+                        icon: FileSpreadsheet,
+                        active: location.pathname === '/admin/export-format',
+                    },
+                    {
+                        label: 'RFI Templates',
+                        path: '/admin/rfi-templates',
+                        icon: FileSpreadsheet,
+                        active: location.pathname === '/admin/rfi-templates',
+                    },
+                    {
+                        label: 'Devices',
+                        path: '/admin/registered-devices',
+                        icon: Smartphone,
+                        active: location.pathname === '/admin/registered-devices',
+                    },
+                    {
+                        label: 'Data Manager',
+                        path: '/admin/data-manager',
+                        icon: Database,
+                        active: location.pathname === '/admin/data-manager',
+                    },
+                ],
+            });
+        }
+
+        return sections;
+    }, [contractorPermissions.canManageContractorPermissions, dashPath, isAdmin, isConsultant, isContractor, location.pathname]);
+
+    const filteredDesktopSections = useMemo(() => {
+        const term = desktopNavSearch.trim().toLowerCase();
+        if (!term) return navSections;
+
+        return navSections
+            .map((section) => ({
+                ...section,
+                items: section.items.filter((item) => item.label.toLowerCase().includes(term)),
+            }))
+            .filter((section) => section.items.length > 0);
+    }, [desktopNavSearch, navSections]);
+
+    const mobileNavItems = navSections.flatMap((section) => section.items);
+
     return (
         <>
+            <aside className="desktop-sidebar-nav desktop-only" aria-label="Desktop navigation">
+                <button className="desktop-sidebar-brand" onClick={() => handleMenuNavigation(dashPath)}>
+                    <img
+                        src="/dashboardlogo.png"
+                        alt="ProWay Logo"
+                        className="desktop-sidebar-brand-logo"
+                    />
+                    <div className="desktop-sidebar-brand-copy">
+                        <strong>{user.name || 'User'}</strong>
+                        <span>{roleLabel} workspace</span>
+                    </div>
+                    <ChevronDown size={14} className="desktop-sidebar-brand-caret" />
+                </button>
+
+                <div className="desktop-sidebar-search">
+                    <Search size={16} />
+                    <input
+                        type="text"
+                        value={desktopNavSearch}
+                        onChange={(event) => setDesktopNavSearch(event.target.value)}
+                        placeholder="Quick search..."
+                    />
+                    <span className="desktop-sidebar-search-hint">Ctrl K</span>
+                </div>
+
+                <div className="desktop-sidebar-scroll">
+                    {filteredDesktopSections.length === 0 ? (
+                        <div className="desktop-sidebar-empty">No matching menu items</div>
+                    ) : (
+                        filteredDesktopSections.map((section) => (
+                            <div key={section.label || 'default'} className="desktop-sidebar-section">
+                                {section.label && <div className="desktop-sidebar-section-title">{section.label}</div>}
+                                <div className="desktop-sidebar-section-items">
+                                    {section.items.map((item) => {
+                                        const Icon = item.icon;
+                                        return (
+                                            <button
+                                                key={item.path}
+                                                onClick={() => handleMenuNavigation(item.path)}
+                                                className={`desktop-sidebar-item ${item.active ? 'active' : ''}`}
+                                            >
+                                                <span className="desktop-sidebar-item-icon">
+                                                    <Icon size={18} strokeWidth={1.8} />
+                                                </span>
+                                                <span className="desktop-sidebar-item-label">{item.label}</span>
+                                                <ChevronDown size={14} className="desktop-sidebar-item-caret" />
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </aside>
+
             <header className="app-header">
-                <div className="header-left">
-                    <img 
-                        src="/dashboardlogo.png" 
-                        alt="ProWay Logo" 
-                        className="header-logo-img" 
+                <div className="header-left mobile-only">
+                    <img
+                        src="/dashboardlogo.png"
+                        alt="ProWay Logo"
+                        className="header-logo-img"
                         onClick={() => handleMenuNavigation(dashPath)}
                     />
-                    
-                    {/* Desktop Horizontal Navigation */}
-                    <nav className="header-desktop-nav">
-                        <button
-                            onClick={() => handleMenuNavigation(dashPath)}
-                            className={`desktop-nav-link ${location.pathname === dashPath ? 'active' : ''}`}
-                        >
-                            Dashboard
-                        </button>
-
-                        {isContractor && (
-                            <button
-                                onClick={() => handleMenuNavigation('/contractor/rfi-sheet')}
-                                className={`desktop-nav-link ${location.pathname.includes('rfi-sheet') ? 'active' : ''}`}
-                            >
-                                Daily RFI Sheet
-                            </button>
-                        )}
-
-                        {isContractor && contractorPermissions.canManageContractorPermissions && (
-                            <button
-                                onClick={() => handleMenuNavigation('/contractor/team')}
-                                className={`desktop-nav-link ${location.pathname.includes('/contractor/team') ? 'active' : ''}`}
-                            >
-                                Team Access
-                            </button>
-                        )}
-
-                        {isConsultant && (
-                            <>
-                                <button
-                                    onClick={() => handleMenuNavigation('/consultant/review')}
-                                    className={`desktop-nav-link ${location.pathname.includes('review') ? 'active' : ''}`}
-                                >
-                                    Review RFI
-                                </button>
-                                <button
-                                    onClick={() => handleMenuNavigation('/consultant/rejection-journey')}
-                                    className={`desktop-nav-link ${location.pathname.includes('rejection-journey') ? 'active' : ''}`}
-                                >
-                                    Rejection Journey
-                                </button>
-                            </>
-                        )}
-
-                        {(isConsultant || isContractor) && (
-                            <button
-                                onClick={() => { 
-                                    const path = isContractor ? '/contractor/summary' : '/consultant/summary';
-                                    handleMenuNavigation(path); 
-                                }}
-                                className={`desktop-nav-link ${location.pathname.includes('summary') ? 'active' : ''}`}
-                            >
-                                Summary
-                            </button>
-                        )}
-
-                        {(isConsultant || isContractor) && (
-                            <button
-                                onClick={() => {
-                                    const path = isContractor ? '/contractor/archive' : '/consultant/archive';
-                                    handleMenuNavigation(path);
-                                }}
-                                className={`desktop-nav-link ${location.pathname.includes('/archive') ? 'active' : ''}`}
-                            >
-                                RFI Archive
-                            </button>
-                        )}
-
-                        {isAdmin && (
-                            <>
-                                <button
-                                    onClick={() => handleMenuNavigation('/admin/users')}
-                                    className={`desktop-nav-link ${location.pathname === '/admin/users' ? 'active' : ''}`}
-                                >
-                                    Users
-                                </button>
-                                <button
-                                    onClick={() => handleMenuNavigation('/admin/export-format')}
-                                    className={`desktop-nav-link ${location.pathname === '/admin/export-format' ? 'active' : ''}`}
-                                >
-                                    Daily Summary PDF
-                                </button>
-                                <button
-                                    onClick={() => handleMenuNavigation('/admin/rfi-templates')}
-                                    className={`desktop-nav-link ${location.pathname === '/admin/rfi-templates' ? 'active' : ''}`}
-                                >
-                                    RFI Templates
-                                </button>
-                                <button
-                                    onClick={() => handleMenuNavigation('/admin/registered-devices')}
-                                    className={`desktop-nav-link ${location.pathname === '/admin/registered-devices' ? 'active' : ''}`}
-                                >
-                                    Devices
-                                </button>
-                                <button
-                                    onClick={() => handleMenuNavigation('/admin/data-manager')}
-                                    className={`desktop-nav-link ${location.pathname === '/admin/data-manager' ? 'active' : ''}`}
-                                >
-                                    Data Manager
-                                </button>
-                            </>
-                        )}
-                    </nav>
                 </div>
 
                 <div className="header-right-group">
-                    {/* Project Selector */}
                     {activeProject && (
                         <div className="header-project-area" ref={projectRef}>
-                            <button 
+                            <button
                                 className="header-project-selector-pill"
                                 onClick={() => {
                                     setProjectMenuOpen(!projectMenuOpen);
@@ -338,17 +407,17 @@ export default function Header() {
                             {projectMenuOpen && (
                                 <div className="header-project-dropdown">
                                     <div className="header-project-dropdown-title">Select Project</div>
-                                    {projects.map((p) => (
+                                    {projects.map((project) => (
                                         <button
-                                            key={p.id}
-                                            className={`header-dropdown-item ${p.id === activeProject.id ? 'active' : ''}`}
+                                            key={project.id}
+                                            className={`header-dropdown-item ${project.id === activeProject.id ? 'active' : ''}`}
                                             onClick={() => {
-                                                changeActiveProject(p.id);
+                                                changeActiveProject(project.id);
                                                 setProjectMenuOpen(false);
                                             }}
                                         >
                                             <Building2 size={18} strokeWidth={2} />
-                                            {p.name}
+                                            {project.name}
                                         </button>
                                     ))}
                                 </div>
@@ -357,36 +426,40 @@ export default function Header() {
                     )}
 
                     <div className="header-user-info" ref={notifRef}>
-                        <NotificationCenter 
-                            isOpen={notifMenuOpen} 
-                            onToggle={(val) => {
-                                setNotifMenuOpen(val);
-                                if (val) {
+                        <NotificationCenter
+                            isOpen={notifMenuOpen}
+                            onToggle={(value) => {
+                                setNotifMenuOpen(value);
+                                if (value) {
                                     setMenuOpen(false);
                                     setProjectMenuOpen(false);
                                 }
-                            }} 
+                            }}
                         />
                     </div>
 
                     <div className="header-menu-wrap" ref={menuRef}>
-                        {/* Mobile Hamburger Button */}
-                        <button className="header-menu-btn mobile-only" onClick={() => { 
-                            const newState = !menuOpen;
-                            setMenuOpen(newState); 
-                            setProjectMenuOpen(false); 
-                            setNotifMenuOpen(false);
-                        }}>
+                        <button
+                            className="header-menu-btn mobile-only"
+                            onClick={() => {
+                                const nextState = !menuOpen;
+                                setMenuOpen(nextState);
+                                setProjectMenuOpen(false);
+                                setNotifMenuOpen(false);
+                            }}
+                        >
                             {menuOpen ? <X size={22} strokeWidth={2} /> : <Menu size={22} strokeWidth={2} />}
                         </button>
 
-                        {/* Desktop User Identity Trigger (Avatar + Name) */}
-                        <button className="header-user-trigger desktop-only" onClick={() => {
-                            const newState = !menuOpen;
-                            setMenuOpen(newState);
-                            setProjectMenuOpen(false);
-                            setNotifMenuOpen(false);
-                        }}>
+                        <button
+                            className="header-user-trigger desktop-only"
+                            onClick={() => {
+                                const nextState = !menuOpen;
+                                setMenuOpen(nextState);
+                                setProjectMenuOpen(false);
+                                setNotifMenuOpen(false);
+                            }}
+                        >
                             <div className="header-avatar-mini">
                                 {user.avatar_url ? (
                                     <img src={user.avatar_url} alt={user.name} />
@@ -400,213 +473,110 @@ export default function Header() {
 
                         {menuOpen && (
                             <div className="header-dropdown premium-menu">
-                            <div className="header-dropdown-info">
-                                <div 
-                                    className="header-identity-card-premium" 
-                                    onClick={() => handleMenuNavigation('/profile')}
-                                    style={{ cursor: 'pointer' }}
-                                >
-                                    <div className="header-identity-avatar-premium" aria-hidden="true">
-                                        {user.avatar_url ? (
-                                            <img 
-                                                src={user.avatar_url} 
-                                                alt={user.name} 
-                                                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} 
-                                            />
-                                        ) : (
-                                            nameInitials
-                                        )}
-                                        <div className="avatar-edit-icon"><Edit2 size={10} /></div>
-                                    </div>
-                                    <div className="header-identity-meta-premium">
-                                        <div className="header-identity-name-premium">{user.name}</div>
-                                        <div className="header-identity-title-premium">{user.company || 'ClearLine Inc.'} • {roleLabel}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            {/* Section 1: Core Navigation (Mobile Only) */}
-                            <div className="menu-section mobile-nav-items">
-                                <button
-                                    onClick={() => handleMenuNavigation(dashPath)}
-                                    className={`header-dropdown-item-premium ${location.pathname === dashPath ? 'active' : ''}`}
-                                >
-                                    <div className="menu-icon-box"><LayoutGrid size={18} strokeWidth={1.5} /></div>
-                                    <span>Dashboard</span>
-                                </button>
-
-                                {isContractor && (
-                                    <button
-                                        onClick={() => handleMenuNavigation('/contractor/rfi-sheet')}
-                                        className={`header-dropdown-item-premium ${location.pathname.includes('rfi-sheet') ? 'active' : ''}`}
+                                <div className="header-dropdown-info">
+                                    <div
+                                        className="header-identity-card-premium"
+                                        onClick={() => handleMenuNavigation('/profile')}
+                                        style={{ cursor: 'pointer' }}
                                     >
-                                        <div className="menu-icon-box"><ScrollText size={18} strokeWidth={1.5} /></div>
-                                        <span>Daily RFI Sheet</span>
-                                    </button>
-                                )}
-
-                                {isContractor && contractorPermissions.canManageContractorPermissions && (
-                                    <button
-                                        onClick={() => handleMenuNavigation('/contractor/team')}
-                                        className={`header-dropdown-item-premium ${location.pathname.includes('/contractor/team') ? 'active' : ''}`}
-                                    >
-                                        <div className="menu-icon-box"><Briefcase size={18} strokeWidth={1.5} /></div>
-                                        <span>Team Access</span>
-                                    </button>
-                                )}
-
-                                {isConsultant && (
-                                    <button
-                                        onClick={() => handleMenuNavigation('/consultant/review')}
-                                        className={`header-dropdown-item-premium ${location.pathname.includes('review') ? 'active' : ''}`}
-                                    >
-                                        <div className="menu-icon-box"><ListChecks size={18} strokeWidth={1.5} /></div>
-                                        <span>Review RFI</span>
-                                    </button>
-                                )}
-
-                                {isConsultant && (
-                                    <button
-                                        onClick={() => handleMenuNavigation('/consultant/rejection-journey')}
-                                        className={`header-dropdown-item-premium ${location.pathname.includes('/consultant/rejection-journey') ? 'active' : ''}`}
-                                    >
-                                        <div className="menu-icon-box"><GitBranch size={18} strokeWidth={1.5} /></div>
-                                        <span>Rejection Journey</span>
-                                    </button>
-                                )}
-
-                                {(isConsultant || isContractor) && (
-                                    <button
-                                        onClick={() => { 
-                                            const path = isContractor ? '/contractor/summary' : '/consultant/summary';
-                                            handleMenuNavigation(path); 
-                                        }}
-                                        className={`header-dropdown-item-premium ${location.pathname.includes('summary') ? 'active' : ''}`}
-                                    >
-                                        <div className="menu-icon-box"><BarChart3 size={18} strokeWidth={1.5} /></div>
-                                        <span>Summary</span>
-                                    </button>
-                                )}
-
-                                {(isConsultant || isContractor) && (
-                                    <button
-                                        onClick={() => {
-                                            const path = isContractor ? '/contractor/archive' : '/consultant/archive';
-                                            handleMenuNavigation(path);
-                                        }}
-                                        className={`header-dropdown-item-premium ${location.pathname.includes('/archive') ? 'active' : ''}`}
-                                    >
-                                        <div className="menu-icon-box"><Archive size={18} strokeWidth={1.5} /></div>
-                                        <span>RFI Archive</span>
-                                    </button>
-                                )}
-
-                                {isAdmin && (
-                                    <>
-                                        <button
-                                            onClick={() => handleMenuNavigation('/admin/users')}
-                                            className={`header-dropdown-item-premium ${location.pathname === '/admin/users' ? 'active' : ''}`}
-                                        >
-                                            <div className="menu-icon-box"><UserCircle size={18} strokeWidth={1.5} /></div>
-                                            <span>Users</span>
-                                        </button>
-                                        <button
-                                            onClick={() => handleMenuNavigation('/admin/export-format')}
-                                            className={`header-dropdown-item-premium ${location.pathname === '/admin/export-format' ? 'active' : ''}`}
-                                        >
-                                            <div className="menu-icon-box"><Shield size={18} strokeWidth={1.5} /></div>
-                                            <span>Daily Summary PDF</span>
-                                        </button>
-                                        <button
-                                            onClick={() => handleMenuNavigation('/admin/rfi-templates')}
-                                            className={`header-dropdown-item-premium ${location.pathname === '/admin/rfi-templates' ? 'active' : ''}`}
-                                        >
-                                            <div className="menu-icon-box"><FileSpreadsheet size={18} strokeWidth={1.5} /></div>
-                                            <span>RFI Excel Templates</span>
-                                        </button>
-                                        <button
-                                            onClick={() => handleMenuNavigation('/admin/registered-devices')}
-                                            className={`header-dropdown-item-premium ${location.pathname === '/admin/registered-devices' ? 'active' : ''}`}
-                                        >
-                                            <div className="menu-icon-box"><Smartphone size={18} strokeWidth={1.5} /></div>
-                                            <span>Registered Devices</span>
-                                        </button>
-                                        <button
-                                            onClick={() => handleMenuNavigation('/admin/data-manager')}
-                                            className={`header-dropdown-item-premium ${location.pathname === '/admin/data-manager' ? 'active' : ''}`}
-                                        >
-                                            <div className="menu-icon-box"><Database size={18} strokeWidth={1.5} /></div>
-                                            <span>Data Manager</span>
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-
-                            <div className="menu-divider"></div>
-
-                            {/* Section 2: Account & Updates */}
-                            <div className="menu-section">
-                                <div className="premium-toggle-item" onClick={handleEnableNotifications} style={{ cursor: 'pointer' }}>
-                                    <div className="premium-toggle-label">
-                                        <div className="menu-icon-box"><Activity size={18} strokeWidth={1.5} /></div>
-                                        <span>Push Notifications</span>
-                                    </div>
-                                    <label className="premium-switch" onClick={(e) => e.stopPropagation()}>
-                                        <input 
-                                            type="checkbox" 
-                                            checked={pushBadge.state === 'subscribed'} 
-                                            onChange={handleEnableNotifications} 
-                                        />
-                                        <span className="premium-slider"></span>
-                                    </label>
-                                </div>
-                                
-                                {!isAdmin && (
-                                    <button
-                                        onClick={() => handleMenuNavigation('/subscription')}
-                                        className={`header-dropdown-item-premium ${location.pathname === '/subscription' ? 'active' : ''}`}
-                                    >
-                                        <div className="menu-icon-box"><ShieldCheck size={18} strokeWidth={1.5} /></div>
-                                        <span>Subscription</span>
-                                        <div className="menu-badge-group">
-                                            <span className={`menu-badge-status ${activeProject?.subscription_status || 'trial'}`}>
-                                                {activeProject?.subscription_status || 'trial'}
-                                            </span>
+                                        <div className="header-identity-avatar-premium" aria-hidden="true">
+                                            {user.avatar_url ? (
+                                                <img
+                                                    src={user.avatar_url}
+                                                    alt={user.name}
+                                                    style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                                />
+                                            ) : (
+                                                nameInitials
+                                            )}
+                                            <div className="avatar-edit-icon"><Edit2 size={10} /></div>
                                         </div>
+                                        <div className="header-identity-meta-premium">
+                                            <div className="header-identity-name-premium">{user.name}</div>
+                                            <div className="header-identity-title-premium">{user.company || 'ClearLine Inc.'} • {roleLabel}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="menu-section mobile-nav-items">
+                                    {mobileNavItems.map((item) => {
+                                        const Icon = item.icon;
+                                        return (
+                                            <button
+                                                key={item.path}
+                                                onClick={() => handleMenuNavigation(item.path)}
+                                                className={`header-dropdown-item-premium ${item.active ? 'active' : ''}`}
+                                            >
+                                                <div className="menu-icon-box"><Icon size={18} strokeWidth={1.5} /></div>
+                                                <span>{item.label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="menu-divider"></div>
+
+                                <div className="menu-section">
+                                    <div className="premium-toggle-item" onClick={handleEnableNotifications} style={{ cursor: 'pointer' }}>
+                                        <div className="premium-toggle-label">
+                                            <div className="menu-icon-box"><Activity size={18} strokeWidth={1.5} /></div>
+                                            <span>Push Notifications</span>
+                                        </div>
+                                        <label className="premium-switch" onClick={(event) => event.stopPropagation()}>
+                                            <input
+                                                type="checkbox"
+                                                checked={pushBadge.state === 'subscribed'}
+                                                onChange={handleEnableNotifications}
+                                            />
+                                            <span className="premium-slider"></span>
+                                        </label>
+                                    </div>
+
+                                    {!isAdmin && (
+                                        <button
+                                            onClick={() => handleMenuNavigation('/subscription')}
+                                            className={`header-dropdown-item-premium ${location.pathname === '/subscription' ? 'active' : ''}`}
+                                        >
+                                            <div className="menu-icon-box"><ShieldCheck size={18} strokeWidth={1.5} /></div>
+                                            <span>Subscription</span>
+                                            <div className="menu-badge-group">
+                                                <span className={`menu-badge-status ${activeProject?.subscription_status || 'trial'}`}>
+                                                    {activeProject?.subscription_status || 'trial'}
+                                                </span>
+                                            </div>
+                                        </button>
+                                    )}
+
+                                    <button
+                                        onClick={() => handleMenuNavigation('/settings')}
+                                        className={`header-dropdown-item-premium ${location.pathname === '/settings' ? 'active' : ''}`}
+                                    >
+                                        <div className="menu-icon-box"><Settings2 size={18} strokeWidth={1.5} /></div>
+                                        <span>Settings</span>
                                     </button>
-                                )}
+                                </div>
 
-                                <button
-                                    onClick={() => handleMenuNavigation('/settings')}
-                                    className={`header-dropdown-item-premium ${location.pathname === '/settings' ? 'active' : ''}`}
-                                >
-                                    <div className="menu-icon-box"><Settings2 size={18} strokeWidth={1.5} /></div>
-                                    <span>Settings</span>
-                                </button>
+                                <div className="menu-divider"></div>
+
+                                <div className="menu-section">
+                                    <button
+                                        onClick={() => handleMenuNavigation('/support')}
+                                        className={`header-dropdown-item-premium ${location.pathname === '/support' ? 'active' : ''}`}
+                                    >
+                                        <div className="menu-icon-box"><LifeBuoy size={18} strokeWidth={1.5} /></div>
+                                        <span>{isAdmin ? 'Support' : 'Help & Support'}</span>
+                                    </button>
+
+                                    <button onClick={() => { logout(); navigate('/'); }} className="header-dropdown-item-premium logout">
+                                        <div className="menu-icon-box"><Power size={18} strokeWidth={1.5} /></div>
+                                        <span>Sign Out</span>
+                                    </button>
+                                </div>
                             </div>
-
-                            <div className="menu-divider"></div>
-
-                            {/* Section 3: Support & Leave */}
-                            <div className="menu-section">
-                                <button 
-                                    onClick={() => handleMenuNavigation('/support')}
-                                    className={`header-dropdown-item-premium ${location.pathname === '/support' ? 'active' : ''}`}
-                                >
-                                    <div className="menu-icon-box"><LifeBuoy size={18} strokeWidth={1.5} /></div>
-                                    <span>{isAdmin ? 'Support' : 'Help & Support'}</span>
-                                </button>
-
-                                <button onClick={() => { logout(); navigate('/'); }} className="header-dropdown-item-premium logout">
-                                    <div className="menu-icon-box"><Power size={18} strokeWidth={1.5} /></div>
-                                    <span>Sign Out</span>
-                                </button>
-                        </div>
+                        )}
                     </div>
-                )}
                 </div>
-            </div>
-        </header>
+            </header>
             <div className="app-header-spacer"></div>
             <MFAEnrollmentModal isOpen={mfaModalOpen} onClose={() => setMfaModalOpen(false)} />
         </>
