@@ -12243,6 +12243,17 @@ body,
   overflow: hidden;
 }
 
+.studio-workspace-content {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.studio-workspace-content.has-preview {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+}
+
 .studio-workspace-toolbar {
   display: flex;
   justify-content: space-between;
@@ -12267,6 +12278,89 @@ body,
   min-height: 0;
   padding: 1.5rem;
   overflow: auto;
+}
+
+.studio-live-preview-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(2, 6, 23, 0.34);
+}
+
+.studio-live-preview-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.studio-live-preview-header h3 {
+  margin: 0;
+  font-size: 0.98rem;
+  color: #f8fafc;
+}
+
+.studio-live-preview-header p {
+  margin: 0.25rem 0 0;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.studio-live-preview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.9rem 1rem 0;
+}
+
+.studio-live-preview-frame {
+  flex: 1;
+  min-height: 0;
+  padding: 1rem;
+}
+
+.studio-live-preview-iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 520px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.studio-preview-state {
+  height: 100%;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.25rem;
+  border: 1px dashed rgba(148, 163, 184, 0.22);
+  border-radius: 16px;
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.studio-preview-state strong {
+  color: #f8fafc;
+}
+
+.studio-preview-state p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.studio-preview-state.error {
+  border-color: rgba(248, 113, 113, 0.3);
+  background: rgba(127, 29, 29, 0.16);
 }
 
 .studio-stage-viewport--pro.pan-mode {
@@ -12696,5 +12790,14 @@ body,
 
   .studio-stage-viewport--pro {
     padding: 0.75rem;
+  }
+
+  .studio-workspace-content.has-preview {
+    grid-template-columns: 1fr;
+  }
+
+  .studio-live-preview-panel {
+    border-left: none;
+    border-top: 1px solid rgba(148, 163, 184, 0.12);
   }
 }

@@ -27,6 +27,7 @@ import {
 import toast from 'react-hot-toast';
 import Header from '../components/Header';
 import { useProject } from '../context/ProjectContext';
+import { buildDailyReportPdfBlob, buildExportPdfBlob } from '../utils/exportUtils';
 import { getDefaultColumnWidth, sanitizeColumnWidth } from '../utils/tableLayout';
 
 const A4_LANDSCAPE_WIDTH = 1123;
@@ -85,6 +86,8 @@ const FONT_OPTIONS = [
     { value: 'times', label: 'Times New Roman', css: '"Times New Roman", Times, serif' },
     { value: 'courier', label: 'Courier New', css: '"Courier New", Courier, monospace' },
 ];
+
+const PREVIEW_DATE = '2026-03-31';
 
 function getCanvasFontStack(fontFamily) {
     return FONT_OPTIONS.find((option) => option.value === fontFamily)?.css || FONT_OPTIONS[0].css;
@@ -391,6 +394,55 @@ function buildExportTemplateFromStudio(studioTemplate) {
     };
 }
 
+function getPreviewFieldValue(fieldKey, fieldName, rowIndex) {
+    const key = String(fieldKey || '').toLowerCase();
+    const label = fieldName || fieldKey || 'Value';
+    const sampleIndex = rowIndex + 1;
+
+    if (key === 'rfi_no') return rowIndex === 0 ? 'RR007-706-R1' : 'RR007-021';
+    if (key.includes('discipline')) return rowIndex === 0 ? 'Structure' : 'Asphalt';
+    if (key.includes('boq')) return rowIndex === 0 ? '10.1.6(ii)' : '12.0';
+    if (key.includes('zone')) return rowIndex === 0 ? 'Bridge 4' : 'Bridge 3';
+    if (key.includes('chainage')) return rowIndex === 0 ? '19+285' : '120+60';
+    if (key.includes('inspection_date') || key === 'date_of_rfi') return rowIndex === 0 ? '07/03/2026' : '08/03/2026';
+    if (key.includes('inspection_time') || key.endsWith('_time')) return rowIndex === 0 ? '9:00 AM' : '2:00 PM';
+    if (key.includes('representative') || key.includes('submitted_by')) return rowIndex === 0 ? 'Mr. Deepak Shukla' : 'Mr. Ahmad Khan';
+    if (key.includes('remarks')) return rowIndex === 0 ? 'OK' : 'Pending review';
+    if (key.includes('date')) return rowIndex === 0 ? '08/03/2026' : '09/03/2026';
+    if (key.includes('location')) return rowIndex === 0 ? 'Bridge 4' : 'Bridge 3';
+    if (key.includes('type')) return rowIndex === 0 ? 'Material' : 'Asphalt Work';
+    return `Sample ${label} ${sampleIndex}`;
+}
+
+function buildPreviewRfis(columns = []) {
+    return Array.from({ length: 2 }, (_, rowIndex) => {
+        const customFields = {};
+
+        columns.forEach((column) => {
+            const fieldKey = column?.field_key;
+            if (!fieldKey || ['serial', 'description', 'location', 'inspection_type', 'status', 'remarks', 'attachments', 'filed_date', 'review_date'].includes(fieldKey)) {
+                return;
+            }
+            customFields[fieldKey] = getPreviewFieldValue(fieldKey, column.field_name, rowIndex);
+        });
+
+        return {
+            serialNo: rowIndex + 1,
+            description: rowIndex === 0
+                ? 'Inspection and checking of reinforcement of working pile PL22 at P2 Bridge 4'
+                : 'Application of asphalt for diversion at Bridge 3',
+            location: rowIndex === 0 ? 'Bridge 4' : 'Bridge 3',
+            inspectionType: rowIndex === 0 ? 'Material' : 'Asphalt Work',
+            status: rowIndex === 0 ? 'approved' : 'pending',
+            remarks: rowIndex === 0 ? 'OK' : 'Pending review',
+            filedDate: PREVIEW_DATE,
+            originalFiledDate: PREVIEW_DATE,
+            reviewedAt: rowIndex === 0 ? `${PREVIEW_DATE}T10:00:00.000Z` : '',
+            customFields,
+        };
+    });
+}
+
 function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
 }
@@ -455,6 +507,11 @@ export default function AdminFormatDesigner() {
     const [panMode, setPanMode] = useState(false);
     const [isPanning, setIsPanning] = useState(false);
     const [inlineTextEditId, setInlineTextEditId] = useState(null);
+    const [showLivePreview, setShowLivePreview] = useState(true);
+    const [previewMode, setPreviewMode] = useState('contractor');
+    const [previewUrl, setPreviewUrl] = useState('');
+    const [previewLoading, setPreviewLoading] = useState(false);
+    const [previewError, setPreviewError] = useState('');
 
     const stageViewportRef = useRef(null);
 
@@ -644,6 +701,76 @@ export default function AdminFormatDesigner() {
     const visibleElementCount = useMemo(() => {
         return template.elements.filter((element) => element.visible !== false).length;
     }, [template.elements]);
+
+    const previewRfis = useMemo(() => buildPreviewRfis(orderedTableColumns || []), [orderedTableColumns]);
+
+    useEffect(() => {
+        if (!showLivePreview || !activeProject?.id) {
+            setPreviewLoading(false);
+            setPreviewError('');
+            setPreviewUrl((currentUrl) => {
+                if (currentUrl) URL.revokeObjectURL(currentUrl);
+                return '';
+            });
+            return undefined;
+        }
+
+        let isCancelled = false;
+        let nextObjectUrl = '';
+        const previewTemplate = {
+            ...(activeProject?.export_template || {}),
+            ...buildExportTemplateFromStudio(template),
+        };
+
+        setPreviewLoading(true);
+        setPreviewError('');
+
+        const timer = window.setTimeout(async () => {
+            try {
+                const blob = previewMode === 'daily'
+                    ? await buildDailyReportPdfBlob(
+                        previewRfis,
+                        PREVIEW_DATE,
+                        activeProject?.name || 'Project Name',
+                        orderedTableColumns,
+                        columnWidthMap,
+                        previewTemplate
+                    )
+                    : await buildExportPdfBlob(
+                        previewRfis,
+                        `${activeProject?.name || 'Project'}_Preview`,
+                        orderedTableColumns,
+                        columnWidthMap,
+                        previewTemplate
+                    );
+
+                if (isCancelled) return;
+
+                nextObjectUrl = URL.createObjectURL(blob);
+                setPreviewUrl((currentUrl) => {
+                    if (currentUrl) URL.revokeObjectURL(currentUrl);
+                    return nextObjectUrl;
+                });
+                setPreviewLoading(false);
+            } catch (error) {
+                if (isCancelled) return;
+                console.error('Live PDF preview failed:', error);
+                setPreviewError('Preview could not be rendered right now.');
+                setPreviewLoading(false);
+            }
+        }, 380);
+
+        return () => {
+            isCancelled = true;
+            window.clearTimeout(timer);
+        };
+    }, [activeProject?.export_template, activeProject?.id, activeProject?.name, columnWidthMap, orderedTableColumns, previewMode, previewRfis, showLivePreview, template]);
+
+    useEffect(() => {
+        return () => {
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+        };
+    }, [previewUrl]);
 
     const toggleHiddenColumn = (fieldKey) => {
         setTemplate((previous) => {
@@ -1638,7 +1765,7 @@ export default function AdminFormatDesigner() {
                         </section>
                     </aside>
 
-                    <section className="studio-workspace">
+                    <section className={`studio-workspace ${showLivePreview ? 'has-live-preview' : ''}`}>
                         <div className="studio-workspace-toolbar">
                             <div className="studio-toolbar-group">
                                 <span className="studio-chip">Canvas {template.canvas.width} × {template.canvas.height}</span>
@@ -1661,86 +1788,100 @@ export default function AdminFormatDesigner() {
                                 <button className="terminal-btn" onClick={() => updateCanvas({ snapToGrid: !template.canvas.snapToGrid })}>
                                     <Move size={14} /> {template.canvas.snapToGrid ? 'Snap On' : 'Snap Off'}
                                 </button>
+                                <button className={`terminal-btn ${showLivePreview ? 'active' : ''}`} onClick={() => setShowLivePreview((value) => !value)}>
+                                    <FileText size={14} /> {showLivePreview ? 'Hide preview' : 'Show preview'}
+                                </button>
+                                {showLivePreview && (
+                                    <>
+                                        <button className={`terminal-btn ${previewMode === 'contractor' ? 'active' : ''}`} onClick={() => setPreviewMode('contractor')}>
+                                            Contractor PDF
+                                        </button>
+                                        <button className={`terminal-btn ${previewMode === 'daily' ? 'active' : ''}`} onClick={() => setPreviewMode('daily')}>
+                                            Daily Summary
+                                        </button>
+                                    </>
+                                )}
                                 <button className="terminal-btn" onClick={() => setZoom((value) => Math.max(0.35, value - 0.1))}>-</button>
                                 <span className="studio-zoom-indicator">{Math.round(zoom * 100)}%</span>
                                 <button className="terminal-btn" onClick={() => setZoom((value) => Math.min(1.8, value + 0.1))}>+</button>
                             </div>
                         </div>
 
-                        <div
-                            ref={stageViewportRef}
-                            className={`studio-stage-viewport studio-stage-viewport--pro ${template.canvas.showGrid ? 'show-grid' : 'hide-grid'} ${panMode ? 'pan-mode' : ''} ${isPanning ? 'is-panning' : ''}`}
-                            onMouseDownCapture={startStagePan}
-                            onAuxClick={(event) => {
-                                if (event.button === 1) event.preventDefault();
-                            }}
-                            onClick={() => {
-                                setSelectedId(null);
-                                setSelectedZoneName(null);
-                            }}
-                        >
-                            <div className="studio-paper-stage">
-                                <div
-                                    className="studio-terminal-canvas"
-                                    style={{
-                                        width: `${template.canvas.width}px`,
-                                        height: `${template.canvas.height}px`,
-                                        transform: `scale(${zoom})`,
-                                        transformOrigin: 'top center',
-                                    }}
-                                    onClick={(event) => event.stopPropagation()}
-                                >
-                                    <div className="studio-paper-label">Daily Summary Print Area</div>
+                        <div className={`studio-workspace-content ${showLivePreview ? 'has-preview' : ''}`}>
+                            <div
+                                ref={stageViewportRef}
+                                className={`studio-stage-viewport studio-stage-viewport--pro ${template.canvas.showGrid ? 'show-grid' : 'hide-grid'} ${panMode ? 'pan-mode' : ''} ${isPanning ? 'is-panning' : ''}`}
+                                onMouseDownCapture={startStagePan}
+                                onAuxClick={(event) => {
+                                    if (event.button === 1) event.preventDefault();
+                                }}
+                                onClick={() => {
+                                    setSelectedId(null);
+                                    setSelectedZoneName(null);
+                                }}
+                            >
+                                <div className="studio-paper-stage">
+                                    <div
+                                        className="studio-terminal-canvas"
+                                        style={{
+                                            width: `${template.canvas.width}px`,
+                                            height: `${template.canvas.height}px`,
+                                            transform: `scale(${zoom})`,
+                                            transformOrigin: 'top center',
+                                        }}
+                                        onClick={(event) => event.stopPropagation()}
+                                    >
+                                        <div className="studio-paper-label">Daily Summary Print Area</div>
 
-                                    {Object.entries(template.canvas.zones || DEFAULT_ZONES).map(([zoneName, zone]) => {
-                                        const isEditableZone = zoneName === 'header' || zoneName === 'table';
-                                        const isSelectedZone = selectedZoneName === zoneName;
+                                        {Object.entries(template.canvas.zones || DEFAULT_ZONES).map(([zoneName, zone]) => {
+                                            const isEditableZone = zoneName === 'header' || zoneName === 'table';
+                                            const isSelectedZone = selectedZoneName === zoneName;
 
-                                        return (
-                                            <div
-                                                key={zoneName}
-                                                className={`studio-zone-overlay zone-${zoneName} ${isEditableZone ? 'is-editable' : ''} ${isSelectedZone ? 'is-selected' : ''}`}
-                                                style={{
-                                                    left: zone.x,
-                                                    top: zone.y,
-                                                    width: zone.w,
-                                                    height: zone.h,
-                                                }}
-                                            >
-                                                <span
-                                                    className={`studio-zone-chip ${isEditableZone ? 'is-editable' : ''}`}
-                                                    onMouseDown={isEditableZone ? (event) => startZoneInteraction(event, zoneName, 'move') : undefined}
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        setSelectedZoneName(zoneName);
-                                                        setSelectedId(null);
+                                            return (
+                                                <div
+                                                    key={zoneName}
+                                                    className={`studio-zone-overlay zone-${zoneName} ${isEditableZone ? 'is-editable' : ''} ${isSelectedZone ? 'is-selected' : ''}`}
+                                                    style={{
+                                                        left: zone.x,
+                                                        top: zone.y,
+                                                        width: zone.w,
+                                                        height: zone.h,
                                                     }}
                                                 >
-                                                    {zoneName} zone
-                                                </span>
+                                                    <span
+                                                        className={`studio-zone-chip ${isEditableZone ? 'is-editable' : ''}`}
+                                                        onMouseDown={isEditableZone ? (event) => startZoneInteraction(event, zoneName, 'move') : undefined}
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            setSelectedZoneName(zoneName);
+                                                            setSelectedId(null);
+                                                        }}
+                                                    >
+                                                        {zoneName} zone
+                                                    </span>
 
-                                                {isEditableZone && isSelectedZone && (
-                                                    <>
-                                                        <button
-                                                            className="studio-zone-handle edge-east"
-                                                            onMouseDown={(event) => startZoneInteraction(event, zoneName, 'resize', 'e')}
-                                                            title={`Resize ${zoneName} width`}
-                                                        />
-                                                        <button
-                                                            className="studio-zone-handle edge-south"
-                                                            onMouseDown={(event) => startZoneInteraction(event, zoneName, 'resize', 's')}
-                                                            title={`Resize ${zoneName} height`}
-                                                        />
-                                                        <button
-                                                            className="studio-zone-handle corner-se"
-                                                            onMouseDown={(event) => startZoneInteraction(event, zoneName, 'resize', 'se')}
-                                                            title={`Resize ${zoneName} zone`}
-                                                        />
-                                                    </>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
+                                                    {isEditableZone && isSelectedZone && (
+                                                        <>
+                                                            <button
+                                                                className="studio-zone-handle edge-east"
+                                                                onMouseDown={(event) => startZoneInteraction(event, zoneName, 'resize', 'e')}
+                                                                title={`Resize ${zoneName} width`}
+                                                            />
+                                                            <button
+                                                                className="studio-zone-handle edge-south"
+                                                                onMouseDown={(event) => startZoneInteraction(event, zoneName, 'resize', 's')}
+                                                                title={`Resize ${zoneName} height`}
+                                                            />
+                                                            <button
+                                                                className="studio-zone-handle corner-se"
+                                                                onMouseDown={(event) => startZoneInteraction(event, zoneName, 'resize', 'se')}
+                                                                title={`Resize ${zoneName} zone`}
+                                                            />
+                                                        </>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
 
                                     {template.elements
                                         .slice()
@@ -1955,8 +2096,60 @@ export default function AdminFormatDesigner() {
                                                 </div>
                                             );
                                         })}
+                                    </div>
                                 </div>
                             </div>
+
+                            {showLivePreview && (
+                                <aside className="studio-live-preview-panel">
+                                    <div className="studio-live-preview-header">
+                                        <div>
+                                            <h3>Live PDF Preview</h3>
+                                            <p>Uses the same renderer as the real download buttons.</p>
+                                        </div>
+                                        <button
+                                            className="studio-panel-toggle"
+                                            onClick={() => setShowLivePreview(false)}
+                                            title="Hide live preview"
+                                        >
+                                            <ChevronRight size={16} />
+                                        </button>
+                                    </div>
+
+                                    <div className="studio-live-preview-meta">
+                                        <span className="studio-chip subtle">{previewMode === 'contractor' ? 'Contractor export' : 'Daily summary export'}</span>
+                                        <span className="studio-chip subtle">Sample data</span>
+                                        <span className="studio-chip subtle">{PREVIEW_DATE}</span>
+                                    </div>
+
+                                    <div className="studio-live-preview-frame">
+                                        {previewLoading && (
+                                            <div className="studio-preview-state">
+                                                <FileText size={18} />
+                                                <strong>Rendering preview</strong>
+                                                <p>Your latest layout is being drawn with the export engine.</p>
+                                            </div>
+                                        )}
+
+                                        {!previewLoading && previewError && (
+                                            <div className="studio-preview-state error">
+                                                <FileText size={18} />
+                                                <strong>Preview unavailable</strong>
+                                                <p>{previewError}</p>
+                                            </div>
+                                        )}
+
+                                        {!previewLoading && !previewError && previewUrl && (
+                                            <iframe
+                                                key={previewUrl}
+                                                className="studio-live-preview-iframe"
+                                                title="Live PDF Preview"
+                                                src={previewUrl}
+                                            />
+                                        )}
+                                    </div>
+                                </aside>
+                            )}
                         </div>
                     </section>
 

@@ -158,12 +158,13 @@ function getPdfLayoutMap(doc, template) {
 }
 
 function mapStudioRectToPdf(layout, element) {
+    const fontScaleRatio = Math.max(0.75, layout.scale / PX_TO_MM);
     return {
         x: layout.originX + (element.x || 0) * layout.scale,
         y: layout.originY + (element.y || 0) * layout.scale,
         w: (element.w || 0) * layout.scale,
         h: (element.h || 0) * layout.scale,
-        fontSize: Math.max(8, ((element.styles?.fontSize || 12) * 0.75)),
+        fontSize: Math.max(7, ((element.styles?.fontSize || 12) * 0.75 * fontScaleRatio)),
     };
 }
 
@@ -251,9 +252,10 @@ async function drawStudioOverlayElements(doc, template, layout, context = {}, op
             const align = element.styles?.textAlign || 'left';
             const text = resolveStudioTextContent(element, context);
             const lines = doc.splitTextToSize(text || '', Math.max(10, rect.w));
-            const lineHeight = rect.fontSize * 0.36;
+            const lineHeight = Math.max(2.4, rect.fontSize * 0.36);
+            const textBlockHeight = lines.length * lineHeight;
             const textX = align === 'center' ? rect.x + rect.w / 2 : align === 'right' ? rect.x + rect.w : rect.x;
-            const textY = rect.y + Math.max(lineHeight, rect.h > lineHeight ? lineHeight : rect.h * 0.7);
+            const textY = rect.y + Math.max(0.8, (rect.h - textBlockHeight) / 2);
             doc.text(lines, textX, textY, { align, baseline: 'top', maxWidth: rect.w });
         }
     }
@@ -577,12 +579,7 @@ export function exportToExcel(rfis, filename = 'RFI_Report', projectFields = [],
 /**
  * Export RFIs to PDF Document (.pdf)
  */
-export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report', projectFields = [], columnWidthMap = {}, projectTemplate = null) {
-    if (!rfis || rfis.length === 0) {
-        alert("No data available to export.");
-        return;
-    }
-
+export async function buildExportPdfDocument(rfis, title = 'ProWay Inspections - RFI Report', projectFields = [], columnWidthMap = {}, projectTemplate = null) {
     const doc = new jsPDF('landscape'); // Landscape for better table fit
     const template = normalizeExportTemplate(projectTemplate, title);
     const resolvedColumnWidthMap = resolveColumnWidthMap(columnWidthMap, template);
@@ -613,8 +610,10 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
             doc.text(`Submission Date: ${new Date().toLocaleDateString()}`, layout.submissionDate.x + layout.submissionDate.w, layout.submissionDate.y + layout.submissionDate.h * 0.75, { align: 'right' });
         }
     }
-    doc.setFontSize(7);
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, layout.table.x, layout.table.y - 2);
+    if (!hasStudioOverlay) {
+        doc.setFontSize(7);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, layout.table.x, layout.table.y - 2);
+    }
 
     const exportData = prepareDataForExport(rfis, projectFields, template);
     const headers = exportData.headers;
@@ -685,18 +684,28 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
         }
     });
 
+    return doc;
+}
+
+export async function buildExportPdfBlob(rfis, title = 'ProWay Inspections - RFI Report', projectFields = [], columnWidthMap = {}, projectTemplate = null) {
+    const doc = await buildExportPdfDocument(rfis, title, projectFields, columnWidthMap, projectTemplate);
+    return doc.output('blob');
+}
+
+export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report', projectFields = [], columnWidthMap = {}, projectTemplate = null) {
+    if (!rfis || rfis.length === 0) {
+        alert("No data available to export.");
+        return;
+    }
+
+    const doc = await buildExportPdfDocument(rfis, title, projectFields, columnWidthMap, projectTemplate);
     doc.save(`${title.replace(/ /g, '_')}.pdf`);
 }
 
 /**
  * Generate a branded Daily Inspection Report PDF
  */
-export async function generateDailyReport(rfis, date, projectName = 'ProWay Project', projectFields = [], columnWidthMap = {}, projectTemplate = null) {
-    if (!rfis || rfis.length === 0) {
-        alert("No data available for this date.");
-        return;
-    }
-
+export async function buildDailyReportPdfDocument(rfis, date, projectName = 'ProWay Project', projectFields = [], columnWidthMap = {}, projectTemplate = null) {
     const doc = new jsPDF('landscape');
     const template = normalizeExportTemplate(projectTemplate, 'RFI Summary');
     const resolvedColumnWidthMap = resolveColumnWidthMap(columnWidthMap, template);
@@ -901,5 +910,20 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
     doc.text(`ProWay Inspections — Daily Report — ${formatDateDisplay(date)} — Confidential`, pageWidth / 2, footerY, { align: 'center' });
+    return doc;
+}
+
+export async function buildDailyReportPdfBlob(rfis, date, projectName = 'ProWay Project', projectFields = [], columnWidthMap = {}, projectTemplate = null) {
+    const doc = await buildDailyReportPdfDocument(rfis, date, projectName, projectFields, columnWidthMap, projectTemplate);
+    return doc.output('blob');
+}
+
+export async function generateDailyReport(rfis, date, projectName = 'ProWay Project', projectFields = [], columnWidthMap = {}, projectTemplate = null) {
+    if (!rfis || rfis.length === 0) {
+        alert("No data available for this date.");
+        return;
+    }
+
+    const doc = await buildDailyReportPdfDocument(rfis, date, projectName, projectFields, columnWidthMap, projectTemplate);
     doc.save(`ProWay_Daily_Report_${date}.pdf`);
 }
