@@ -41,6 +41,7 @@ function normalizeExportTemplate(projectTemplate, fallbackTitle = '') {
         table: { ...DEFAULT_EXPORT_TEMPLATE.table, ...(projectTemplate?.table || {}) },
         footer: { ...DEFAULT_EXPORT_TEMPLATE.footer, ...(projectTemplate?.footer || {}) },
         layout: projectTemplate?.layout || null,
+        studioDesigner: projectTemplate?.studioDesigner || null,
     };
 
     if (!merged.header.title) {
@@ -142,7 +143,111 @@ function getPdfLayoutMap(doc, template) {
         additionalLogos,
         margin,
         scale,
+        originX,
+        originY,
+        canvasW,
+        canvasH,
     };
+}
+
+function mapStudioRectToPdf(layout, element) {
+    return {
+        x: layout.originX + (element.x || 0) * layout.scale,
+        y: layout.originY + (element.y || 0) * layout.scale,
+        w: (element.w || 0) * layout.scale,
+        h: (element.h || 0) * layout.scale,
+        fontSize: Math.max(8, ((element.styles?.fontSize || 12) * 0.75)),
+    };
+}
+
+function resolveStudioTextContent(element, context = {}) {
+    const now = new Date();
+    let text = typeof element?.content === 'string' ? element.content : '';
+
+    if (element?.id === 'default_submission_date' || element?.id === 'submission_date') {
+        text = `Submission Date: ${now.toLocaleDateString()}`;
+    }
+
+    return text
+        .replaceAll('{{submission_date}}', now.toLocaleDateString())
+        .replaceAll('{{generated_at}}', now.toLocaleString())
+        .replaceAll('{{project_name}}', context.projectName || '')
+        .replaceAll('{{report_date}}', context.reportDate || '');
+}
+
+function getPdfFontStyle(weight) {
+    return Number(weight || 400) >= 700 ? 'bold' : 'normal';
+}
+
+async function drawStudioOverlayElements(doc, template, layout, context = {}, options = {}) {
+    const elements = Array.isArray(template?.studioDesigner?.elements) ? template.studioDesigner.elements : [];
+    if (elements.length === 0) return false;
+
+    const excluded = new Set(options.excludeIds || []);
+    const ordered = [...elements]
+        .filter((element) => element && element.visible !== false && element.type !== 'table' && !excluded.has(element.id))
+        .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
+    for (const element of ordered) {
+        const rect = mapStudioRectToPdf(layout, element);
+        if (element.type === 'image') {
+            const dataUrl = await srcToDataUrl(element.url);
+            if (dataUrl) addImageSafe(doc, dataUrl, rect.x, rect.y, rect.w, rect.h);
+            continue;
+        }
+
+        if (element.type === 'shape') {
+            const strokeColor = hexToRgb(element.styles?.borderColor, [15, 23, 42]);
+            const fillColor = element.styles?.fill && element.styles.fill !== 'transparent'
+                ? hexToRgb(element.styles.fill, [255, 255, 255])
+                : null;
+            const lineWidth = Math.max(0.3, Number(element.styles?.borderWidth || 1) * Math.max(0.45, layout.scale * 0.8));
+
+            if (element.shapeType === 'line') {
+                doc.setDrawColor(...strokeColor);
+                doc.setLineWidth(lineWidth);
+                doc.line(rect.x, rect.y + rect.h / 2, rect.x + rect.w, rect.y + rect.h / 2);
+                continue;
+            }
+
+            const hasFill = Boolean(fillColor);
+            const hasStroke = Number(element.styles?.borderWidth || 1) > 0;
+            const radius = Number(element.styles?.borderRadius || 0) * layout.scale;
+            const paintMode = hasFill && hasStroke ? 'FD' : hasFill ? 'F' : 'S';
+            if (hasFill) doc.setFillColor(...fillColor);
+            doc.setDrawColor(...strokeColor);
+            doc.setLineWidth(lineWidth);
+
+            if (radius > 0) {
+                doc.roundedRect(rect.x, rect.y, rect.w, rect.h, radius, radius, paintMode);
+            } else {
+                doc.rect(rect.x, rect.y, rect.w, rect.h, paintMode);
+            }
+            continue;
+        }
+
+        if (element.type === 'text') {
+            const backgroundColor = element.styles?.backgroundColor;
+            if (backgroundColor && backgroundColor !== 'transparent') {
+                doc.setFillColor(...hexToRgb(backgroundColor, [255, 255, 255]));
+                doc.rect(rect.x, rect.y, rect.w, rect.h, 'F');
+            }
+
+            doc.setTextColor(...hexToRgb(element.styles?.color, [15, 23, 42]));
+            doc.setFont('helvetica', getPdfFontStyle(element.styles?.fontWeight));
+            doc.setFontSize(rect.fontSize);
+
+            const align = element.styles?.textAlign || 'left';
+            const text = resolveStudioTextContent(element, context);
+            const lines = doc.splitTextToSize(text || '', Math.max(10, rect.w));
+            const lineHeight = rect.fontSize * 0.36;
+            const textX = align === 'center' ? rect.x + rect.w / 2 : align === 'right' ? rect.x + rect.w : rect.x;
+            const textY = rect.y + Math.max(lineHeight, rect.h > lineHeight ? lineHeight : rect.h * 0.7);
+            doc.text(lines, textX, textY, { align, baseline: 'top', maxWidth: rect.w });
+        }
+    }
+
+    return true;
 }
 
 function buildGroupedHeaderMeta(headerFieldKeys = [], groupedHeaders = []) {
@@ -408,23 +513,28 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
     const layout = getPdfLayoutMap(doc, template);
     const leftLogo = await srcToDataUrl(template.header.leftLogoUrl);
     const rightLogo = await srcToDataUrl(template.header.rightLogoUrl);
+    const hasStudioOverlay = Array.isArray(template?.studioDesigner?.elements) && template.studioDesigner.elements.length > 0;
 
     // Header — logos
-    if (leftLogo) addImageSafe(doc, leftLogo, layout.leftLogo.x, layout.leftLogo.y, layout.leftLogo.w, layout.leftLogo.h);
-    if (rightLogo) addImageSafe(doc, rightLogo, layout.rightLogo.x, layout.rightLogo.y, layout.rightLogo.w, layout.rightLogo.h);
-    for (const logo of layout.additionalLogos) {
-        const logoData = await srcToDataUrl(logo.url);
-        if (logoData) addImageSafe(doc, logoData, logo.x, logo.y, logo.w, logo.h);
-    }
+    if (hasStudioOverlay) {
+        await drawStudioOverlayElements(doc, template, layout);
+    } else {
+        if (leftLogo) addImageSafe(doc, leftLogo, layout.leftLogo.x, layout.leftLogo.y, layout.leftLogo.w, layout.leftLogo.h);
+        if (rightLogo) addImageSafe(doc, rightLogo, layout.rightLogo.x, layout.rightLogo.y, layout.rightLogo.w, layout.rightLogo.h);
+        for (const logo of layout.additionalLogos) {
+            const logoData = await srcToDataUrl(logo.url);
+            if (logoData) addImageSafe(doc, logoData, logo.x, logo.y, logo.w, logo.h);
+        }
 
-    doc.setFontSize(Math.max(9, layout.title.fontSize * PDF_COMPACT_FACTOR));
-    doc.text(template.header.title || title, layout.title.x + layout.title.w / 2, layout.title.y + layout.title.h * 0.7, { align: 'center' });
-    doc.setFontSize(Math.max(8, layout.subtitle.fontSize * PDF_COMPACT_FACTOR));
-    if (template.header.subtitle) doc.text(template.header.subtitle, layout.subtitle.x + layout.subtitle.w / 2, layout.subtitle.y + layout.subtitle.h * 0.75, { align: 'center' });
-    if (template.header.projectLine) doc.text(template.header.projectLine, layout.projectLine.x + layout.projectLine.w / 2, layout.projectLine.y + layout.projectLine.h * 0.75, { align: 'center' });
-    if (template.header.showSubmissionDate) {
-        doc.setFontSize(Math.max(7.5, layout.submissionDate.fontSize * PDF_COMPACT_FACTOR));
-        doc.text(`Submission Date: ${new Date().toLocaleDateString()}`, layout.submissionDate.x + layout.submissionDate.w, layout.submissionDate.y + layout.submissionDate.h * 0.75, { align: 'right' });
+        doc.setFontSize(Math.max(9, layout.title.fontSize * PDF_COMPACT_FACTOR));
+        doc.text(template.header.title || title, layout.title.x + layout.title.w / 2, layout.title.y + layout.title.h * 0.7, { align: 'center' });
+        doc.setFontSize(Math.max(8, layout.subtitle.fontSize * PDF_COMPACT_FACTOR));
+        if (template.header.subtitle) doc.text(template.header.subtitle, layout.subtitle.x + layout.subtitle.w / 2, layout.subtitle.y + layout.subtitle.h * 0.75, { align: 'center' });
+        if (template.header.projectLine) doc.text(template.header.projectLine, layout.projectLine.x + layout.projectLine.w / 2, layout.projectLine.y + layout.projectLine.h * 0.75, { align: 'center' });
+        if (template.header.showSubmissionDate) {
+            doc.setFontSize(Math.max(7.5, layout.submissionDate.fontSize * PDF_COMPACT_FACTOR));
+            doc.text(`Submission Date: ${new Date().toLocaleDateString()}`, layout.submissionDate.x + layout.submissionDate.w, layout.submissionDate.y + layout.submissionDate.h * 0.75, { align: 'right' });
+        }
     }
     doc.setFontSize(7);
     doc.text(`Generated on: ${new Date().toLocaleString()}`, layout.table.x, layout.table.y - 2);
@@ -501,6 +611,7 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
     const layout = getPdfLayoutMap(doc, template);
     const leftLogo = await srcToDataUrl(template.header.leftLogoUrl);
     const rightLogo = await srcToDataUrl(template.header.rightLogoUrl);
+    const hasStudioOverlay = Array.isArray(template?.studioDesigner?.elements) && template.studioDesigner.elements.length > 0;
 
     // Stats
     const approved = rfis.filter(r => r.status === 'approved').length;
@@ -514,35 +625,43 @@ export async function generateDailyReport(rfis, date, projectName = 'ProWay Proj
     doc.rect(0, 0, pageWidth, Math.max(38, layout.table.y - 8), 'F');
 
     doc.setTextColor(255, 255, 255);
-    if (leftLogo) addImageSafe(doc, leftLogo, layout.leftLogo.x, layout.leftLogo.y, layout.leftLogo.w, layout.leftLogo.h);
-    if (rightLogo) addImageSafe(doc, rightLogo, layout.rightLogo.x, layout.rightLogo.y, layout.rightLogo.w, layout.rightLogo.h);
-    for (const logo of layout.additionalLogos) {
-        const logoData = await srcToDataUrl(logo.url);
-        if (logoData) addImageSafe(doc, logoData, logo.x, logo.y, logo.w, logo.h);
+    if (hasStudioOverlay) {
+        await drawStudioOverlayElements(doc, template, layout, { projectName, reportDate: formatDateDisplay(date) }, {
+            excludeIds: ['footer_submitted_by', 'footer_submitted_to'],
+        });
+    } else {
+        if (leftLogo) addImageSafe(doc, leftLogo, layout.leftLogo.x, layout.leftLogo.y, layout.leftLogo.w, layout.leftLogo.h);
+        if (rightLogo) addImageSafe(doc, rightLogo, layout.rightLogo.x, layout.rightLogo.y, layout.rightLogo.w, layout.rightLogo.h);
+        for (const logo of layout.additionalLogos) {
+            const logoData = await srcToDataUrl(logo.url);
+            if (logoData) addImageSafe(doc, logoData, logo.x, logo.y, logo.w, logo.h);
+        }
+
+        doc.setFontSize(Math.max(9, layout.title.fontSize * PDF_COMPACT_FACTOR));
+        doc.setFont('helvetica', 'bold');
+        doc.text(template.header.title || 'RFI Summary', layout.title.x + layout.title.w / 2, layout.title.y + layout.title.h * 0.7, { align: 'center' });
+        doc.setFontSize(Math.max(8, layout.subtitle.fontSize * PDF_COMPACT_FACTOR));
+        doc.setFont('helvetica', 'normal');
+        if (template.header.subtitle) {
+            doc.text(template.header.subtitle, layout.subtitle.x + layout.subtitle.w / 2, layout.subtitle.y + layout.subtitle.h * 0.75, { align: 'center' });
+        }
+        if (template.header.projectLine) {
+            doc.text(template.header.projectLine, layout.projectLine.x + layout.projectLine.w / 2, layout.projectLine.y + layout.projectLine.h * 0.75, { align: 'center' });
+        }
     }
 
-    doc.setFontSize(Math.max(9, layout.title.fontSize * PDF_COMPACT_FACTOR));
-    doc.setFont('helvetica', 'bold');
-    doc.text(template.header.title || 'RFI Summary', layout.title.x + layout.title.w / 2, layout.title.y + layout.title.h * 0.7, { align: 'center' });
-    doc.setFontSize(Math.max(8, layout.subtitle.fontSize * PDF_COMPACT_FACTOR));
-    doc.setFont('helvetica', 'normal');
-    if (template.header.subtitle) {
-        doc.text(template.header.subtitle, layout.subtitle.x + layout.subtitle.w / 2, layout.subtitle.y + layout.subtitle.h * 0.75, { align: 'center' });
+    if (!hasStudioOverlay) {
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text(projectName, pageWidth - 14, Math.max(14, layout.title.y + 2), { align: 'right' });
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(Math.max(7.5, layout.submissionDate.fontSize * PDF_COMPACT_FACTOR));
+        doc.text(`Date: ${formatDateDisplay(date)}`, pageWidth - 14, Math.max(22, layout.subtitle.y + 4), { align: 'right' });
+        if (template.header.showSubmissionDate) {
+            doc.text(`Submission Date: ${new Date().toLocaleDateString()}`, pageWidth - 14, Math.max(28, layout.projectLine.y + 2), { align: 'right' });
+        }
+        doc.text(`Generated: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, pageWidth - 14, Math.max(32, layout.projectLine.y + 6), { align: 'right' });
     }
-    if (template.header.projectLine) {
-        doc.text(template.header.projectLine, layout.projectLine.x + layout.projectLine.w / 2, layout.projectLine.y + layout.projectLine.h * 0.75, { align: 'center' });
-    }
-
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text(projectName, pageWidth - 14, Math.max(14, layout.title.y + 2), { align: 'right' });
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(Math.max(7.5, layout.submissionDate.fontSize * PDF_COMPACT_FACTOR));
-    doc.text(`Date: ${formatDateDisplay(date)}`, pageWidth - 14, Math.max(22, layout.subtitle.y + 4), { align: 'right' });
-    if (template.header.showSubmissionDate) {
-        doc.text(`Submission Date: ${new Date().toLocaleDateString()}`, pageWidth - 14, Math.max(28, layout.projectLine.y + 2), { align: 'right' });
-    }
-    doc.text(`Generated: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, pageWidth - 14, Math.max(32, layout.projectLine.y + 6), { align: 'right' });
 
     // ========== SUMMARY STATS ==========
     doc.setTextColor(0, 0, 0);
