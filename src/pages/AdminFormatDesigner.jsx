@@ -1,5 +1,9 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import {
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    ChevronUp,
     Columns,
     Copy,
     Eye,
@@ -402,6 +406,11 @@ export default function AdminFormatDesigner() {
     const [interaction, setInteraction] = useState(null);
     const [zoom, setZoom] = useState(0.82);
     const [hasDraft, setHasDraft] = useState(false);
+    const [showToolsPanel, setShowToolsPanel] = useState(true);
+    const [showInspectorPanel, setShowInspectorPanel] = useState(true);
+    const [inspectorTab, setInspectorTab] = useState('inspector');
+    const [showTopHeader, setShowTopHeader] = useState(true);
+    const [selectedZoneName, setSelectedZoneName] = useState(null);
 
     const draftStorageKey = useMemo(() => {
         if (!activeProject?.id) return '';
@@ -551,6 +560,42 @@ export default function AdminFormatDesigner() {
         }));
     };
 
+    const updateZone = (zoneName, patch) => {
+        setTemplate((previous) => {
+            const currentZone = previous.canvas?.zones?.[zoneName] || DEFAULT_ZONES[zoneName] || { x: 0, y: 0, w: 100, h: 100 };
+            const canvas = previous.canvas || DEFAULT_TEMPLATE.canvas;
+            const nextZone = {
+                ...currentZone,
+                ...patch,
+            };
+
+            const clampedZone = {
+                x: clamp(nextZone.x, 0, canvas.width - Math.min(nextZone.w, canvas.width)),
+                y: clamp(nextZone.y, 0, canvas.height - Math.min(nextZone.h, canvas.height)),
+                w: clamp(nextZone.w, 80, canvas.width),
+                h: clamp(nextZone.h, 40, canvas.height),
+            };
+
+            const nextZones = {
+                ...(previous.canvas?.zones || DEFAULT_ZONES),
+                [zoneName]: clampedZone,
+            };
+
+            return {
+                ...previous,
+                canvas: {
+                    ...previous.canvas,
+                    zones: nextZones,
+                },
+                elements: previous.elements.map((element) => (
+                    zoneName === 'table' && element.id === 'master_table'
+                        ? { ...element, x: clampedZone.x, y: clampedZone.y, w: clampedZone.w, h: clampedZone.h }
+                        : element
+                )),
+            };
+        });
+    };
+
     const addElement = (type, defaults = {}) => {
         const id = `el_${Date.now()}`;
         const imageCount = template.elements.filter((element) => element.type === 'image').length;
@@ -608,6 +653,18 @@ export default function AdminFormatDesigner() {
                 y: headerZone.y + headerZone.h - 8,
                 w: headerZone.w,
                 h: 4,
+                styles: { borderWidth: 2, borderColor: '#0f172a', fill: '#0f172a' },
+            });
+            return;
+        }
+
+        if (preset === 'header_table_bridge') {
+            addElement('shape', {
+                shapeType: 'line',
+                x: tableZone.x,
+                y: tableZone.y,
+                w: tableZone.w,
+                h: 2,
                 styles: { borderWidth: 2, borderColor: '#0f172a', fill: '#0f172a' },
             });
             return;
@@ -750,6 +807,33 @@ export default function AdminFormatDesigner() {
         }));
     };
 
+    const addGroupedHeaderPreset = (title, fromCandidates = [], toCandidates = []) => {
+        const fromKey = fromCandidates.find((key) => previewColumns.some((column) => column.field_key === key));
+        const toKey = toCandidates.find((key) => previewColumns.some((column) => column.field_key === key));
+
+        if (!fromKey || !toKey) {
+            toast.error(`Couldn't find matching columns for ${title}`);
+            return;
+        }
+
+        setTemplate((previous) => {
+            const groupedHeaders = previous.tableConfig.groupedHeaders || [];
+            const existingIndex = groupedHeaders.findIndex((group) => group.fromKey === fromKey && group.toKey === toKey);
+            const nextGroups = existingIndex >= 0
+                ? groupedHeaders.map((group, index) => (index === existingIndex ? { ...group, title } : group))
+                : [...groupedHeaders, { title, fromKey, toKey }];
+
+            return {
+                ...previous,
+                tableConfig: {
+                    ...previous.tableConfig,
+                    groupedHeaders: nextGroups,
+                },
+            };
+        });
+        toast.success(`${title} split header ready`);
+    };
+
     const updateGroupedHeader = (index, patch) => {
         setTemplate((previous) => ({
             ...previous,
@@ -776,15 +860,35 @@ export default function AdminFormatDesigner() {
         event.preventDefault();
         event.stopPropagation();
         setSelectedId(id);
+        setSelectedZoneName(null);
         const element = template.elements.find((item) => item.id === id);
         if (!element) return;
         setInteraction({
+            targetType: 'element',
             id,
             mode,
             handle,
             startX: event.clientX,
             startY: event.clientY,
             startRect: { ...element },
+        });
+    }
+
+    function startZoneInteraction(event, zoneName, mode, handle = null) {
+        event.preventDefault();
+        event.stopPropagation();
+        setSelectedId(null);
+        setSelectedZoneName(zoneName);
+        const zone = template.canvas?.zones?.[zoneName] || DEFAULT_ZONES[zoneName];
+        if (!zone) return;
+        setInteraction({
+            targetType: 'zone',
+            zoneName,
+            mode,
+            handle,
+            startX: event.clientX,
+            startY: event.clientY,
+            startRect: { ...zone },
         });
     }
 
@@ -796,6 +900,40 @@ export default function AdminFormatDesigner() {
             const dy = (event.clientY - interaction.startY) / zoom;
             const grid = template?.canvas?.snapToGrid ? GRID_SIZE : 1;
             const startRect = interaction.startRect;
+
+            if (interaction.targetType === 'zone') {
+                if (interaction.mode === 'move') {
+                    updateZone(interaction.zoneName, {
+                        x: snap(startRect.x + dx, grid, template.canvas.snapToGrid),
+                        y: snap(startRect.y + dy, grid, template.canvas.snapToGrid),
+                    });
+                    return;
+                }
+
+                if (interaction.mode === 'resize') {
+                    const handle = interaction.handle;
+                    let { x, y, w, h } = startRect;
+                    if (handle.includes('e')) w = snap(startRect.w + dx, grid, template.canvas.snapToGrid);
+                    if (handle.includes('s')) h = snap(startRect.h + dy, grid, template.canvas.snapToGrid);
+                    if (handle.includes('w')) {
+                        const nextWidth = snap(startRect.w - dx, grid, template.canvas.snapToGrid);
+                        if (nextWidth > 10) {
+                            x = snap(startRect.x + (startRect.w - nextWidth), grid, template.canvas.snapToGrid);
+                            w = nextWidth;
+                        }
+                    }
+                    if (handle.includes('n')) {
+                        const nextHeight = snap(startRect.h - dy, grid, template.canvas.snapToGrid);
+                        if (nextHeight > 10) {
+                            y = snap(startRect.y + (startRect.h - nextHeight), grid, template.canvas.snapToGrid);
+                            h = nextHeight;
+                        }
+                    }
+
+                    updateZone(interaction.zoneName, { x, y, w, h });
+                    return;
+                }
+            }
 
             if (interaction.mode === 'move') {
                 const nextRect = {
@@ -947,6 +1085,13 @@ export default function AdminFormatDesigner() {
                                 <span>Strong line under the top header block.</span>
                             </div>
                         </button>
+                        <button className="studio-preset-card" onClick={() => addLayoutPreset('header_table_bridge')}>
+                            <Minus size={18} />
+                            <div>
+                                <strong>Header-table bridge</strong>
+                                <span>Locks a clean line exactly on the table top so the header flows into the grid.</span>
+                            </div>
+                        </button>
                         <button className="studio-preset-card" onClick={() => addLayoutPreset('notes_box')}>
                             <Square size={18} />
                             <div>
@@ -1056,6 +1201,19 @@ export default function AdminFormatDesigner() {
                             <button className="terminal-btn" onClick={addGroupedHeader}>Add group</button>
                         </div>
 
+                        <div className="studio-tip-card compact">
+                            <strong>Split one header into two cells</strong>
+                            <p>For layouts like `Chainage` with `From` and `To` below it, use a grouped header. The top cell becomes the group title and the two lower columns stay as separate fields.</p>
+                            <div className="studio-inline-actions">
+                                <button
+                                    className="terminal-btn"
+                                    onClick={() => addGroupedHeaderPreset('Chainage', ['chainage_from', 'from_chainage'], ['chainage_to', 'to_chainage'])}
+                                >
+                                    Add Chainage split
+                                </button>
+                            </div>
+                        </div>
+
                         {(template.tableConfig.groupedHeaders || []).length === 0 && (
                             <div className="studio-tip-card">
                                 <strong>No grouped headers yet</strong>
@@ -1117,6 +1275,10 @@ export default function AdminFormatDesigner() {
                 </div>
 
                 <div className="studio-zone-list">
+                    <div className="studio-tip-card compact">
+                        <strong>Resize header and table bands on canvas</strong>
+                        <p>Click the `header zone` or `table zone` chip above the paper, then drag the blue handles to change width or height. Moving the table zone also keeps the summary table block aligned with it.</p>
+                    </div>
                     {Object.entries(template.canvas.zones || DEFAULT_ZONES).map(([zoneName, zone]) => (
                         <div key={zoneName} className="studio-zone-card">
                             <strong>{zoneName}</strong>
@@ -1132,12 +1294,14 @@ export default function AdminFormatDesigner() {
     return (
         <div className="format-studio-page studio-pro-page">
             <Header />
-            <div className="studio-pro-shell">
-                <header className="studio-pro-topbar">
+            <div className={`studio-pro-shell ${showTopHeader ? '' : 'header-collapsed'}`}>
+                <header className={`studio-pro-topbar ${showTopHeader ? '' : 'is-collapsed'}`}>
                     <div className="studio-pro-title">
                         <div className="studio-pro-kicker">Admin Export Studio</div>
                         <h1>Daily Summary Designer</h1>
-                        <p>Build the contractor summary layout with table styling, freeform header content, logos, notes blocks, and signature areas in one place.</p>
+                        {showTopHeader && (
+                            <p>Build the contractor summary layout with table styling, freeform header content, logos, notes blocks, and signature areas in one place.</p>
+                        )}
                     </div>
 
                     <div className="studio-pro-actions">
@@ -1148,6 +1312,10 @@ export default function AdminFormatDesigner() {
                             {hasDraft && <span className="studio-badge warning">Draft autosaved</span>}
                         </div>
                         <div className="studio-topbar-buttons">
+                            <button className="terminal-btn" onClick={() => setShowTopHeader((value) => !value)}>
+                                {showTopHeader ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                {showTopHeader ? 'Collapse header' : 'Expand header'}
+                            </button>
                             <button className="terminal-btn" onClick={handleRestoreProjectVersion}>Reload saved</button>
                             <button className="terminal-btn" onClick={handleResetToDefault}><RotateCcw size={14} /> Reset page</button>
                             <button className="terminal-btn primary" onClick={handleSave} disabled={saving}>
@@ -1158,35 +1326,51 @@ export default function AdminFormatDesigner() {
                     </div>
                 </header>
 
-                <div className="studio-pro-body">
-                    <aside className="studio-panel studio-tools-panel">
+                <div className={`studio-pro-body ${showToolsPanel ? '' : 'tools-collapsed'} ${showInspectorPanel ? '' : 'inspector-collapsed'}`}>
+                    <aside className={`studio-panel studio-tools-panel ${showToolsPanel ? '' : 'is-collapsed'}`}>
                         <section className="studio-panel-section">
                             <div className="studio-section-heading">
                                 <div>
                                     <h3>Build Tools</h3>
                                     <p>Insert and configure report pieces quickly.</p>
                                 </div>
+                                <button
+                                    className="studio-panel-toggle"
+                                    onClick={() => setShowToolsPanel((value) => !value)}
+                                    title={showToolsPanel ? 'Collapse tools panel' : 'Expand tools panel'}
+                                >
+                                    {showToolsPanel ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+                                </button>
                             </div>
 
-                            <div className="studio-tab-row">
-                                {TOOL_TABS.map((tab) => {
-                                    const Icon = tab.icon;
-                                    return (
-                                        <button
-                                            key={tab.id}
-                                            className={`studio-tab-btn ${activeRailTab === tab.id ? 'active' : ''}`}
-                                            onClick={() => setActiveRailTab(tab.id)}
-                                        >
-                                            <Icon size={16} />
-                                            <span>{tab.label}</span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                            {showToolsPanel ? (
+                                <>
+                                    <div className="studio-tab-row">
+                                        {TOOL_TABS.map((tab) => {
+                                            const Icon = tab.icon;
+                                            return (
+                                                <button
+                                                    key={tab.id}
+                                                    className={`studio-tab-btn ${activeRailTab === tab.id ? 'active' : ''}`}
+                                                    onClick={() => setActiveRailTab(tab.id)}
+                                                >
+                                                    <Icon size={16} />
+                                                    <span>{tab.label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
 
-                            <div className="studio-panel-scroll">
-                                {renderLibraryContent()}
-                            </div>
+                                    <div className="studio-panel-scroll">
+                                        {renderLibraryContent()}
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="studio-collapsed-panel">
+                                    <LayoutTemplate size={18} />
+                                    <span>Tools</span>
+                                </div>
+                            )}
                         </section>
                     </aside>
 
@@ -1211,7 +1395,13 @@ export default function AdminFormatDesigner() {
                             </div>
                         </div>
 
-                        <div className={`studio-stage-viewport studio-stage-viewport--pro ${template.canvas.showGrid ? 'show-grid' : 'hide-grid'}`} onClick={() => setSelectedId(null)}>
+                        <div
+                            className={`studio-stage-viewport studio-stage-viewport--pro ${template.canvas.showGrid ? 'show-grid' : 'hide-grid'}`}
+                            onClick={() => {
+                                setSelectedId(null);
+                                setSelectedZoneName(null);
+                            }}
+                        >
                             <div className="studio-paper-stage">
                                 <div
                                     className="studio-terminal-canvas"
@@ -1225,20 +1415,55 @@ export default function AdminFormatDesigner() {
                                 >
                                     <div className="studio-paper-label">Daily Summary Print Area</div>
 
-                                    {Object.entries(template.canvas.zones || DEFAULT_ZONES).map(([zoneName, zone]) => (
-                                        <div
-                                            key={zoneName}
-                                            className={`studio-zone-overlay zone-${zoneName}`}
-                                            style={{
-                                                left: zone.x,
-                                                top: zone.y,
-                                                width: zone.w,
-                                                height: zone.h,
-                                            }}
-                                        >
-                                            <span>{zoneName}</span>
-                                        </div>
-                                    ))}
+                                    {Object.entries(template.canvas.zones || DEFAULT_ZONES).map(([zoneName, zone]) => {
+                                        const isEditableZone = zoneName === 'header' || zoneName === 'table';
+                                        const isSelectedZone = selectedZoneName === zoneName;
+
+                                        return (
+                                            <div
+                                                key={zoneName}
+                                                className={`studio-zone-overlay zone-${zoneName} ${isEditableZone ? 'is-editable' : ''} ${isSelectedZone ? 'is-selected' : ''}`}
+                                                style={{
+                                                    left: zone.x,
+                                                    top: zone.y,
+                                                    width: zone.w,
+                                                    height: zone.h,
+                                                }}
+                                            >
+                                                <span
+                                                    className={`studio-zone-chip ${isEditableZone ? 'is-editable' : ''}`}
+                                                    onMouseDown={isEditableZone ? (event) => startZoneInteraction(event, zoneName, 'move') : undefined}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        setSelectedZoneName(zoneName);
+                                                        setSelectedId(null);
+                                                    }}
+                                                >
+                                                    {zoneName} zone
+                                                </span>
+
+                                                {isEditableZone && isSelectedZone && (
+                                                    <>
+                                                        <button
+                                                            className="studio-zone-handle edge-east"
+                                                            onMouseDown={(event) => startZoneInteraction(event, zoneName, 'resize', 'e')}
+                                                            title={`Resize ${zoneName} width`}
+                                                        />
+                                                        <button
+                                                            className="studio-zone-handle edge-south"
+                                                            onMouseDown={(event) => startZoneInteraction(event, zoneName, 'resize', 's')}
+                                                            title={`Resize ${zoneName} height`}
+                                                        />
+                                                        <button
+                                                            className="studio-zone-handle corner-se"
+                                                            onMouseDown={(event) => startZoneInteraction(event, zoneName, 'resize', 'se')}
+                                                            title={`Resize ${zoneName} zone`}
+                                                        />
+                                                    </>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
 
                                     {template.elements
                                         .slice()
@@ -1367,15 +1592,35 @@ export default function AdminFormatDesigner() {
                         </div>
                     </section>
 
-                    <aside className="studio-panel studio-inspector-panel">
+                    <aside className={`studio-panel studio-inspector-panel ${showInspectorPanel ? '' : 'is-collapsed'}`}>
                         <section className="studio-panel-section">
                             <div className="studio-section-heading">
                                 <div>
-                                    <h3>Inspector</h3>
-                                    <p>{selectedElement ? 'Adjust the selected block.' : 'Select any element on the canvas.'}</p>
+                                    <h3>Right Panel</h3>
+                                    <p>{showInspectorPanel ? 'Switch between inspector controls and layer management.' : 'Expand the panel when you need controls.'}</p>
                                 </div>
+                                <button
+                                    className="studio-panel-toggle"
+                                    onClick={() => setShowInspectorPanel((value) => !value)}
+                                    title={showInspectorPanel ? 'Collapse inspector panel' : 'Expand inspector panel'}
+                                >
+                                    {showInspectorPanel ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                                </button>
                             </div>
 
+                            {showInspectorPanel ? (
+                                <>
+                                    <div className="studio-mini-tab-row">
+                                        <button className={`studio-mini-tab ${inspectorTab === 'inspector' ? 'active' : ''}`} onClick={() => setInspectorTab('inspector')}>
+                                            Inspector
+                                        </button>
+                                        <button className={`studio-mini-tab ${inspectorTab === 'layers' ? 'active' : ''}`} onClick={() => setInspectorTab('layers')}>
+                                            Layers
+                                            <span className="studio-mini-tab-badge">{template.elements.length}</span>
+                                        </button>
+                                    </div>
+
+                                    <div className={`studio-panel-scroll ${inspectorTab !== 'inspector' ? 'is-hidden-panel' : ''}`}>
                             {!selectedElement && (
                                 <div className="studio-empty-state">
                                     <Layers size={18} />
@@ -1527,9 +1772,18 @@ export default function AdminFormatDesigner() {
                                     </div>
                                 </>
                             )}
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="studio-collapsed-panel">
+                                    <Layers size={18} />
+                                    <span>Inspect</span>
+                                </div>
+                            )}
                         </section>
 
-                        <section className="studio-panel-section studio-layers-panel">
+                        {showInspectorPanel && (
+                        <section className={`studio-panel-section studio-layers-panel ${inspectorTab !== 'layers' ? 'is-hidden-panel' : ''}`}>
                             <div className="studio-section-heading">
                                 <div>
                                     <h3>Layers</h3>
@@ -1559,6 +1813,7 @@ export default function AdminFormatDesigner() {
                                 ))}
                             </div>
                         </section>
+                        )}
                     </aside>
                 </div>
             </div>
