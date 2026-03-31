@@ -159,6 +159,13 @@ export default function ContractorDashboard() {
                         )}
                         <button
                             className="btn-command"
+                            onClick={() => navigate('/contractor/archive')}
+                            style={{ background: 'var(--clr-bg-elevated)', color: 'var(--clr-text-primary)', border: '1px solid var(--clr-border)' }}
+                        >
+                            <FileText size={18} strokeWidth={2.2} /> RFI Archive
+                        </button>
+                        <button
+                            className="btn-command"
                             onClick={() => navigate('/contractor/rfi-sheet')}
                             disabled={!contractorPermissions.canFileRfis}
                             title={contractorPermissions.canFileRfis ? 'File RFIs' : 'View-only access for this project'}

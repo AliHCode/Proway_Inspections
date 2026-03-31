@@ -4,7 +4,7 @@ import {
     LogOut, Menu, X, Building, Shield, User, Briefcase, UserCircle, 
     LayoutGrid, ScrollText, ListChecks, BellRing, Smartphone, 
     GitBranch, BarChart3, Settings2, LifeBuoy, Edit2, 
-    ShieldCheck, Power, Activity, ChevronDown, Info, Building2, Database, FileSpreadsheet
+    ShieldCheck, Power, Activity, ChevronDown, Info, Building2, Database, FileSpreadsheet, Archive
 } from 'lucide-react';
 import { useRFI } from '../context/RFIContext';
 import { useCallback, useEffect, useState, useRef } from 'react';
@@ -269,6 +269,18 @@ export default function Header() {
                             </button>
                         )}
 
+                        {(isConsultant || isContractor) && (
+                            <button
+                                onClick={() => {
+                                    const path = isContractor ? '/contractor/archive' : '/consultant/archive';
+                                    handleMenuNavigation(path);
+                                }}
+                                className={`desktop-nav-link ${location.pathname.includes('/archive') ? 'active' : ''}`}
+                            >
+                                RFI Archive
+                            </button>
+                        )}
+
                         {isAdmin && (
                             <>
                                 <button
@@ -473,6 +485,19 @@ export default function Header() {
                                     >
                                         <div className="menu-icon-box"><BarChart3 size={18} strokeWidth={1.5} /></div>
                                         <span>Summary</span>
+                                    </button>
+                                )}
+
+                                {(isConsultant || isContractor) && (
+                                    <button
+                                        onClick={() => {
+                                            const path = isContractor ? '/contractor/archive' : '/consultant/archive';
+                                            handleMenuNavigation(path);
+                                        }}
+                                        className={`header-dropdown-item-premium ${location.pathname.includes('/archive') ? 'active' : ''}`}
+                                    >
+                                        <div className="menu-icon-box"><Archive size={18} strokeWidth={1.5} /></div>
+                                        <span>RFI Archive</span>
                                     </button>
                                 )}
 

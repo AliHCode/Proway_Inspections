@@ -20,6 +20,7 @@ import AdminFormatDesigner from './pages/AdminFormatDesigner';
 import AdminExcelTemplatePage from './pages/AdminExcelTemplatePage';
 import PendingApproval from './pages/PendingApproval';
 import SummaryPage from './pages/SummaryPage';
+import RfiArchivePage from './pages/RfiArchivePage';
 import RegisteredDevicesPage from './pages/RegisteredDevicesPage';
 import NotificationRedirect from './pages/NotificationRedirect';
 import SubscriptionBlocked from './pages/SubscriptionBlocked';
@@ -70,10 +71,12 @@ function AppRoutes() {
             <Route path="/contractor/team" element={<ContractorLeadRoute><SubscriptionGuard><ContractorTeamPage /></SubscriptionGuard></ContractorLeadRoute>} />
             <Route path="/contractor/rfi-sheet" element={<ProtectedRoute allowedRoles={['contractor']}><SubscriptionGuard><DailyRFISheet /></SubscriptionGuard></ProtectedRoute>} />
             <Route path="/contractor/summary" element={<ProtectedRoute allowedRoles={['contractor']}><SubscriptionGuard><SummaryPage /></SubscriptionGuard></ProtectedRoute>} />
+            <Route path="/contractor/archive" element={<ProtectedRoute allowedRoles={['contractor']}><SubscriptionGuard><RfiArchivePage /></SubscriptionGuard></ProtectedRoute>} />
             <Route path="/consultant" element={<ProtectedRoute allowedRoles={['consultant']}><SubscriptionGuard><ConsultantDashboard /></SubscriptionGuard></ProtectedRoute>} />
             <Route path="/consultant/review" element={<ProtectedRoute allowedRoles={['consultant']}><SubscriptionGuard><ReviewQueue /></SubscriptionGuard></ProtectedRoute>} />
             <Route path="/consultant/rejection-journey" element={<ProtectedRoute allowedRoles={['consultant']}><SubscriptionGuard><RejectionJourneyBoard /></SubscriptionGuard></ProtectedRoute>} />
             <Route path="/consultant/summary" element={<ProtectedRoute allowedRoles={['consultant']}><SubscriptionGuard><SummaryPage /></SubscriptionGuard></ProtectedRoute>} />
+            <Route path="/consultant/archive" element={<ProtectedRoute allowedRoles={['consultant']}><SubscriptionGuard><RfiArchivePage /></SubscriptionGuard></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><UsersPage /></ProtectedRoute>} />
             <Route path="/admin/export-format" element={<ProtectedRoute allowedRoles={['admin']}><AdminFormatDesigner /></ProtectedRoute>} />

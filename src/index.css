@@ -12801,3 +12801,13 @@ body,
     border-top: 1px solid rgba(148, 163, 184, 0.12);
   }
 }
+
+.rfi-archive-layout {
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+}
+
+@media (max-width: 1024px) {
+  .rfi-archive-layout {
+    grid-template-columns: 1fr;
+  }
+}
