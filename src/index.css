@@ -13716,7 +13716,7 @@ body,
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
+    gap: 0;
     width: 100%;
     min-height: 44px;
     padding: 0;
@@ -13732,6 +13732,7 @@ body,
   .desktop-sidebar-nav:hover .desktop-sidebar-item,
   .desktop-sidebar-nav.expanded .desktop-sidebar-item {
     justify-content: flex-start;
+    gap: 0.75rem;
     padding: 0 0.85rem;
   }
 
@@ -13755,6 +13756,9 @@ body,
   }
 
   .desktop-sidebar-item-label {
+    width: 0;
+    max-width: 0;
+    overflow: hidden;
     flex: 1;
     white-space: nowrap;
     overflow: hidden;
@@ -13764,8 +13768,23 @@ body,
   }
 
   .desktop-sidebar-item-caret {
+    width: 0;
+    min-width: 0;
+    overflow: hidden;
     margin-left: auto;
     color: #94a3b8;
     transform: rotate(-90deg);
+  }
+
+  .desktop-sidebar-nav:hover .desktop-sidebar-item-label,
+  .desktop-sidebar-nav.expanded .desktop-sidebar-item-label {
+    width: auto;
+    max-width: none;
+  }
+
+  .desktop-sidebar-nav:hover .desktop-sidebar-item-caret,
+  .desktop-sidebar-nav.expanded .desktop-sidebar-item-caret {
+    width: 14px;
+    min-width: 14px;
   }
 }
