@@ -13673,8 +13673,8 @@ body,
   .desktop-sidebar-section-title,
   .desktop-sidebar-item-label,
   .desktop-sidebar-item-caret {
+    display: none;
     opacity: 0;
-    transition: opacity 150ms ease;
     pointer-events: none;
   }
 
@@ -13684,6 +13684,7 @@ body,
   .desktop-sidebar-nav.expanded .desktop-sidebar-section-title,
   .desktop-sidebar-nav.expanded .desktop-sidebar-item-label,
   .desktop-sidebar-nav.expanded .desktop-sidebar-item-caret {
+    display: block;
     opacity: 1;
     pointer-events: auto;
   }
@@ -13756,9 +13757,6 @@ body,
   }
 
   .desktop-sidebar-item-label {
-    width: 0;
-    max-width: 0;
-    overflow: hidden;
     flex: 1;
     white-space: nowrap;
     overflow: hidden;
@@ -13768,23 +13766,8 @@ body,
   }
 
   .desktop-sidebar-item-caret {
-    width: 0;
-    min-width: 0;
-    overflow: hidden;
     margin-left: auto;
     color: #94a3b8;
     transform: rotate(-90deg);
-  }
-
-  .desktop-sidebar-nav:hover .desktop-sidebar-item-label,
-  .desktop-sidebar-nav.expanded .desktop-sidebar-item-label {
-    width: auto;
-    max-width: none;
-  }
-
-  .desktop-sidebar-nav:hover .desktop-sidebar-item-caret,
-  .desktop-sidebar-nav.expanded .desktop-sidebar-item-caret {
-    width: 14px;
-    min-width: 14px;
   }
 }
