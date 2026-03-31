@@ -10,7 +10,6 @@ import RfiStatusPieChart from '../components/RfiStatusPieChart';
 import ActivityTimeline from '../components/ActivityTimeline';
 import {
     FileSearch,
-    FileText,
     CheckCircle,
     XCircle,
     Clock,
@@ -82,9 +81,6 @@ export default function ConsultantDashboard() {
                     <div className="premium-actions" style={{ display: 'flex', gap: '0.75rem' }}>
                         <button className="btn-command" onClick={() => navigate('/consultant/review')}>
                             <FileSearch size={18} strokeWidth={2.5} /> Review RFIs
-                        </button>
-                        <button className="btn btn-ghost" style={{ backgroundColor: 'rgba(255,255,255,0.5)', backdropFilter: 'blur(4px)', fontSize: '0.85rem' }} onClick={() => navigate('/consultant/archive')}>
-                            <FileText size={16} /> RFI Archive
                         </button>
                         <button className="btn btn-ghost" style={{ backgroundColor: 'rgba(255,255,255,0.5)', backdropFilter: 'blur(4px)', fontSize: '0.85rem' }} onClick={() => navigate('/consultant/rejection-journey')}>
                             <GitBranch size={16} /> Rejection Journey

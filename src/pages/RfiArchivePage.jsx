@@ -84,8 +84,9 @@ export default function RfiArchivePage() {
     const [docsReloadKey, setDocsReloadKey] = useState(0);
     const [archiveRows, setArchiveRows] = useState([]);
     const [loadingArchive, setLoadingArchive] = useState(false);
-    const [pendingFiles, setPendingFiles] = useState([]);
+    const [pendingUpload, setPendingUpload] = useState({ rfiId: '', files: [] });
     const [uploading, setUploading] = useState(false);
+    const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
     const [bulkDownloading, setBulkDownloading] = useState(false);
     const [rangeFrom, setRangeFrom] = useState('');
     const [rangeTo, setRangeTo] = useState('');
@@ -126,7 +127,7 @@ export default function RfiArchivePage() {
 
     const rfiRangeOptions = useMemo(() => (
         visibleRfis
-            .map((rfi, index) => ({ id: rfi.id, label: getRfiLabel(rfi), sortValue: extractSortValue(getRfiLabel(rfi)), index }))
+            .map((rfi) => ({ id: rfi.id, label: getRfiLabel(rfi), sortValue: extractSortValue(getRfiLabel(rfi)) }))
             .sort((a, b) => a.sortValue - b.sortValue || a.label.localeCompare(b.label))
     ), [visibleRfis]);
 
@@ -141,20 +142,6 @@ export default function RfiArchivePage() {
         }
         return next;
     }, [archiveRows]);
-
-    const selectedArchive = selectedRfi
-        ? archiveByRfi[selectedRfi.id] || { count: 0, latest: null, docs: [] }
-        : { count: 0, latest: null, docs: [] };
-
-    const canUploadForSelected = Boolean(
-        selectedRfi && (
-            user?.role === 'admin'
-            || (
-                user?.role === 'contractor'
-                && (contractorPermissions.canManageContractorPermissions || selectedRfi.filedBy === user?.id)
-            )
-        )
-    );
 
     useEffect(() => {
         if (!selectedRfi && selectedRfiId) {
@@ -213,33 +200,46 @@ export default function RfiArchivePage() {
         };
     }, [docsReloadKey, visibleRfis]);
 
-    const handleFilePick = (event) => {
-        const files = Array.from(event.target.files || []).filter((file) => file.type.includes('pdf'));
-        setPendingFiles(files);
-    };
+    const canUploadForRfi = (rfi) => Boolean(
+        rfi && (
+            user?.role === 'admin'
+            || (
+                user?.role === 'contractor'
+                && (contractorPermissions.canManageContractorPermissions || rfi.filedBy === user?.id)
+            )
+        )
+    );
 
-    const buildUploadNames = () => {
-        const rfiLabel = getRfiLabel(selectedRfi);
-        const existingCount = selectedArchive.count || 0;
+    const getArchiveForRfi = (rfiId) => archiveByRfi[rfiId] || { count: 0, latest: null, docs: [] };
 
-        if (pendingFiles.length === 1 && existingCount === 0) {
+    const buildUploadNames = (rfi, files) => {
+        const rfiLabel = getRfiLabel(rfi);
+        const existingCount = getArchiveForRfi(rfi.id).count || 0;
+
+        if (files.length === 1 && existingCount === 0) {
             return [buildPdfName(rfiLabel)];
         }
 
-        return pendingFiles.map((_, index) => buildPdfName(rfiLabel, `-${existingCount + index + 1}`));
+        return files.map((_, index) => buildPdfName(rfiLabel, `-${existingCount + index + 1}`));
     };
 
-    const handleUpload = async () => {
-        if (!selectedRfi || pendingFiles.length === 0 || !activeProject?.id || !user?.id) return;
+    const handleFilePick = (rfiId, event) => {
+        const files = Array.from(event.target.files || []).filter((file) => file.type.includes('pdf'));
+        setSelectedRfiId(rfiId);
+        setPendingUpload({ rfiId, files });
+    };
+
+    const handleUpload = async (rfi) => {
+        if (!rfi || pendingUpload.rfiId !== rfi.id || pendingUpload.files.length === 0 || !activeProject?.id || !user?.id) return;
 
         setUploading(true);
         try {
-            const uploadNames = buildUploadNames();
-            for (let index = 0; index < pendingFiles.length; index += 1) {
-                await uploadRfiScannedDocument(selectedRfi.id, pendingFiles[index], activeProject.id, user.id, uploadNames[index]);
+            const uploadNames = buildUploadNames(rfi, pendingUpload.files);
+            for (let index = 0; index < pendingUpload.files.length; index += 1) {
+                await uploadRfiScannedDocument(rfi.id, pendingUpload.files[index], activeProject.id, user.id, uploadNames[index]);
             }
-            toast.success(`${pendingFiles.length} scanned document${pendingFiles.length > 1 ? 's' : ''} uploaded`);
-            setPendingFiles([]);
+            toast.success(`${pendingUpload.files.length} scanned document${pendingUpload.files.length > 1 ? 's' : ''} uploaded`);
+            setPendingUpload({ rfiId: '', files: [] });
             setDocsReloadKey((value) => value + 1);
         } catch (error) {
             console.error('Failed to upload scanned documents:', error);
@@ -250,8 +250,8 @@ export default function RfiArchivePage() {
     };
 
     const handlePreviewLatest = async (rfi) => {
-        const archive = archiveByRfi[rfi.id];
-        if (!archive?.latest) {
+        const archive = getArchiveForRfi(rfi.id);
+        if (!archive.latest) {
             toast.error('No scanned copy is available for preview.');
             return;
         }
@@ -288,8 +288,8 @@ export default function RfiArchivePage() {
     };
 
     const handleDownloadRfi = async (rfi) => {
-        const archive = archiveByRfi[rfi.id];
-        if (!archive?.docs?.length) {
+        const archive = getArchiveForRfi(rfi.id);
+        if (!archive.docs.length) {
             toast.error('No scanned copy is available for download.');
             return;
         }
@@ -309,14 +309,19 @@ export default function RfiArchivePage() {
         }
     };
 
-    const handleDeleteLatest = async () => {
-        if (!selectedArchive.latest) return;
+    const handleDeleteLatest = async (rfi) => {
+        const archive = getArchiveForRfi(rfi.id);
+        if (!archive.latest) return;
+
         const confirmed = window.confirm('Delete the latest scanned copy from this RFI?');
         if (!confirmed) return;
 
         try {
-            await deleteRfiScannedDocument(selectedArchive.latest.id);
+            await deleteRfiScannedDocument(archive.latest.id);
             toast.success('Latest scanned copy removed');
+            if (pendingUpload.rfiId === rfi.id) {
+                setPendingUpload({ rfiId: '', files: [] });
+            }
             setDocsReloadKey((value) => value + 1);
         } catch (error) {
             console.error('Failed to delete scanned document:', error);
@@ -354,6 +359,7 @@ export default function RfiArchivePage() {
         setBulkDownloading(true);
         try {
             await downloadDocsAsZip(docs, `${startLabel}-to-${endLabel}`, (rfiId) => rfiMap.get(rfiId) || 'RFI');
+            setBulkDialogOpen(false);
         } catch (error) {
             console.error('Failed to download range archive:', error);
             toast.error(error.message || 'Could not prepare the range download.');
@@ -371,198 +377,191 @@ export default function RfiArchivePage() {
                         <h1>RFI Archive</h1>
                     </div>
                     <div className="rfi-archive-topbar-meta">
+                        <button type="button" className="rfi-archive-pill rfi-archive-pill-action" onClick={() => setBulkDialogOpen(true)}>
+                            <Download size={15} />
+                            Bulk Download
+                        </button>
                         <span className="rfi-archive-pill">{activeProject?.name || 'No active project'}</span>
                         <span className="rfi-archive-pill">{visibleRfis.length} ready RFIs</span>
                     </div>
                 </section>
 
-                <section className="rfi-archive-layout rfi-archive-shell tall">
-                    <aside className="rfi-archive-rail full-height">
-                        <div className="rfi-archive-search">
-                            <Search size={16} />
-                            <input
-                                type="text"
-                                value={search}
-                                onChange={(event) => setSearch(event.target.value)}
-                                placeholder="Search RFI no, location, description"
-                            />
+                <section className="rfi-archive-board">
+                    <div className="rfi-archive-search">
+                        <Search size={16} />
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Search RFI no, location, description"
+                        />
+                    </div>
+
+                    <div className="rfi-archive-rail-head">
+                        <strong>Ready RFIs</strong>
+                        <span>{visibleRfis.length}</span>
+                    </div>
+
+                    {loadingArchive ? (
+                        <div className="rfi-archive-empty compact">
+                            Loading scanned archive...
                         </div>
-
-                        <div className="rfi-archive-rail-head">
-                            <strong>Ready RFIs</strong>
-                            <span>{visibleRfis.length}</span>
+                    ) : visibleRfis.length === 0 ? (
+                        <div className="rfi-archive-empty compact">
+                            No approved RFIs are ready yet.
                         </div>
+                    ) : (
+                        <div className="rfi-archive-card-grid">
+                            {visibleRfis.map((rfi) => {
+                                const isActive = selectedRfi?.id === rfi.id;
+                                const archive = getArchiveForRfi(rfi.id);
+                                const hasFiles = archive.count > 0;
+                                const canUpload = canUploadForRfi(rfi);
+                                const pendingHere = pendingUpload.rfiId === rfi.id;
+                                const pendingNames = pendingHere ? buildUploadNames(rfi, pendingUpload.files) : [];
 
-                        <div className="rfi-archive-rail-list full-height">
-                            {visibleRfis.length === 0 ? (
-                                <div className="rfi-archive-empty compact">
-                                    No approved RFIs are ready yet.
-                                </div>
-                            ) : (
-                                visibleRfis.map((rfi) => {
-                                    const isActive = selectedRfi?.id === rfi.id;
-                                    const archive = archiveByRfi[rfi.id] || { count: 0, latest: null, docs: [] };
-                                    const hasFiles = archive.count > 0;
+                                return (
+                                    <article key={rfi.id} className={`rfi-archive-item rfi-archive-item-wide ${isActive ? 'active' : ''}`}>
+                                        <button
+                                            type="button"
+                                            className="rfi-archive-item-select"
+                                            onClick={() => setSelectedRfiId(rfi.id)}
+                                        >
+                                            <div className="rfi-archive-item-top">
+                                                <strong className="rfi-archive-item-title">#{getRfiLabel(rfi)}</strong>
+                                                <StatusBadge status={rfi.status} />
+                                            </div>
+                                            <div className="rfi-archive-item-desc">
+                                                {rfi.description || 'No description'}
+                                            </div>
+                                            <div className="rfi-archive-item-meta">
+                                                <span>{rfi.location || 'No location'}</span>
+                                                <span>{archive.count} file{archive.count === 1 ? '' : 's'}</span>
+                                            </div>
+                                        </button>
 
-                                    return (
-                                        <div key={rfi.id} className={`rfi-archive-item ${isActive ? 'active' : ''}`}>
+                                        <div className="rfi-archive-item-actions compact">
                                             <button
                                                 type="button"
-                                                className="rfi-archive-item-select"
-                                                onClick={() => setSelectedRfiId(rfi.id)}
+                                                className="rfi-archive-action-btn"
+                                                disabled={!hasFiles}
+                                                onClick={() => handlePreviewLatest(rfi)}
                                             >
-                                                <div className="rfi-archive-item-top">
-                                                    <strong className="rfi-archive-item-title">#{getRfiLabel(rfi)}</strong>
-                                                    <StatusBadge status={rfi.status} />
-                                                </div>
-                                                <div className="rfi-archive-item-desc">{rfi.description || 'No description'}</div>
-                                                <div className="rfi-archive-item-meta">
-                                                    <span>{rfi.location || 'No location'}</span>
-                                                    <span>{archive.count} file{archive.count === 1 ? '' : 's'}</span>
-                                                </div>
+                                                <Eye size={15} />
+                                                Preview
                                             </button>
-
-                                            <div className="rfi-archive-item-actions compact">
-                                                <button
-                                                    type="button"
-                                                    className="rfi-archive-action-btn"
-                                                    disabled={!hasFiles}
-                                                    onClick={() => handlePreviewLatest(rfi)}
-                                                >
-                                                    <Eye size={15} />
-                                                    Preview
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className="rfi-archive-action-btn"
-                                                    disabled={!hasFiles}
-                                                    onClick={() => handleDownloadRfi(rfi)}
-                                                >
-                                                    <Download size={15} />
-                                                    Download
-                                                </button>
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-                    </aside>
-
-                    <section className="rfi-archive-main compact">
-                        {!selectedRfi ? (
-                            <div className="rfi-archive-empty">
-                                Select an approved RFI to open its archive actions.
-                            </div>
-                        ) : (
-                            <>
-                                <div className="rfi-archive-main-head compact">
-                                    <div className="rfi-archive-rfi-copy compact">
-                                        <div className="rfi-archive-rfi-row">
-                                            <h2 className="rfi-archive-rfi-title">RFI #{getRfiLabel(selectedRfi)}</h2>
-                                            <StatusBadge status={selectedRfi.status} />
-                                        </div>
-                                        <div className="rfi-archive-rfi-meta compact">
-                                            <span>{selectedRfi.location || 'No location'}</span>
-                                            <span>{selectedArchive.count} file{selectedArchive.count === 1 ? '' : 's'}</span>
-                                            <span>{selectedArchive.latest ? `Latest ${formatDateTime(selectedArchive.latest.uploaded_at)}` : 'No upload yet'}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {canUploadForSelected && (
-                                    <div className="rfi-archive-upload-bar compact">
-                                        <div className="rfi-archive-upload-copy">
-                                            <strong>Upload scanned PDFs</strong>
-                                            <span>New files will save as {buildPdfName(getRfiLabel(selectedRfi), selectedArchive.count > 0 || pendingFiles.length > 1 ? '-1' : '')}</span>
+                                            <button
+                                                type="button"
+                                                className="rfi-archive-action-btn"
+                                                disabled={!hasFiles}
+                                                onClick={() => handleDownloadRfi(rfi)}
+                                            >
+                                                <Download size={15} />
+                                                Download
+                                            </button>
                                         </div>
 
-                                        <div className="rfi-archive-upload-actions">
-                                            <label className="rfi-archive-action-btn">
-                                                <Upload size={15} />
-                                                Pick PDFs
-                                                <input type="file" accept="application/pdf,.pdf" multiple hidden onChange={handleFilePick} />
-                                            </label>
-                                            {pendingFiles.length > 0 && (
-                                                <>
-                                                    <button type="button" className="rfi-archive-action-btn primary" onClick={handleUpload} disabled={uploading}>
-                                                        <Upload size={15} />
-                                                        {uploading ? 'Uploading...' : 'Upload'}
-                                                    </button>
-                                                    <button type="button" className="rfi-archive-action-btn" onClick={() => setPendingFiles([])} disabled={uploading}>
-                                                        Clear
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {pendingFiles.length > 0 && (
-                                    <div className="rfi-archive-pending-list compact">
-                                        {pendingFiles.map((file, index) => {
-                                            const uploadNames = buildUploadNames();
-                                            return (
-                                                <div key={`${file.name}-${file.lastModified}`} className="rfi-archive-pending-file compact">
-                                                    <div className="rfi-archive-pending-copy">
-                                                        <FileText size={15} />
-                                                        <span>{uploadNames[index]}</span>
-                                                    </div>
-                                                    <small>{formatBytes(file.size)}</small>
+                                        {isActive && canUpload && (
+                                            <div className="rfi-archive-inline-upload">
+                                                <div className="rfi-archive-inline-upload-head">
+                                                    <strong>Upload scanned PDFs</strong>
+                                                    {hasFiles && (
+                                                        <button type="button" className="rfi-archive-action-btn danger" onClick={() => handleDeleteLatest(rfi)}>
+                                                            <Trash2 size={15} />
+                                                            Remove Latest
+                                                        </button>
+                                                    )}
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
 
-                                <div className="rfi-archive-bulk-panel">
-                                    <div className="rfi-archive-bulk-copy">
-                                        <strong>Bulk download</strong>
-                                        <span>Download all scanned PDFs in an RFI range</span>
-                                    </div>
+                                                <div className="rfi-archive-upload-actions">
+                                                    <label className="rfi-archive-action-btn">
+                                                        <Upload size={15} />
+                                                        Pick PDFs
+                                                        <input
+                                                            type="file"
+                                                            accept="application/pdf,.pdf"
+                                                            multiple
+                                                            hidden
+                                                            onChange={(event) => handleFilePick(rfi.id, event)}
+                                                        />
+                                                    </label>
+                                                    {pendingHere && pendingUpload.files.length > 0 && (
+                                                        <>
+                                                            <button type="button" className="rfi-archive-action-btn primary" onClick={() => handleUpload(rfi)} disabled={uploading}>
+                                                                <Upload size={15} />
+                                                                {uploading ? 'Uploading...' : 'Upload'}
+                                                            </button>
+                                                            <button type="button" className="rfi-archive-action-btn" onClick={() => setPendingUpload({ rfiId: '', files: [] })} disabled={uploading}>
+                                                                Clear
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
 
-                                    <div className="rfi-archive-bulk-controls">
-                                        <input
-                                            list="rfi-range-options"
-                                            value={rangeFrom}
-                                            onChange={(event) => setRangeFrom(event.target.value)}
-                                            placeholder="From RFI no"
-                                        />
-                                        <input
-                                            list="rfi-range-options"
-                                            value={rangeTo}
-                                            onChange={(event) => setRangeTo(event.target.value)}
-                                            placeholder="To RFI no"
-                                        />
-                                        <button type="button" className="rfi-archive-action-btn primary" onClick={handleDownloadRange} disabled={bulkDownloading || loadingArchive}>
-                                            <Download size={15} />
-                                            {bulkDownloading ? 'Preparing...' : 'Download Range'}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="rfi-archive-side-note">
-                                    <div>
-                                        <strong>Selected archive</strong>
-                                        <span>Use the left card buttons for preview and direct download.</span>
-                                    </div>
-                                    {canUploadForSelected && selectedArchive.latest && (
-                                        <button type="button" className="rfi-archive-action-btn danger" onClick={handleDeleteLatest}>
-                                            <Trash2 size={15} />
-                                            Remove Latest
-                                        </button>
-                                    )}
-                                </div>
-                            </>
-                        )}
-                    </section>
+                                                {pendingHere && pendingUpload.files.length > 0 && (
+                                                    <div className="rfi-archive-pending-list compact">
+                                                        {pendingUpload.files.map((file, index) => (
+                                                            <div key={`${file.name}-${file.lastModified}`} className="rfi-archive-pending-file compact">
+                                                                <div className="rfi-archive-pending-copy">
+                                                                    <FileText size={15} />
+                                                                    <span>{pendingNames[index]}</span>
+                                                                </div>
+                                                                <small>{formatBytes(file.size)}</small>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </article>
+                                );
+                            })}
+                        </div>
+                    )}
                 </section>
+
                 <datalist id="rfi-range-options">
                     {rfiRangeOptions.map((option) => (
                         <option key={option.id} value={option.label} />
                     ))}
                 </datalist>
             </main>
+
+            {bulkDialogOpen && (
+                <div className="rfi-archive-bulk-overlay" onClick={() => setBulkDialogOpen(false)}>
+                    <div className="rfi-archive-bulk-modal" onClick={(event) => event.stopPropagation()}>
+                        <div className="rfi-archive-bulk-head">
+                            <div>
+                                <strong>Bulk Download</strong>
+                                <span>Download all scanned PDFs between two RFI numbers.</span>
+                            </div>
+                            <button type="button" className="rfi-archive-action-btn" onClick={() => setBulkDialogOpen(false)}>
+                                <X size={15} />
+                                Close
+                            </button>
+                        </div>
+
+                        <div className="rfi-archive-bulk-controls modal">
+                            <input
+                                list="rfi-range-options"
+                                value={rangeFrom}
+                                onChange={(event) => setRangeFrom(event.target.value)}
+                                placeholder="From RFI no"
+                            />
+                            <input
+                                list="rfi-range-options"
+                                value={rangeTo}
+                                onChange={(event) => setRangeTo(event.target.value)}
+                                placeholder="To RFI no"
+                            />
+                            <button type="button" className="rfi-archive-action-btn primary" onClick={handleDownloadRange} disabled={bulkDownloading || loadingArchive}>
+                                <Download size={15} />
+                                {bulkDownloading ? 'Preparing...' : 'Download Range'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {previewState.open && (
                 <div className="rfi-archive-preview-backdrop">
