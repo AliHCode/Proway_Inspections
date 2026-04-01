@@ -48,6 +48,11 @@ export default function DailyRFISheet() {
     const [revisionTarget, setRevisionTarget] = useState(null);
     const [showAllRejected, setShowAllRejected] = useState(false);
     const [exportingCustomWorkbook, setExportingCustomWorkbook] = useState(false);
+    const [exportingPdf, setExportingPdf] = useState(false);
+    const [exportingExcel, setExportingExcel] = useState(false);
+    const [isMobileViewport, setIsMobileViewport] = useState(() => (
+        typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false
+    ));
 
     const { newRfis } = getRFIsForDate(currentDate);
 
@@ -273,6 +278,41 @@ export default function DailyRFISheet() {
         }
     }
 
+    async function handleExportPdf(items) {
+        if (!items || items.length === 0) {
+            toast.error('No RFIs available for PDF export.');
+            return;
+        }
+
+        setExportingPdf(true);
+        try {
+            await exportToPDF(items, `ProWay_Contractor_Report_${currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template);
+        } catch (error) {
+            console.error('PDF export failed:', error);
+            toast.error(error.message || 'Failed to generate PDF export.');
+        } finally {
+            setExportingPdf(false);
+        }
+    }
+
+    async function handleExportExcel(items) {
+        if (!items || items.length === 0) {
+            toast.error('No RFIs available for Excel export.');
+            return;
+        }
+
+        setExportingExcel(true);
+        try {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            exportToExcel(items, `ProWay_Contractor_Report_${currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template);
+        } catch (error) {
+            console.error('Excel export failed:', error);
+            toast.error(error.message || 'Failed to generate Excel export.');
+        } finally {
+            setExportingExcel(false);
+        }
+    }
+
     async function handleDownloadSingleCustomReport(rfi) {
         if (!rfi) return;
         const rfiNo = rfi.customFields?.rfi_no || `RFI_${rfi.serialNo || 'Report'}`;
@@ -384,6 +424,21 @@ export default function DailyRFISheet() {
         };
         document.addEventListener('fullscreenchange', handleFsChange);
         return () => document.removeEventListener('fullscreenchange', handleFsChange);
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        const mediaQuery = window.matchMedia('(max-width: 768px)');
+        const syncViewport = (event) => setIsMobileViewport(event.matches);
+        setIsMobileViewport(mediaQuery.matches);
+
+        if (mediaQuery.addEventListener) {
+            mediaQuery.addEventListener('change', syncViewport);
+            return () => mediaQuery.removeEventListener('change', syncViewport);
+        }
+
+        mediaQuery.addListener(syncViewport);
+        return () => mediaQuery.removeListener(syncViewport);
     }, []);
 
     const toggleFullscreen = async () => {
@@ -755,18 +810,22 @@ export default function DailyRFISheet() {
             <main className="rfi-sheet-page">
                 <div className="sheet-header">
                     <div className="sheet-tabs-container">
-                        <div 
-                            className={`sheet-tab ${activeTab === 'daily' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('daily')}
-                        >
-                            <h2>Daily RFI Sheet</h2>
-                        </div>
-                        <div 
-                            className={`sheet-tab ${activeTab === 'rejected' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('rejected')}
-                        >
-                            <h2>Rejected RFI</h2>
-                        </div>
+                        {!(isFullscreen && isMobileViewport) && (
+                            <>
+                                <div
+                                    className={`sheet-tab ${activeTab === 'daily' ? 'active' : ''}`}
+                                    onClick={() => setActiveTab('daily')}
+                                >
+                                    <h2>Daily RFI Sheet</h2>
+                                </div>
+                                <div
+                                    className={`sheet-tab ${activeTab === 'rejected' ? 'active' : ''}`}
+                                    onClick={() => setActiveTab('rejected')}
+                                >
+                                    <h2>Rejected RFI</h2>
+                                </div>
+                            </>
+                        )}
                     </div>
                     
                     <div className="review-header-controls">
@@ -801,32 +860,41 @@ export default function DailyRFISheet() {
 
                         {currentRfis.length > 0 && (
                             <div className="export-actions review-export-actions" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                {(() => {
+                                    const exportBusy = exportingCustomWorkbook || exportingPdf || exportingExcel;
+                                    return (
+                                        <>
                                 {activeTab === 'daily' && customWorkbookEnabled && (
                                     <button
                                         className="btn btn-sm"
                                         style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '600', padding: '0.4rem 0.75rem' }}
                                         onClick={() => handleExportCustomWorkbook(currentRfis, `Contractor_RFI_Workbook_${currentDate}`)}
-                                        disabled={exportingCustomWorkbook}
+                                        disabled={exportBusy}
                                         title="Export custom contractor workbook"
                                     >
-                                        <FileDown size={17} /> {exportingCustomWorkbook ? 'Custom...' : 'Custom Excel'}
+                                        {exportingCustomWorkbook ? <RefreshCw size={16} className="spin-slow" /> : <FileDown size={17} />}
+                                        {exportingCustomWorkbook ? 'Generating...' : 'Custom Excel'}
                                     </button>
                                 )}
                                 <button
                                     className="btn btn-sm"
                                     style={{ backgroundColor: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
-                                    onClick={() => exportToPDF(currentRfis, `ProWay_Contractor_Report_${currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template)}
+                                    onClick={() => handleExportPdf(currentRfis)}
+                                    disabled={exportBusy}
                                     title="Export to PDF"
                                 >
-                                    <FileDown size={17} /> PDF
+                                    {exportingPdf ? <RefreshCw size={16} className="spin-slow" /> : <FileDown size={17} />}
+                                    {exportingPdf ? 'Generating PDF...' : 'PDF'}
                                 </button>
                                 <button
                                     className="btn btn-sm"
                                     style={{ backgroundColor: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
-                                    onClick={() => exportToExcel(currentRfis, `ProWay_Contractor_Report_${currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template)}
+                                    onClick={() => handleExportExcel(currentRfis)}
+                                    disabled={exportBusy}
                                     title="Export to Excel"
                                 >
-                                    <Table size={17} /> Excel
+                                    {exportingExcel ? <RefreshCw size={16} className="spin-slow" /> : <Table size={17} />}
+                                    {exportingExcel ? 'Generating Excel...' : 'Excel'}
                                 </button>
                                 <button
                                     className="fullscreen-btn"
@@ -835,6 +903,9 @@ export default function DailyRFISheet() {
                                 >
                                     {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
                                 </button>
+                                        </>
+                                    );
+                                })()}
                             </div>
                         )}
                         <DateNavigator currentDate={currentDate} onDateChange={setCurrentDate} minDate={minDate} showArrows={true} disabled={activeTab === 'rejected' && showAllRejected} />
@@ -997,7 +1068,6 @@ export default function DailyRFISheet() {
                     rfi={detailTarget}
                     projectFields={projectFields}
                     orderedColumns={orderedTableColumns}
-                    onDownloadCustomReport={customWorkbookEnabled ? handleDownloadSingleCustomReport : undefined}
                     onClose={() => setDetailTarget(null)}
                 />
             )}

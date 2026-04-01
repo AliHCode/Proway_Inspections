@@ -55,10 +55,36 @@ function safeCellValue(value) {
     return String(value);
 }
 
-function cloneSerializable(value) {
+function cloneSerializable(value, seen = new WeakSet()) {
     if (value == null) return value;
     if (typeof value !== 'object') return value;
-    return JSON.parse(JSON.stringify(value));
+    if (value instanceof Date) return new Date(value.getTime());
+
+    if (seen.has(value)) {
+        return undefined;
+    }
+    seen.add(value);
+
+    if (Array.isArray(value)) {
+        const clonedArray = [];
+        value.forEach((item) => {
+            const nextItem = cloneSerializable(item, seen);
+            clonedArray.push(nextItem === undefined ? null : nextItem);
+        });
+        return clonedArray;
+    }
+
+    const clonedObject = {};
+    Object.entries(value).forEach(([key, item]) => {
+        if (key.startsWith('_')) return;
+        if (typeof item === 'function') return;
+        const nextItem = cloneSerializable(item, seen);
+        if (nextItem !== undefined) {
+            clonedObject[key] = nextItem;
+        }
+    });
+
+    return clonedObject;
 }
 
 function sanitizeSheetName(value, fallback = 'RFI') {
@@ -200,19 +226,24 @@ function buildMergeLookup(worksheet) {
 }
 
 function copyTemplateSheet(templateSheet, workbook, nextName) {
+    const safeProperties = cloneSerializable(templateSheet.properties) || {};
+    const safeViews = cloneSerializable(templateSheet.views) || [];
+    const safePageSetup = cloneSerializable(templateSheet.pageSetup) || {};
+    const safeHeaderFooter = cloneSerializable(templateSheet.headerFooter) || {};
+
     const worksheet = workbook.addWorksheet(nextName, {
-        properties: cloneSerializable(templateSheet.properties),
-        views: cloneSerializable(templateSheet.views),
-        pageSetup: cloneSerializable(templateSheet.pageSetup),
-        headerFooter: cloneSerializable(templateSheet.headerFooter),
+        properties: safeProperties,
+        views: safeViews,
+        pageSetup: safePageSetup,
+        headerFooter: safeHeaderFooter,
     });
 
     worksheet.state = templateSheet.state;
     worksheet.autoFilter = cloneSerializable(templateSheet.autoFilter);
-    worksheet.pageSetup = cloneSerializable(templateSheet.pageSetup);
-    worksheet.headerFooter = cloneSerializable(templateSheet.headerFooter);
-    worksheet.properties = cloneSerializable(templateSheet.properties);
-    worksheet.views = cloneSerializable(templateSheet.views);
+    worksheet.pageSetup = safePageSetup;
+    worksheet.headerFooter = safeHeaderFooter;
+    worksheet.properties = safeProperties;
+    worksheet.views = safeViews;
 
     templateSheet.columns.forEach((column, index) => {
         const targetColumn = worksheet.getColumn(index + 1);
@@ -249,7 +280,8 @@ function copyTemplateSheet(templateSheet, workbook, nextName) {
             const isMaster = masterAddresses.has(cell.address);
             if (isMerged && !isMaster) return;
 
-            worksheet.getCell(cell.address).value = cloneSerializable(cell.value);
+            const clonedCellValue = cloneSerializable(cell.value);
+            worksheet.getCell(cell.address).value = clonedCellValue === undefined ? null : clonedCellValue;
         });
     });
 

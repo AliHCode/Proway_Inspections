@@ -13,7 +13,7 @@ import RFIDetailModal from '../components/RFIDetailModal';
 import FieldMarkupStudio from '../components/FieldMarkupStudio';
 import UserAvatar from '../components/UserAvatar';
 import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
-import { CheckCircle, XCircle, Ban, X, FileDown, Table, ClipboardList, Filter, Maximize2, Minimize2, RotateCcw, User, UserPlus, Hand, ArrowLeft, Camera, Upload, Send, Edit3 } from 'lucide-react';
+import { CheckCircle, XCircle, Ban, X, FileDown, Table, ClipboardList, Filter, Maximize2, Minimize2, RotateCcw, User, UserPlus, Hand, ArrowLeft, Camera, Upload, Send, Edit3, RefreshCw } from 'lucide-react';
 
 export default function ReviewQueue() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -51,6 +51,8 @@ export default function ReviewQueue() {
     const [columnFilterValues, setColumnFilterValues] = useState({});
     const [filterValueSearch, setFilterValueSearch] = useState('');
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [exportingPdf, setExportingPdf] = useState(false);
+    const [exportingExcel, setExportingExcel] = useState(false);
     const pageRef = useRef(null);
     const sheetFileRef = useRef(null);
 
@@ -700,6 +702,31 @@ export default function ReviewQueue() {
 
     const isAnyFilterActive = activeFilterEntries.length > 0 || filterOptions.status !== 'all' || filterOptions.showOnlyMe;
 
+    async function handleExportPdf() {
+        if (!filteredItems.length) return;
+        setExportingPdf(true);
+        try {
+            await exportToPDF(filteredItems, `ProWay_Inspections_${currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template);
+        } catch (error) {
+            console.error('Review queue PDF export failed:', error);
+        } finally {
+            setExportingPdf(false);
+        }
+    }
+
+    async function handleExportExcel() {
+        if (!filteredItems.length) return;
+        setExportingExcel(true);
+        try {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            exportToExcel(filteredItems, `ProWay_Inspections_${currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template);
+        } catch (error) {
+            console.error('Review queue Excel export failed:', error);
+        } finally {
+            setExportingExcel(false);
+        }
+    }
+
     return (
         <div className={`page-wrapper ${isFullscreen ? 'is-fullscreen-page' : ''}`} ref={pageRef}>
             <Header />
@@ -712,24 +739,35 @@ export default function ReviewQueue() {
                     )}</div>
                     <div className="review-header-controls">
                         <div className="export-actions review-export-actions" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                            {(() => {
+                                const exportBusy = exportingPdf || exportingExcel;
+                                return (
+                                    <>
                             <button
                                 className="btn btn-sm"
                                 style={{ backgroundColor: 'var(--clr-bg-elevated)', color: 'var(--clr-text-main)', border: '1px solid var(--clr-border)', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
-                                onClick={() => exportToPDF(filteredItems, `ProWay_Inspections_${currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template)}
+                                onClick={handleExportPdf}
+                                disabled={exportBusy || filteredItems.length === 0}
                                 title="Export to PDF"
                                 aria-label="Export to PDF"
                             >
-                                <FileDown size={17} /> PDF
+                                {exportingPdf ? <RefreshCw size={16} className="spin-slow" /> : <FileDown size={17} />}
+                                {exportingPdf ? 'Generating PDF...' : 'PDF'}
                             </button>
                             <button
                                 className="btn btn-sm"
                                 style={{ backgroundColor: 'var(--clr-bg-elevated)', color: 'var(--clr-text-main)', border: '1px solid var(--clr-border)', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
-                                onClick={() => exportToExcel(filteredItems, `ProWay_Inspections_${currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template)}
+                                onClick={handleExportExcel}
+                                disabled={exportBusy || filteredItems.length === 0}
                                 title="Export to Excel"
                                 aria-label="Export to Excel"
                             >
-                                <Table size={17} /> Excel
+                                {exportingExcel ? <RefreshCw size={16} className="spin-slow" /> : <Table size={17} />}
+                                {exportingExcel ? 'Generating Excel...' : 'Excel'}
                             </button>
+                                    </>
+                                );
+                            })()}
                             <div className="review-filter-wrap" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                                 <button
                                     className="fullscreen-btn"

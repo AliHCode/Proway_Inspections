@@ -1683,7 +1683,7 @@ export default function AdminFormatDesigner() {
     };
 
     return (
-        <div className="format-studio-page studio-pro-page">
+        <div className="page-wrapper format-studio-page studio-pro-page">
             <Header />
             <div className={`studio-pro-shell ${showTopHeader ? '' : 'header-collapsed'}`}>
                 {showTopHeader && (

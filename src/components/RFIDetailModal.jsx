@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
-import { X, Calendar, MapPin, Tag, MessageSquare, History, List, Upload, CheckCircle, ClipboardList, XCircle, Hand, Ban, Edit3, Users, FileDown } from 'lucide-react';
+import { X, Calendar, MapPin, Tag, MessageSquare, History, List, Upload, CheckCircle, ClipboardList, XCircle, Hand, Ban, Edit3, Users, FileDown, RefreshCw } from 'lucide-react';
 import ThreadedComments from './ThreadedComments';
 import AuditLog from './AuditLog';
 import StatusBadge from './StatusBadge';
@@ -35,6 +35,7 @@ export default function RFIDetailModal({
     const fileInputRef = useRef(null);
     const [resolveFile, setResolveFile] = useState(null);
     const [isResolving, setIsResolving] = useState(false);
+    const [isDownloadingCustomReport, setIsDownloadingCustomReport] = useState(false);
 
     const mergedData = useMemo(() => {
         if (!rfi) return {};
@@ -116,6 +117,16 @@ export default function RFIDetailModal({
 
     const rfiNo = rfi.customFields?.rfi_no || rfi.serialNo;
 
+    const handleDownloadCustomReport = async () => {
+        if (!onDownloadCustomReport || isDownloadingCustomReport) return;
+        setIsDownloadingCustomReport(true);
+        try {
+            await onDownloadCustomReport(rfi);
+        } finally {
+            setIsDownloadingCustomReport(false);
+        }
+    };
+
     return (
         <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1000 }}>
             <div className="modal-content rfi-detail-modal universal-tabbed" onClick={(e) => e.stopPropagation()}>
@@ -132,11 +143,12 @@ export default function RFIDetailModal({
                             {onDownloadCustomReport && (
                                 <button
                                     className="btn-change-decision-compat"
-                                    onClick={() => onDownloadCustomReport(rfi)}
+                                    onClick={handleDownloadCustomReport}
+                                    disabled={isDownloadingCustomReport}
                                     title="Download custom Excel report"
                                 >
-                                    <FileDown size={14} />
-                                    <span>Custom Report</span>
+                                    {isDownloadingCustomReport ? <RefreshCw size={14} className="spin-slow" /> : <FileDown size={14} />}
+                                    <span>{isDownloadingCustomReport ? 'Generating...' : 'Custom Report'}</span>
                                 </button>
                             )}
                             <button className="btn-close-hex" onClick={onClose}>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import JSZip from 'jszip';
 import toast from 'react-hot-toast';
-import { Download, Eye, FileText, Search, Trash2, Upload, X } from 'lucide-react';
+import { Download, Eye, FileText, Search, Trash2, Upload, X, RefreshCw } from 'lucide-react';
 import Header from '../components/Header';
 import StatusBadge from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
@@ -88,6 +88,9 @@ export default function RfiArchivePage() {
     const [uploading, setUploading] = useState(false);
     const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
     const [bulkDownloading, setBulkDownloading] = useState(false);
+    const [previewingRfiId, setPreviewingRfiId] = useState('');
+    const [downloadingRfiId, setDownloadingRfiId] = useState('');
+    const [removingRfiId, setRemovingRfiId] = useState('');
     const [rangeFrom, setRangeFrom] = useState('');
     const [rangeTo, setRangeTo] = useState('');
     const [previewState, setPreviewState] = useState({ open: false, url: '', fileName: '' });
@@ -254,12 +257,15 @@ export default function RfiArchivePage() {
             return;
         }
 
+        setPreviewingRfiId(rfi.id);
         try {
             const data = await getRfiScannedDocumentUrl(archive.latest.id, 'preview');
             setPreviewState({ open: true, url: data.url, fileName: buildPdfName(getRfiLabel(rfi)) });
         } catch (error) {
             console.error('Failed to open scanned document:', error);
             toast.error(error.message || 'Could not open document.');
+        } finally {
+            setPreviewingRfiId('');
         }
     };
 
@@ -294,6 +300,7 @@ export default function RfiArchivePage() {
 
         const label = getRfiLabel(rfi);
 
+        setDownloadingRfiId(rfi.id);
         try {
             if (archive.docs.length === 1) {
                 await downloadRfiScannedDocument(archive.docs[0].id, buildPdfName(label));
@@ -304,6 +311,8 @@ export default function RfiArchivePage() {
         } catch (error) {
             console.error('Failed to download scanned documents:', error);
             toast.error(error.message || 'Could not download scanned documents.');
+        } finally {
+            setDownloadingRfiId('');
         }
     };
 
@@ -314,6 +323,7 @@ export default function RfiArchivePage() {
         const confirmed = window.confirm('Delete the latest scanned copy from this RFI?');
         if (!confirmed) return;
 
+        setRemovingRfiId(rfi.id);
         try {
             await deleteRfiScannedDocument(archive.latest.id);
             toast.success('Latest scanned copy removed');
@@ -324,6 +334,8 @@ export default function RfiArchivePage() {
         } catch (error) {
             console.error('Failed to delete scanned document:', error);
             toast.error(error.message || 'Could not remove the document.');
+        } finally {
+            setRemovingRfiId('');
         }
     };
 
@@ -417,6 +429,7 @@ export default function RfiArchivePage() {
                                 const canUpload = canUploadForRfi(rfi);
                                 const pendingHere = pendingUpload.rfiId === rfi.id;
                                 const pendingNames = pendingHere ? buildUploadNames(rfi, pendingUpload.files) : [];
+                                const rowBusy = previewingRfiId === rfi.id || downloadingRfiId === rfi.id || removingRfiId === rfi.id || (uploading && pendingHere);
 
                                 return (
                                     <article key={rfi.id} className={`rfi-archive-item rfi-archive-item-wide ${isActive ? 'active' : ''}`}>
@@ -442,20 +455,20 @@ export default function RfiArchivePage() {
                                             <button
                                                 type="button"
                                                 className="rfi-archive-action-btn"
-                                                disabled={!hasFiles}
+                                                disabled={!hasFiles || rowBusy}
                                                 onClick={() => handlePreviewLatest(rfi)}
                                             >
-                                                <Eye size={15} />
-                                                Preview
+                                                {previewingRfiId === rfi.id ? <RefreshCw size={15} className="spin-slow" /> : <Eye size={15} />}
+                                                {previewingRfiId === rfi.id ? 'Opening...' : 'Preview'}
                                             </button>
                                             <button
                                                 type="button"
                                                 className="rfi-archive-action-btn"
-                                                disabled={!hasFiles}
+                                                disabled={!hasFiles || rowBusy}
                                                 onClick={() => handleDownloadRfi(rfi)}
                                             >
-                                                <Download size={15} />
-                                                Download
+                                                {downloadingRfiId === rfi.id ? <RefreshCw size={15} className="spin-slow" /> : <Download size={15} />}
+                                                {downloadingRfiId === rfi.id ? 'Downloading...' : 'Download'}
                                             </button>
                                         </div>
 
@@ -464,9 +477,9 @@ export default function RfiArchivePage() {
                                                 <div className="rfi-archive-inline-upload-head">
                                                     <strong>Upload scanned PDFs</strong>
                                                     {hasFiles && (
-                                                        <button type="button" className="rfi-archive-action-btn danger" onClick={() => handleDeleteLatest(rfi)}>
-                                                            <Trash2 size={15} />
-                                                            Remove Latest
+                                                        <button type="button" className="rfi-archive-action-btn danger" onClick={() => handleDeleteLatest(rfi)} disabled={rowBusy}>
+                                                            {removingRfiId === rfi.id ? <RefreshCw size={15} className="spin-slow" /> : <Trash2 size={15} />}
+                                                            {removingRfiId === rfi.id ? 'Removing...' : 'Remove Latest'}
                                                         </button>
                                                     )}
                                                 </div>

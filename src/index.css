@@ -2855,14 +2855,18 @@ input:checked+.premium-slider:before {
   display: flex !important;
   flex-direction: column !important;
   padding: 0 !important;
+  padding-left: 0 !important;
   margin: 0 !important;
 }
 
 /* Hide header and spacer in fullscreen */
+.is-fullscreen-page > .desktop-sidebar-nav,
+.is-fullscreen-page .desktop-sidebar-nav,
 .is-fullscreen-page > .app-header,
 .is-fullscreen-page .app-header-spacer {
   display: none !important;
   height: 0 !important;
+  width: 0 !important;
 }
 
 /* Remove all inner page constraints in fullscreen */
@@ -11784,6 +11788,20 @@ body,
   background:
     radial-gradient(circle at top left, rgba(30, 41, 59, 0.22), transparent 28%),
     linear-gradient(180deg, #07111f 0%, #0b1220 52%, #0f172a 100%);
+}
+
+.page-wrapper.format-studio-page {
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.format-studio-page {
+  width: 100%;
+  height: auto;
+  min-height: 100vh;
+  overflow: hidden;
 }
 
 .studio-pro-shell {

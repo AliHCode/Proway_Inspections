@@ -7,7 +7,7 @@ import Header from '../components/Header';
 import StatusBadge from '../components/StatusBadge';
 import {
     ChevronLeft, ChevronRight, FileText, Table,
-    CheckCircle, XCircle, Clock, AlertTriangle, BarChart2, Ban
+    CheckCircle, XCircle, Clock, AlertTriangle, BarChart2, Ban, RefreshCw
 } from 'lucide-react';
 
 // ─── Date Utilities ────────────────────────────────────────────────────────────
@@ -243,7 +243,8 @@ export default function SummaryPage() {
     const [fromDate, setFromDate] = useState(today);
     const [toDate, setToDate] = useState(today);
     const [statusFilter, setStatusFilter] = useState('all');
-    const [exporting, setExporting] = useState(false);
+    const [exportingPdf, setExportingPdf] = useState(false);
+    const [exportingExcel, setExportingExcel] = useState(false);
 
     function handleChange(from, to) {
         setFromDate(from);
@@ -312,10 +313,11 @@ export default function SummaryPage() {
     const exportName = isSingleDay
         ? `ProWay_Summary_${fromDate}`
         : `ProWay_Summary_${fromDate}_to_${toDate}`;
+    const exportBusy = exportingPdf || exportingExcel;
 
     async function handlePDF() {
         if (!filtered.length) return;
-        setExporting(true);
+        setExportingPdf(true);
         try {
             if (isSingleDay) {
                 await generateDailyReport(filtered, fromDate, projectName, orderedTableColumns, columnWidthMap, activeProject?.export_template);
@@ -323,13 +325,19 @@ export default function SummaryPage() {
                 await exportToPDF(filtered, exportName, orderedTableColumns, columnWidthMap, activeProject?.export_template);
             }
         } finally {
-            setExporting(false);
+            setExportingPdf(false);
         }
     }
 
-    function handleExcel() {
+    async function handleExcel() {
         if (!filtered.length) return;
-        exportToExcel(filtered, exportName, orderedTableColumns, columnWidthMap, activeProject?.export_template);
+        setExportingExcel(true);
+        try {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            exportToExcel(filtered, exportName, orderedTableColumns, columnWidthMap, activeProject?.export_template);
+        } finally {
+            setExportingExcel(false);
+        }
     }
 
     return (
@@ -412,16 +420,18 @@ export default function SummaryPage() {
                         <button
                             className="btn btn-secondary"
                             onClick={handleExcel}
-                            disabled={!filtered.length || exporting}
+                            disabled={!filtered.length || exportBusy}
                         >
-                            <Table size={16} /> Excel
+                            {exportingExcel ? <RefreshCw size={16} className="spin-slow" /> : <Table size={16} />}
+                            {exportingExcel ? 'Generating Excel...' : 'Excel'}
                         </button>
                         <button
                             className="btn btn-primary"
                             onClick={handlePDF}
-                            disabled={!filtered.length || exporting}
+                            disabled={!filtered.length || exportBusy}
                         >
-                            <FileText size={16} /> {exporting ? 'Exporting…' : 'PDF'}
+                            {exportingPdf ? <RefreshCw size={16} className="spin-slow" /> : <FileText size={16} />}
+                            {exportingPdf ? 'Generating PDF...' : 'PDF'}
                         </button>
                     </div>
                 </div>
