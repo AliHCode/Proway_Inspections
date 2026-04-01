@@ -256,7 +256,7 @@ export default function LoginPage() {
                                     {!isRegister && (
                                         <button 
                                             type="button" 
-                                            className="auth-forgot-link"
+                                            className="auth-inline-link auth-forgot-link"
                                             onClick={() => navigate('/forgot-password')}
                                         >
                                             FORGOT?
@@ -311,13 +311,13 @@ export default function LoginPage() {
                             <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.9rem', color: '#64748b' }}>
                                 {isRegister ? (
                                     <>Already have an account?{' '}
-                                        <button type="button" onClick={() => { setIsRegister(false); setError(''); setSuccessMessage(''); }} style={{ background: 'none', border: 'none', color: 'var(--clr-brand-primary)', fontWeight: 600, cursor: 'pointer', padding: 0, fontSize: '0.9rem' }}>
+                                        <button type="button" className="auth-inline-link" onClick={() => { setIsRegister(false); setError(''); setSuccessMessage(''); }}>
                                             Log In
                                         </button>
                                     </>
                                 ) : (
                                     <>Don&apos;t have an account?{' '}
-                                        <button type="button" onClick={() => { setIsRegister(true); setError(''); setSuccessMessage(''); }} style={{ background: 'none', border: 'none', color: 'var(--clr-brand-primary)', fontWeight: 600, cursor: 'pointer', padding: 0, fontSize: '0.9rem' }}>
+                                        <button type="button" className="auth-inline-link" onClick={() => { setIsRegister(true); setError(''); setSuccessMessage(''); }}>
                                             Create Account
                                         </button>
                                     </>

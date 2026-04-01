@@ -1919,7 +1919,7 @@ input:checked+.premium-slider:before {
 .review-page {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 1.5rem 15px;
+  padding: 1.5rem 10px;
 }
 
 /* Ensure settings/profile text in main-content is pushed down */
@@ -3669,15 +3669,21 @@ input:checked+.premium-slider:before {
   align-items: center;
 }
 
-.auth-forgot-link {
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: #10b981;
-  text-transform: uppercase;
+.auth-inline-link {
   background: none;
   border: none;
+  color: var(--clr-brand-primary);
+  font-weight: 600;
+  font-size: 0.9rem;
   cursor: pointer;
   padding: 0;
+}
+
+.auth-forgot-link {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--clr-brand-primary);
+  text-transform: none;
 }
 
 .auth-input-wrapper {
@@ -6472,7 +6478,7 @@ input:checked+.premium-slider:before {
    ADMIN PANEL
    ============================================ */
 .admin-page {
-  padding: 1.5rem 15px;
+  padding: 1.5rem 10px;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -13757,7 +13763,6 @@ body,
     flex-shrink: 0;
   }
 
-  .desktop-sidebar-section-title,
   .desktop-sidebar-item-label,
   .desktop-sidebar-item-caret {
     display: none;
@@ -13765,10 +13770,31 @@ body,
     pointer-events: none;
   }
 
+  .desktop-sidebar-section-title {
+    display: block;
+    min-height: 1rem;
+    padding: 0 0.85rem;
+    margin-bottom: 0.45rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #94a3b8;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    white-space: nowrap;
+    transition: opacity 160ms ease;
+  }
+
   .desktop-sidebar-nav:hover .desktop-sidebar-section-title,
+  .desktop-sidebar-nav.expanded .desktop-sidebar-section-title {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
   .desktop-sidebar-nav:hover .desktop-sidebar-item-label,
   .desktop-sidebar-nav:hover .desktop-sidebar-item-caret,
-  .desktop-sidebar-nav.expanded .desktop-sidebar-section-title,
   .desktop-sidebar-nav.expanded .desktop-sidebar-item-label,
   .desktop-sidebar-nav.expanded .desktop-sidebar-item-caret {
     display: block;
@@ -13784,15 +13810,6 @@ body,
 
   .desktop-sidebar-section + .desktop-sidebar-section {
     margin-top: 0.9rem;
-  }
-
-  .desktop-sidebar-section-title {
-    padding: 0 0.85rem;
-    margin-bottom: 0.45rem;
-    font-size: 0.74rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    color: #94a3b8;
   }
 
   .desktop-sidebar-section-items {
