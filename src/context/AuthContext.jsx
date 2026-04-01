@@ -9,6 +9,7 @@ const AuthContext = createContext(null);
 const PROFILE_CACHE_KEY = 'saa_user_profile_cache';
 const MANUAL_LOGOUT_KEY = 'saa_manual_logout';
 const INSTANCE_ID_KEY = 'saa_instance_id';
+const AUTH_BOOT_TIMEOUT_MS = 8000;
 
 function getLocalInstanceId() {
     let id = localStorage.getItem(INSTANCE_ID_KEY);
@@ -50,6 +51,8 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         if (initialized.current) return;
         initialized.current = true;
+        let bootCancelled = false;
+        let bootTimer = null;
 
         // ── Visibilitychange: prevent stuck spinner when tab resumes from background ──
         function handleVisibilityChange() {
@@ -68,11 +71,14 @@ export function AuthProvider({ children }) {
                         // Session was invalidated (e.g. logged in on another device)
                         // — force a clean logout so the user isn't stuck on a loading screen
                         console.warn('Session invalidated while tab was in background — logging out');
-                        localStorage.removeItem(PROFILE_CACHE_KEY);
-                        setUser(null);
-                        setLoading(false);
-                        setAuthResolved(true);
+                        resolveSignedOutState();
                     }
+                }).catch((error) => {
+                    if (isOfflineLikeError(error)) {
+                        resolveSignedOutState({ allowOfflineCache: true });
+                        return;
+                    }
+                    resolveSignedOutState();
                 });
             }
         }
@@ -99,17 +105,60 @@ export function AuthProvider({ children }) {
                 }
                 fetchProfile(session.user.id, { allowRetry: true, authUser: session.user });
             } else {
-                if (event === 'SIGNED_OUT' || wasManualLogout()) {
-                    setUser(null);
-                } else if (!restoreCachedProfile()) {
-                    setUser(null);
-                }
-                setLoading(false);
-                setAuthResolved(true);
+                const allowOfflineCache = event !== 'SIGNED_OUT' && !wasManualLogout();
+                resolveSignedOutState({ allowOfflineCache });
             }
         });
 
+        async function bootstrapAuth() {
+            try {
+                const sessionResult = await Promise.race([
+                    supabase.auth.getSession(),
+                    new Promise((_, reject) => {
+                        bootTimer = window.setTimeout(() => reject(new Error('Auth bootstrap timed out')), AUTH_BOOT_TIMEOUT_MS);
+                    }),
+                ]);
+
+                if (bootCancelled) return;
+
+                const session = sessionResult?.data?.session || null;
+                if (session?.user) {
+                    setManualLogoutFlag(false);
+                    const restored = restoreCachedProfile(session.user.id);
+                    if (restored) {
+                        setLoading(false);
+                        setAuthResolved(true);
+                    }
+                    isFetchingProfileRef.current = null;
+                    fetchProfile(session.user.id, { allowRetry: true, authUser: session.user });
+                } else {
+                    resolveSignedOutState({ allowOfflineCache: true });
+                }
+            } catch (error) {
+                if (bootCancelled) return;
+                if (isOfflineLikeError(error)) {
+                    console.warn('Initial auth bootstrap hit offline fallback, restoring cached account if available:', error);
+                    resolveSignedOutState({ allowOfflineCache: true });
+                    return;
+                }
+
+                console.warn('Initial auth bootstrap failed, clearing local session state:', error);
+                await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+                resolveSignedOutState();
+            } finally {
+                if (bootTimer) {
+                    window.clearTimeout(bootTimer);
+                }
+            }
+        }
+
+        bootstrapAuth();
+
         return () => {
+            bootCancelled = true;
+            if (bootTimer) {
+                window.clearTimeout(bootTimer);
+            }
             subscription.unsubscribe();
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
@@ -155,6 +204,30 @@ export function AuthProvider({ children }) {
             localStorage.removeItem(PROFILE_CACHE_KEY);
             return false;
         }
+    }
+
+    function resolveSignedOutState({ allowOfflineCache = false } = {}) {
+        const shouldUseOfflineCache = allowOfflineCache && !navigator.onLine && !wasManualLogout();
+        if (shouldUseOfflineCache && restoreCachedProfile()) {
+            setLoading(false);
+            setAuthResolved(true);
+            return;
+        }
+
+        localStorage.removeItem(PROFILE_CACHE_KEY);
+        setUser(null);
+        setLoading(false);
+        setAuthResolved(true);
+    }
+
+    function isOfflineLikeError(error) {
+        const message = (error?.message || '').toLowerCase();
+        return !navigator.onLine
+            || message.includes('timed out')
+            || message.includes('timeout')
+            || message.includes('network')
+            || message.includes('failed to fetch')
+            || message.includes('fetch');
     }
 
     async function fetchProfile(userId, { allowRetry = true, authUser: paramAuthUser = null } = {}) {
