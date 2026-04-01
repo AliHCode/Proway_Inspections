@@ -418,20 +418,20 @@ export default function SummaryPage() {
 
                     <div className="summ-export-group">
                         <button
-                            className="btn btn-secondary btn-loading-stable btn-loading-excel"
+                            className="btn btn-secondary"
                             onClick={handleExcel}
                             disabled={!filtered.length || exportBusy}
                         >
                             {exportingExcel ? <RefreshCw size={16} className="spin-slow" /> : <Table size={16} />}
-                            {exportingExcel ? 'Generating Excel...' : 'Excel'}
+                            {exportingExcel ? '...' : 'Excel'}
                         </button>
                         <button
-                            className="btn btn-primary btn-loading-stable btn-loading-pdf"
+                            className="btn btn-primary"
                             onClick={handlePDF}
                             disabled={!filtered.length || exportBusy}
                         >
                             {exportingPdf ? <RefreshCw size={16} className="spin-slow" /> : <FileText size={16} />}
-                            {exportingPdf ? 'Generating PDF...' : 'PDF'}
+                            {exportingPdf ? '...' : 'PDF'}
                         </button>
                     </div>
                 </div>

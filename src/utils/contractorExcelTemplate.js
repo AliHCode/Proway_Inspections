@@ -220,6 +220,63 @@ function buildMergeLookup(worksheet) {
     return { mergeRanges, mergedAddresses, masterAddresses };
 }
 
+function normalizeImageRange(range) {
+    if (!range) return null;
+
+    const normalized = {};
+
+    if (range.tl) normalized.tl = cloneSerializable(range.tl);
+    if (range.br) normalized.br = cloneSerializable(range.br);
+    if (range.ext) normalized.ext = cloneSerializable(range.ext);
+    if (range.editAs) normalized.editAs = range.editAs;
+    if (range.hyperlinks) normalized.hyperlinks = cloneSerializable(range.hyperlinks);
+
+    return Object.keys(normalized).length ? normalized : null;
+}
+
+function getWorksheetImageEntries(worksheet) {
+    const entries = [];
+    const seen = new Set();
+
+    const pushEntry = (imageId, range, hyperlinks = null) => {
+        if (imageId === undefined || imageId === null) return;
+        const normalizedRange = normalizeImageRange(range);
+        if (!normalizedRange) return;
+
+        const dedupeKey = JSON.stringify({
+            imageId,
+            tl: normalizedRange.tl || null,
+            br: normalizedRange.br || null,
+            ext: normalizedRange.ext || null,
+            editAs: normalizedRange.editAs || null,
+            hyperlinks: hyperlinks || normalizedRange.hyperlinks || null,
+        });
+
+        if (seen.has(dedupeKey)) return;
+        seen.add(dedupeKey);
+
+        if (hyperlinks && !normalizedRange.hyperlinks) {
+            normalizedRange.hyperlinks = cloneSerializable(hyperlinks);
+        }
+
+        entries.push({
+            imageId,
+            range: normalizedRange,
+        });
+    };
+
+    (worksheet.getImages?.() || []).forEach((image) => {
+        pushEntry(image?.imageId, image?.range, image?.hyperlinks || null);
+    });
+
+    (worksheet.model?.media || []).forEach((media) => {
+        if (media?.type !== 'image') return;
+        pushEntry(media.imageId, media.range, media.hyperlinks || null);
+    });
+
+    return entries;
+}
+
 function copyTemplateSheet(templateSheet, workbook, nextName) {
     const safeProperties = cloneSerializable(templateSheet.properties) || {};
     const safeViews = cloneSerializable(templateSheet.views) || [];
@@ -289,13 +346,12 @@ function copyTemplateSheet(templateSheet, workbook, nextName) {
     });
 
     const backgroundImageId = templateSheet.getBackgroundImageId?.();
-    if (backgroundImageId) {
+    if (backgroundImageId !== undefined && backgroundImageId !== null) {
         worksheet.addBackgroundImage(backgroundImageId);
     }
 
-    templateSheet.getImages?.().forEach((image) => {
-        if (!image?.imageId || !image?.range) return;
-        worksheet.addImage(image.imageId, cloneSerializable(image.range));
+    getWorksheetImageEntries(templateSheet).forEach((image) => {
+        worksheet.addImage(image.imageId, image.range);
     });
 
     return worksheet;
@@ -379,6 +435,11 @@ export async function inspectExcelTemplate(source) {
     const workbook = await loadWorkbookFromSource(source);
     return {
         sheetNames: workbook.worksheets.map((worksheet) => worksheet.name),
+        sheets: workbook.worksheets.map((worksheet) => ({
+            name: worksheet.name,
+            imageCount: getWorksheetImageEntries(worksheet).length,
+            mergeCount: Array.isArray(worksheet.model?.merges) ? worksheet.model.merges.length : 0,
+        })),
     };
 }
 

@@ -11232,47 +11232,6 @@ body,
   gap: 0.5rem;
 }
 
-.btn-loading-stable {
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.btn-loading-pdf {
-  min-width: 9.75rem;
-}
-
-.btn-loading-excel {
-  min-width: 10.75rem;
-}
-
-.btn-loading-custom {
-  min-width: 9.75rem;
-}
-
-.btn-loading-report {
-  min-width: 10rem;
-}
-
-.btn-loading-preview {
-  min-width: 8.5rem;
-}
-
-.btn-loading-download {
-  min-width: 10rem;
-}
-
-.btn-loading-remove {
-  min-width: 10rem;
-}
-
-.btn-loading-upload {
-  min-width: 8.5rem;
-}
-
-.btn-loading-range {
-  min-width: 10.75rem;
-}
-
 .spin-slow {
   animation: spin 2s linear infinite;
 }

@@ -25,6 +25,7 @@ export default function AdminExcelTemplatePage() {
     const [draft, setDraft] = useState(getContractorExcelTemplateConfig(activeProject?.export_template));
     const [pendingFile, setPendingFile] = useState(null);
     const [sheetNames, setSheetNames] = useState([]);
+    const [sheetMeta, setSheetMeta] = useState([]);
     const [loadingMeta, setLoadingMeta] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -42,6 +43,7 @@ export default function AdminExcelTemplatePage() {
         async function loadSheetNames() {
             if (!nextDraft.templatePublicUrl) {
                 setSheetNames([]);
+                setSheetMeta([]);
                 return;
             }
 
@@ -50,10 +52,12 @@ export default function AdminExcelTemplatePage() {
                 const meta = await inspectExcelTemplate(nextDraft.templatePublicUrl);
                 if (!ignore) {
                     setSheetNames(meta.sheetNames || []);
+                    setSheetMeta(meta.sheets || []);
                 }
             } catch (error) {
                 if (!ignore) {
                     setSheetNames([]);
+                    setSheetMeta([]);
                 }
             } finally {
                 if (!ignore) {
@@ -84,6 +88,7 @@ export default function AdminExcelTemplatePage() {
             const meta = await inspectExcelTemplate(file);
             const nextSheetName = meta.sheetNames?.[0] || '';
             setSheetNames(meta.sheetNames || []);
+            setSheetMeta(meta.sheets || []);
             setDraft((prev) => ({
                 ...prev,
                 enabled: true,
@@ -95,6 +100,7 @@ export default function AdminExcelTemplatePage() {
             console.error('Failed to inspect Excel template:', error);
             toast.error('Could not read this Excel template file.');
             setPendingFile(null);
+            setSheetMeta([]);
         } finally {
             setLoadingMeta(false);
             event.target.value = '';
@@ -204,6 +210,7 @@ export default function AdminExcelTemplatePage() {
             setDraft(getContractorExcelTemplateConfig(nextProjectTemplate));
             setPendingFile(null);
             setSheetNames([]);
+            setSheetMeta([]);
             toast.success('Contractor Excel template disabled.');
         } catch (error) {
             console.error('Error disabling template:', error);
@@ -212,6 +219,8 @@ export default function AdminExcelTemplatePage() {
             setSaving(false);
         }
     }
+
+    const selectedSheetMeta = sheetMeta.find((sheet) => sheet.name === draft.templateSheetName) || null;
 
     return (
         <div className="page-wrapper">
@@ -309,6 +318,13 @@ export default function AdminExcelTemplatePage() {
                                 ))}
                             </select>
                         </label>
+
+                        {selectedSheetMeta && (
+                            <div style={{ padding: '0.9rem 1rem', borderRadius: '14px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#334155', fontSize: '0.86rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                                <span><strong>Embedded images:</strong> {selectedSheetMeta.imageCount}</span>
+                                <span><strong>Merged ranges:</strong> {selectedSheetMeta.mergeCount}</span>
+                            </div>
+                        )}
 
                         <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.9rem 1rem', borderRadius: '14px', border: '1px solid #e2e8f0', background: '#fff' }}>
                             <input
