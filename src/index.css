@@ -8544,12 +8544,22 @@ body,
   transform: none;
 }
 
+.btn-progress-static.is-loading {
+  gap: 0 !important;
+  justify-content: center;
+}
+
 .btn-progress-icon {
   width: 1rem;
   min-width: 1rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.btn-progress-static.is-loading .btn-progress-icon {
+  width: auto;
+  min-width: 0;
 }
 
 .btn-progress-label {

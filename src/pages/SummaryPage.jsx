@@ -418,7 +418,7 @@ export default function SummaryPage() {
 
                     <div className="summ-export-group">
                         <button
-                            className="btn btn-secondary btn-progress-static"
+                            className={`btn btn-secondary btn-progress-static ${exportingExcel ? 'is-loading' : ''}`}
                             onClick={handleExcel}
                             disabled={!filtered.length || exportBusy}
                         >
@@ -431,7 +431,7 @@ export default function SummaryPage() {
                             </span>
                         </button>
                         <button
-                            className="btn btn-primary btn-progress-static"
+                            className={`btn btn-primary btn-progress-static ${exportingPdf ? 'is-loading' : ''}`}
                             onClick={handlePDF}
                             disabled={!filtered.length || exportBusy}
                         >

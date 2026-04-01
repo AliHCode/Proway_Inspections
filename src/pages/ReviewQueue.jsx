@@ -744,7 +744,7 @@ export default function ReviewQueue() {
                                 return (
                                     <>
                             <button
-                                className="btn btn-sm btn-progress-static"
+                                className={`btn btn-sm btn-progress-static ${exportingPdf ? 'is-loading' : ''}`}
                                 style={{ backgroundColor: 'var(--clr-bg-elevated)', color: 'var(--clr-text-main)', border: '1px solid var(--clr-border)', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
                                 onClick={handleExportPdf}
                                 disabled={exportBusy || filteredItems.length === 0}
@@ -760,7 +760,7 @@ export default function ReviewQueue() {
                                 </span>
                             </button>
                             <button
-                                className="btn btn-sm btn-progress-static"
+                                className={`btn btn-sm btn-progress-static ${exportingExcel ? 'is-loading' : ''}`}
                                 style={{ backgroundColor: 'var(--clr-bg-elevated)', color: 'var(--clr-text-main)', border: '1px solid var(--clr-border)', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
                                 onClick={handleExportExcel}
                                 disabled={exportBusy || filteredItems.length === 0}

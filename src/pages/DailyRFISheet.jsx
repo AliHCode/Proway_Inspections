@@ -866,7 +866,7 @@ export default function DailyRFISheet() {
                                         <>
                                 {activeTab === 'daily' && customWorkbookEnabled && (
                                     <button
-                                        className="btn btn-sm btn-progress-static"
+                                        className={`btn btn-sm btn-progress-static ${exportingCustomWorkbook ? 'is-loading' : ''}`}
                                         style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '600', padding: '0.4rem 0.75rem' }}
                                         onClick={() => handleExportCustomWorkbook(currentRfis, `Contractor_RFI_Workbook_${currentDate}`)}
                                         disabled={exportBusy}
