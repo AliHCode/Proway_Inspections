@@ -948,35 +948,37 @@ export default function DailyRFISheet() {
                             )}
                         </div>
                     ) : (
-                        <div className="rfi-table-wrapper">
-                            <table className="rfi-table editable">
-                                <thead>
-                                    <tr>
-                                        {displayTableColumns.map(col => (
-                                            <th key={col.field_key} style={getTableColumnStyle(col.field_key)}>{col.field_name}</th>
+                        <div className="contractor-sheet-table-shell">
+                            <div className="rfi-table-wrapper contractor-sheet-table-scroll">
+                                <table className="rfi-table editable">
+                                    <thead>
+                                        <tr>
+                                            {displayTableColumns.map(col => (
+                                                <th key={col.field_key} style={getTableColumnStyle(col.field_key)}>{col.field_name}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {/* Filed RFIs */}
+                                        {currentRfis.map((rfi, idx) => (
+                                            <tr
+                                                key={rfi.id}
+                                                data-rfi-id={rfi.id}
+                                                className={`${activeTab === 'rejected' ? 'rejected-priority-row' : ''} ${focusedRfiId === rfi.id ? 'notification-focus-row' : ''}`}
+                                            >
+                                                {displayTableColumns.map(col => renderDisplayCell(rfi, col, idx, false))}
+                                            </tr>
                                         ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {/* Filed RFIs */}
-                                    {currentRfis.map((rfi, idx) => (
-                                        <tr
-                                            key={rfi.id}
-                                            data-rfi-id={rfi.id}
-                                            className={`${activeTab === 'rejected' ? 'rejected-priority-row' : ''} ${focusedRfiId === rfi.id ? 'notification-focus-row' : ''}`}
-                                        >
-                                            {displayTableColumns.map(col => renderDisplayCell(rfi, col, idx, false))}
-                                        </tr>
-                                    ))}
 
-                                    {/* New Entry Rows (Inline) */}
-                                    {activeTab === 'daily' && currentDate === getToday() && editableRows.map((row, idx) => (
-                                        <tr key={row.tempId} className="new-rfi-row-entry">
-                                            {displayTableColumns.map(col => renderNewEntryCell(row, col, idx))}
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                        {/* New Entry Rows (Inline) */}
+                                        {activeTab === 'daily' && currentDate === getToday() && editableRows.map((row, idx) => (
+                                            <tr key={row.tempId} className="new-rfi-row-entry">
+                                                {displayTableColumns.map(col => renderNewEntryCell(row, col, idx))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
 
                             {/* Spreadsheet Actions */}
                             {activeTab === 'daily' && currentDate === getToday() && contractorPermissions.canFileRfis && (

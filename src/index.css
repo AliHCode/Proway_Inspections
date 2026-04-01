@@ -2407,6 +2407,18 @@ input:checked+.premium-slider:before {
   will-change: scroll-position;
 }
 
+/* Contractor daily sheet: keep title/footer fixed, scroll only table viewport */
+.contractor-sheet-table-shell {
+  width: 100%;
+  overflow: hidden;
+}
+
+.contractor-sheet-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
 /* Custom Scrollbar Polish */
 .rfi-table-wrapper::-webkit-scrollbar,
 .summ-scroll::-webkit-scrollbar {
