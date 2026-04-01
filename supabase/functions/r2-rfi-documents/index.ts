@@ -76,7 +76,7 @@ async function requireUser(req: Request) {
 async function getProjectMembership(projectId: string, userId: string) {
   const { data, error } = await supabase
     .from('project_members')
-    .select('role, can_manage_contractor_permissions')
+    .select('role, can_manage_contractor_permissions, can_upload_rfi_archive')
     .eq('project_id', projectId)
     .eq('user_id', userId)
     .maybeSingle();
@@ -87,7 +87,11 @@ async function getProjectMembership(projectId: string, userId: string) {
 
 async function assertProjectAccess(projectId: string, user: { id: string; role: string }) {
   if (user.role === 'admin') {
-    return { role: 'admin', can_manage_contractor_permissions: true };
+    return {
+      role: 'admin',
+      can_manage_contractor_permissions: true,
+      can_upload_rfi_archive: true,
+    };
   }
 
   const membership = await getProjectMembership(projectId, user.id);
@@ -142,9 +146,10 @@ Deno.serve(async (req: Request) => {
         if (membership.role !== 'contractor') {
           return json({ error: 'Only contractors can upload scanned RFI copies.' }, 403);
         }
-        const canManageAll = membership.can_manage_contractor_permissions === true;
-        if (!canManageAll && rfi.filed_by !== user.id) {
-          return json({ error: 'You can only upload scanned copies for RFIs you filed.' }, 403);
+        const canUploadArchive = membership.can_manage_contractor_permissions === true
+          || membership.can_upload_rfi_archive === true;
+        if (!canUploadArchive) {
+          return json({ error: 'You do not have permission to upload scanned copies for this project.' }, 403);
         }
       }
 
@@ -221,7 +226,7 @@ Deno.serve(async (req: Request) => {
 
       const { data: rfi, error: rfiError } = await supabase
         .from('rfis')
-        .select('id, filed_by')
+        .select('id')
         .eq('id', docRow.rfi_id)
         .single();
 
@@ -233,9 +238,10 @@ Deno.serve(async (req: Request) => {
         if (membership.role !== 'contractor') {
           return json({ error: 'Only contractors can remove scanned copies.' }, 403);
         }
-        const canManageAll = membership.can_manage_contractor_permissions === true;
-        if (!canManageAll && rfi.filed_by !== user.id) {
-          return json({ error: 'You can only remove scanned copies for RFIs you filed.' }, 403);
+        const canUploadArchive = membership.can_manage_contractor_permissions === true
+          || membership.can_upload_rfi_archive === true;
+        if (!canUploadArchive) {
+          return json({ error: 'You do not have permission to remove scanned copies for this project.' }, 403);
         }
       }
 

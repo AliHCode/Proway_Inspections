@@ -98,11 +98,9 @@ export default function RfiArchivePage() {
 
     const visibleRfis = useMemo(() => {
         const base = latestRfis.filter((rfi) => READY_STATUSES.has(rfi.status));
-        const scoped = user?.role === 'consultant' || user?.role === 'admin'
+        const scoped = user?.role === 'consultant' || user?.role === 'admin' || user?.role === 'contractor'
             ? base
-            : contractorPermissions.canManageContractorPermissions
-                ? base
-                : base.filter((rfi) => rfi.filedBy === user?.id);
+            : [];
 
         const term = search.trim().toLowerCase();
         const filtered = term
@@ -119,7 +117,7 @@ export default function RfiArchivePage() {
             const bTime = new Date(b.reviewedAt || b.filedDate).getTime();
             return bTime - aTime;
         });
-    }, [contractorPermissions.canManageContractorPermissions, latestRfis, search, user?.id, user?.role]);
+    }, [latestRfis, search, user?.role]);
 
     const selectedRfi = useMemo(() => (
         visibleRfis.find((rfi) => rfi.id === selectedRfiId) || visibleRfis[0] || null
@@ -205,7 +203,7 @@ export default function RfiArchivePage() {
             user?.role === 'admin'
             || (
                 user?.role === 'contractor'
-                && (contractorPermissions.canManageContractorPermissions || rfi.filedBy === user?.id)
+                && contractorPermissions.canUploadRfiArchive
             )
         )
     );

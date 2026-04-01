@@ -179,6 +179,7 @@ CREATE TABLE IF NOT EXISTS public.project_members (
   role text CHECK (role IN ('contractor', 'consultant', 'admin')) NOT NULL,
   can_file_rfis boolean DEFAULT true NOT NULL,
   can_discuss_rfis boolean DEFAULT true NOT NULL,
+  can_upload_rfi_archive boolean DEFAULT false NOT NULL,
   can_manage_contractor_permissions boolean DEFAULT false NOT NULL,
   assigned_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
   UNIQUE(project_id, user_id)
@@ -462,8 +463,8 @@ BEGIN
   IF membership_record.user_id IS NULL THEN RETURN FALSE; END IF;
   IF membership_record.role <> 'contractor' THEN RETURN FALSE; END IF;
 
-  RETURN target_rfi.filed_by = auth.uid()
-    OR COALESCE(membership_record.can_manage_contractor_permissions, false);
+  RETURN COALESCE(membership_record.can_manage_contractor_permissions, false)
+    OR COALESCE(membership_record.can_upload_rfi_archive, false);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
@@ -473,7 +474,8 @@ CREATE OR REPLACE FUNCTION public.update_project_contractor_permissions(
   target_project_id UUID,
   target_user_id UUID,
   next_can_file_rfis BOOLEAN,
-  next_can_discuss_rfis BOOLEAN
+  next_can_discuss_rfis BOOLEAN,
+  next_can_upload_rfi_archive BOOLEAN
 )
 RETURNS public.project_members AS $$
 DECLARE
@@ -520,7 +522,8 @@ BEGIN
   UPDATE public.project_members
   SET
     can_file_rfis = COALESCE(next_can_file_rfis, can_file_rfis),
-    can_discuss_rfis = COALESCE(next_can_discuss_rfis, can_discuss_rfis)
+    can_discuss_rfis = COALESCE(next_can_discuss_rfis, can_discuss_rfis),
+    can_upload_rfi_archive = COALESCE(next_can_upload_rfi_archive, can_upload_rfi_archive)
   WHERE id = target_membership.id
   RETURNING * INTO updated_membership;
 
@@ -528,7 +531,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
-GRANT EXECUTE ON FUNCTION public.update_project_contractor_permissions(UUID, UUID, BOOLEAN, BOOLEAN) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_project_contractor_permissions(UUID, UUID, BOOLEAN, BOOLEAN, BOOLEAN) TO authenticated;
 
 -- Profiles Policies
 -- CRITICAL: Do NOT call is_admin() here — that queries profiles and causes infinite recursion.

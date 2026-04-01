@@ -55,6 +55,12 @@ function safeCellValue(value) {
     return String(value);
 }
 
+function cloneSerializable(value) {
+    if (value == null) return value;
+    if (typeof value !== 'object') return value;
+    return JSON.parse(JSON.stringify(value));
+}
+
 function sanitizeSheetName(value, fallback = 'RFI') {
     const cleaned = String(value || fallback)
         .replace(/[\\/*?:[\]]/g, ' ')
@@ -163,6 +169,109 @@ async function loadWorkbookFromSource(source) {
 
     await workbook.xlsx.load(buffer);
     return workbook;
+}
+
+function buildMergeLookup(worksheet) {
+    const mergeRanges = Array.isArray(worksheet.model?.merges) ? worksheet.model.merges : [];
+    const mergedAddresses = new Set();
+    const masterAddresses = new Set();
+
+    mergeRanges.forEach((range) => {
+        const parts = String(range || '').split(':');
+        const masterAddress = parts[0];
+        if (masterAddress) masterAddresses.add(masterAddress);
+
+        try {
+            const [start, end = parts[0]] = parts;
+            const startCell = worksheet.getCell(start);
+            const endCell = worksheet.getCell(end);
+
+            for (let row = startCell.row; row <= endCell.row; row += 1) {
+                for (let col = startCell.col; col <= endCell.col; col += 1) {
+                    mergedAddresses.add(worksheet.getCell(row, col).address);
+                }
+            }
+        } catch {
+            mergedAddresses.add(String(range));
+        }
+    });
+
+    return { mergeRanges, mergedAddresses, masterAddresses };
+}
+
+function copyTemplateSheet(templateSheet, workbook, nextName) {
+    const worksheet = workbook.addWorksheet(nextName, {
+        properties: cloneSerializable(templateSheet.properties),
+        views: cloneSerializable(templateSheet.views),
+        pageSetup: cloneSerializable(templateSheet.pageSetup),
+        headerFooter: cloneSerializable(templateSheet.headerFooter),
+    });
+
+    worksheet.state = templateSheet.state;
+    worksheet.autoFilter = cloneSerializable(templateSheet.autoFilter);
+    worksheet.pageSetup = cloneSerializable(templateSheet.pageSetup);
+    worksheet.headerFooter = cloneSerializable(templateSheet.headerFooter);
+    worksheet.properties = cloneSerializable(templateSheet.properties);
+    worksheet.views = cloneSerializable(templateSheet.views);
+
+    templateSheet.columns.forEach((column, index) => {
+        const targetColumn = worksheet.getColumn(index + 1);
+        targetColumn.width = column.width;
+        targetColumn.hidden = column.hidden;
+        targetColumn.outlineLevel = column.outlineLevel;
+        targetColumn.style = cloneSerializable(column.style) || {};
+    });
+
+    templateSheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+        const targetRow = worksheet.getRow(rowNumber);
+        targetRow.height = row.height;
+        targetRow.hidden = row.hidden;
+        targetRow.outlineLevel = row.outlineLevel;
+        targetRow.style = cloneSerializable(row.style) || {};
+
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+            const targetCell = targetRow.getCell(colNumber);
+            targetCell.style = cloneSerializable(cell.style) || {};
+            targetCell.numFmt = cell.numFmt;
+            targetCell.font = cloneSerializable(cell.font);
+            targetCell.alignment = cloneSerializable(cell.alignment);
+            targetCell.border = cloneSerializable(cell.border);
+            targetCell.fill = cloneSerializable(cell.fill);
+            targetCell.protection = cloneSerializable(cell.protection);
+        });
+    });
+
+    const { mergeRanges, mergedAddresses, masterAddresses } = buildMergeLookup(templateSheet);
+
+    templateSheet.eachRow({ includeEmpty: true }, (row) => {
+        row.eachCell({ includeEmpty: true }, (cell) => {
+            const isMerged = mergedAddresses.has(cell.address);
+            const isMaster = masterAddresses.has(cell.address);
+            if (isMerged && !isMaster) return;
+
+            worksheet.getCell(cell.address).value = cloneSerializable(cell.value);
+        });
+    });
+
+    mergeRanges.forEach((range) => {
+        try {
+            worksheet.mergeCells(range);
+        } catch {
+            // Ignore duplicate/invalid merge issues from malformed template ranges.
+        }
+    });
+
+    const backgroundImageId = templateSheet.getBackgroundImageId?.();
+    if (backgroundImageId) {
+        worksheet.addBackgroundImage(backgroundImageId);
+    }
+
+    templateSheet.getImages?.().forEach((image) => {
+        if (!image?.imageId || !image?.range) return;
+        worksheet.addImage(image.imageId, cloneSerializable(image.range));
+    });
+
+    return worksheet;
 }
 
 function downloadWorkbookBuffer(buffer, fileName) {
@@ -287,7 +396,6 @@ export async function exportMappedRfiWorkbook({
     }
 
     const mappings = (config.mappings || []).filter((item) => item.cell && (item.fieldKey || item.prefix));
-    const templateModel = JSON.parse(JSON.stringify(templateSheet.model));
     let existingNames = new Set(workbook.worksheets.map((sheet) => sheet.name));
 
     const fillWorksheet = (worksheet, rfi) => {
@@ -314,12 +422,7 @@ export async function exportMappedRfiWorkbook({
             const nextName = getUniqueSheetName(rfi?.customFields?.rfi_no || `RFI ${index + 1}`, existingNames);
             existingNames.add(nextName);
 
-            const clone = workbook.addWorksheet(nextName);
-            clone.model = {
-                ...JSON.parse(JSON.stringify(templateModel)),
-                name: nextName,
-            };
-            clone.name = nextName;
+            const clone = copyTemplateSheet(templateSheet, workbook, nextName);
             fillWorksheet(clone, rfi);
         }
     } else {
@@ -328,12 +431,7 @@ export async function exportMappedRfiWorkbook({
             const nextName = getUniqueSheetName(rfi?.customFields?.rfi_no || `RFI ${index + 1}`, existingNames);
             existingNames.add(nextName);
 
-            const clone = workbook.addWorksheet(nextName);
-            clone.model = {
-                ...JSON.parse(JSON.stringify(templateModel)),
-                name: nextName,
-            };
-            clone.name = nextName;
+            const clone = copyTemplateSheet(templateSheet, workbook, nextName);
             fillWorksheet(clone, rfi);
         }
     }

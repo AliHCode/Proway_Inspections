@@ -41,6 +41,7 @@ export function ProjectProvider({ children }) {
             const membershipDefaults = {
                 can_file_rfis: true,
                 can_discuss_rfis: true,
+                can_upload_rfi_archive: false,
                 can_manage_contractor_permissions: false,
             };
             const raw = localStorage.getItem(projectCacheKey(userId));
@@ -472,6 +473,7 @@ export function ProjectProvider({ children }) {
             const membershipDefaults = {
                 can_file_rfis: true,
                 can_discuss_rfis: true,
+                can_upload_rfi_archive: false,
                 can_manage_contractor_permissions: false,
             };
             // Check if the user is already a member — avoids unique constraint errors
@@ -549,6 +551,7 @@ export function ProjectProvider({ children }) {
                 target_user_id: userId,
                 next_can_file_rfis: updates.can_file_rfis,
                 next_can_discuss_rfis: updates.can_discuss_rfis,
+                next_can_upload_rfi_archive: updates.can_upload_rfi_archive,
             });
             if (error) throw error;
             await fetchProjectMembers(projectId);
@@ -569,6 +572,7 @@ export function ProjectProvider({ children }) {
             return {
                 canFileRfis: true,
                 canDiscussRfis: true,
+                canUploadRfiArchive: true,
                 canManageContractorPermissions: false,
             };
         }
@@ -576,6 +580,7 @@ export function ProjectProvider({ children }) {
         return {
             canFileRfis: activeProjectMembership?.can_file_rfis !== false,
             canDiscussRfis: activeProjectMembership?.can_discuss_rfis !== false,
+            canUploadRfiArchive: activeProjectMembership?.can_manage_contractor_permissions === true || activeProjectMembership?.can_upload_rfi_archive === true,
             canManageContractorPermissions: activeProjectMembership?.can_manage_contractor_permissions === true,
         };
     }, [activeProjectMembership, user?.role]);
