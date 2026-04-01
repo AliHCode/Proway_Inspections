@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useProject } from '../context/ProjectContext';
 import { useAuth } from '../context/AuthContext';
-import { ShieldAlert, Mail, ArrowLeft, Building2, Lock, Clock } from 'lucide-react';
+import { ShieldAlert, Mail, Building2, Lock, Clock } from 'lucide-react';
 import Header from '../components/Header';
 import { useEffect } from 'react';
 
@@ -139,33 +139,6 @@ export default function SubscriptionBlocked() {
                             }}
                         >
                             <Mail size={16} /> Contact Administrator
-                        </button>
-                        
-                        <button 
-                            onClick={() => {
-                                const home = user?.role === 'admin' ? '/admin' : 
-                                            user?.role === 'contractor' ? '/contractor' : 
-                                            user?.role === 'consultant' ? '/consultant' : '/';
-                                navigate(home);
-                            }} 
-                            style={{ 
-                                width: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '0.5rem',
-                                padding: '0.75rem',
-                                borderRadius: '10px',
-                                border: '1px solid #e2e8f0',
-                                background: '#fff',
-                                color: '#64748b',
-                                fontWeight: 600,
-                                fontSize: '0.85rem',
-                                cursor: 'pointer',
-                                fontFamily: 'inherit',
-                            }}
-                        >
-                            <ArrowLeft size={16} /> Back to Dashboard
                         </button>
                     </div>
                 </div>

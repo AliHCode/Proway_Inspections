@@ -220,6 +220,11 @@ export default function Header() {
     };
 
     const handleMenuNavigation = (targetPath) => {
+        if (supportOnlyAccess && targetPath !== '/support') {
+            setMenuOpen(false);
+            return;
+        }
+
         if (location.pathname === targetPath) {
             setMenuOpen(false);
             return;
@@ -381,11 +386,13 @@ export default function Header() {
                             <div className="desktop-sidebar-section-items">
                                 {section.items.map((item) => {
                                     const Icon = item.icon;
+                                    const itemDisabled = supportOnlyAccess;
                                     return (
                                         <button
                                             key={item.path}
                                             onClick={() => handleMenuNavigation(item.path)}
-                                            className={`desktop-sidebar-item ${item.active ? 'active' : ''}`}
+                                            className={`desktop-sidebar-item ${item.active ? 'active' : ''} ${itemDisabled ? 'disabled' : ''}`}
+                                            disabled={itemDisabled}
                                         >
                                             <span className="desktop-sidebar-item-icon">
                                                 <Icon size={18} strokeWidth={1.8} />
@@ -524,11 +531,13 @@ export default function Header() {
                                 <div className="menu-section mobile-nav-items">
                                     {mobileNavItems.map((item) => {
                                         const Icon = item.icon;
+                                        const itemDisabled = supportOnlyAccess;
                                         return (
                                             <button
                                                 key={item.path}
                                                 onClick={() => handleMenuNavigation(item.path)}
-                                                className={`header-dropdown-item-premium ${item.active ? 'active' : ''}`}
+                                                className={`header-dropdown-item-premium ${item.active ? 'active' : ''} ${itemDisabled ? 'disabled' : ''}`}
+                                                disabled={itemDisabled}
                                             >
                                                 <div className="menu-icon-box"><Icon size={18} strokeWidth={1.5} /></div>
                                                 <span>{item.label}</span>
