@@ -40,6 +40,19 @@ function isMobileViewport() {
     return window.matchMedia('(max-width: 1024px)').matches;
 }
 
+function isMobileStandaloneAppContext() {
+    return isMobileViewport() && isStandaloneDisplayMode();
+}
+
+function pinDashboardHistoryEntry(dashboardPath) {
+    if (typeof window === 'undefined') return;
+    try {
+        window.history.pushState({ mobileAppDashboardPinned: true }, '', dashboardPath);
+    } catch {
+        // Ignore browsers that restrict manual history state changes.
+    }
+}
+
 function dismissTopOverlayOrMenu() {
     const mobileMenuButton = document.querySelector('.header-menu-btn.mobile-only');
     if (document.querySelector('.header-dropdown.premium-menu') && mobileMenuButton) {
@@ -115,6 +128,7 @@ export default function AppExperienceEnhancements() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const lastPathRef = useRef(location.pathname);
+    const dashboardPinnedRef = useRef('');
     
     // Determine the user's root dashboard path
     const getDashboardPath = () => {
@@ -130,6 +144,15 @@ export default function AppExperienceEnhancements() {
     }, [location.pathname]);
 
     const handleMobileAppBack = (source = 'browser') => {
+        const isBrowserMobileApp = isMobileStandaloneAppContext();
+        if (source === 'browser' && !isBrowserMobileApp) {
+            return false;
+        }
+
+        if (source === 'capacitor' && !isMobileViewport()) {
+            return false;
+        }
+
         const dashboardPath = getDashboardPath();
         const previousPath = lastPathRef.current;
 
@@ -149,13 +172,15 @@ export default function AppExperienceEnhancements() {
             return true;
         }
 
-        // iOS/standalone PWAs cannot be force-closed reliably, but we can
-        // keep the user at the dashboard instead of replaying browser history.
+        // iOS/standalone PWAs cannot be force-closed reliably, so keep the
+        // user pinned on the dashboard instead of replaying browser history.
         try {
             window.close();
         } catch {
             // Ignore unsupported close attempts.
         }
+        pinDashboardHistoryEntry(dashboardPath);
+        dashboardPinnedRef.current = dashboardPath;
         navigate(dashboardPath, { replace: true });
         return true;
     };
@@ -180,7 +205,18 @@ export default function AppExperienceEnhancements() {
     }, [navigate, user]);
 
     useEffect(() => {
-        if (!user || !isMobileViewport() || !isStandaloneDisplayMode()) return undefined;
+        if (!user || !isMobileStandaloneAppContext()) return undefined;
+
+        const dashboardPath = getDashboardPath();
+
+        if (location.pathname === dashboardPath && dashboardPinnedRef.current !== dashboardPath) {
+            pinDashboardHistoryEntry(dashboardPath);
+            dashboardPinnedRef.current = dashboardPath;
+        }
+
+        if (location.pathname !== dashboardPath) {
+            dashboardPinnedRef.current = '';
+        }
 
         const handlePopState = () => {
             handleMobileAppBack('browser');

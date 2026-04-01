@@ -29,7 +29,7 @@ const DESKTOP_OVERLAY_SELECTORS = [
 
 export default function Header() {
     const { user, logout, mfaFactors } = useAuth();
-    const { projects, activeProject, changeActiveProject, contractorPermissions } = useProject();
+    const { projects, activeProject, changeActiveProject, contractorPermissions, checkProjectAccess } = useProject();
     const { notifications } = useRFI() || { notifications: [] };
     const navigate = useNavigate();
     const location = useLocation();
@@ -55,6 +55,8 @@ export default function Header() {
     const isMFAEnabled = mfaFactors.some((factor) => factor.status === 'verified');
     const dashPath = isAdmin ? '/admin' : isContractor ? '/contractor' : '/consultant';
     const roleLabel = isAdmin ? 'Admin' : isContractor ? 'Contractor' : 'Consultant';
+    const projectAccess = checkProjectAccess();
+    const supportOnlyAccess = !isAdmin && !projectAccess.allowed && (projectAccess.reason === 'locked' || projectAccess.reason === 'expired');
     const nameInitials = user.name
         ? user.name
             .split(' ')
@@ -496,8 +498,8 @@ export default function Header() {
                                 <div className="header-dropdown-info">
                                     <div
                                         className="header-identity-card-premium"
-                                        onClick={() => handleMenuNavigation('/profile')}
-                                        style={{ cursor: 'pointer' }}
+                                        onClick={supportOnlyAccess ? undefined : () => handleMenuNavigation('/profile')}
+                                        style={{ cursor: supportOnlyAccess ? 'default' : 'pointer', opacity: supportOnlyAccess ? 0.72 : 1 }}
                                     >
                                         <div className="header-identity-avatar-premium" aria-hidden="true">
                                             {user.avatar_url ? (
@@ -552,7 +554,7 @@ export default function Header() {
                                         </label>
                                     </div>
 
-                                    {!isAdmin && (
+                                    {!isAdmin && !supportOnlyAccess && (
                                         <button
                                             onClick={() => handleMenuNavigation('/subscription')}
                                             className={`header-dropdown-item-premium ${location.pathname === '/subscription' ? 'active' : ''}`}
@@ -567,13 +569,15 @@ export default function Header() {
                                         </button>
                                     )}
 
-                                    <button
-                                        onClick={() => handleMenuNavigation('/settings')}
-                                        className={`header-dropdown-item-premium ${location.pathname === '/settings' ? 'active' : ''}`}
-                                    >
-                                        <div className="menu-icon-box"><Settings2 size={18} strokeWidth={1.5} /></div>
-                                        <span>Settings</span>
-                                    </button>
+                                    {!supportOnlyAccess && (
+                                        <button
+                                            onClick={() => handleMenuNavigation('/settings')}
+                                            className={`header-dropdown-item-premium ${location.pathname === '/settings' ? 'active' : ''}`}
+                                        >
+                                            <div className="menu-icon-box"><Settings2 size={18} strokeWidth={1.5} /></div>
+                                            <span>Settings</span>
+                                        </button>
+                                    )}
                                 </div>
 
                                 <div className="menu-divider"></div>

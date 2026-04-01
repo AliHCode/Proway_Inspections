@@ -83,9 +83,9 @@ function AppRoutes() {
             <Route path="/admin/rfi-templates" element={<ProtectedRoute allowedRoles={['admin']}><AdminExcelTemplatePage /></ProtectedRoute>} />
             <Route path="/admin/registered-devices" element={<ProtectedRoute allowedRoles={['admin']}><RegisteredDevicesPage /></ProtectedRoute>} />
             <Route path="/admin/data-manager" element={<ProtectedRoute allowedRoles={['admin']}><AdminDataManager /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-            <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><SubscriptionGuard><SettingsPage /></SubscriptionGuard></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><SubscriptionGuard><ProfilePage /></SubscriptionGuard></ProtectedRoute>} />
+            <Route path="/subscription" element={<ProtectedRoute><SubscriptionGuard><SubscriptionPage /></SubscriptionGuard></ProtectedRoute>} />
             <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
             <Route path="/project-blocked" element={<SubscriptionBlocked />} />
             <Route path="/notification-open" element={<NotificationRedirect />} />

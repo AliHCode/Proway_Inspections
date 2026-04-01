@@ -117,8 +117,8 @@ export default function SubscriptionBlocked() {
 
                     {/* Actions */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                        <a 
-                            href="mailto:admin@proway.com" 
+                        <button
+                            onClick={() => navigate('/support')}
                             style={{ 
                                 width: '100%', 
                                 display: 'flex', 
@@ -135,10 +135,11 @@ export default function SubscriptionBlocked() {
                                 cursor: 'pointer',
                                 textDecoration: 'none',
                                 transition: 'all 0.2s',
+                                fontFamily: 'inherit',
                             }}
                         >
                             <Mail size={16} /> Contact Administrator
-                        </a>
+                        </button>
                         
                         <button 
                             onClick={() => {
