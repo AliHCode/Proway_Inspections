@@ -99,6 +99,28 @@ async function assertProjectAccess(projectId: string, user: { id: string; role: 
     throw new Error('You do not have access to this project.');
   }
 
+  const { data: project, error: projectError } = await supabase
+    .from('projects')
+    .select('id, is_locked, subscription_status, subscription_end')
+    .eq('id', projectId)
+    .single();
+
+  if (projectError || !project) {
+    throw new Error('Project not found.');
+  }
+
+  if (project.is_locked) {
+    throw new Error('This project is currently locked by the administrator.');
+  }
+
+  if (project.subscription_status === 'expired') {
+    throw new Error('The subscription for this project has expired.');
+  }
+
+  if (project.subscription_end && new Date(project.subscription_end).getTime() < Date.now()) {
+    throw new Error('The subscription for this project has expired.');
+  }
+
   return membership;
 }
 

@@ -163,7 +163,7 @@ function canUserDiscussRfiRecord(rfi, user, activeProject, activeProjectMembersh
 }
 
 export function RFIProvider({ children }) {
-    const { activeProject, projects, activeProjectMembership, contractorPermissions } = useProject();
+    const { activeProject, projects, activeProjectMembership, contractorPermissions, checkProjectAccess } = useProject();
     const { user } = useAuth();
     const [rfis, setRfis] = useState([]);
     const [loadingRfis, setLoadingRfis] = useState(true);
@@ -331,6 +331,13 @@ export function RFIProvider({ children }) {
             return;
         }
 
+        const projectAccess = checkProjectAccess(activeProject);
+        if (!projectAccess.allowed && (projectAccess.reason === 'locked' || projectAccess.reason === 'expired')) {
+            setRfis([]);
+            setLoadingRfis(false);
+            return;
+        }
+
         // Throttle rapid successive calls (e.g. from multiple rapid DB changes)
         const now = Date.now();
         if (now - lastRfiFetchRef.current < 2000) return;
@@ -399,7 +406,7 @@ export function RFIProvider({ children }) {
         }
 
         performFetch();
-    }, [activeProject, persistRfiCache, restoreRfiCache]);
+    }, [activeProject, checkProjectAccess, persistRfiCache, restoreRfiCache]);
 
     const fetchNotifications = useCallback(async () => {
         if (!user?.id) {
@@ -2096,11 +2103,18 @@ export function RFIProvider({ children }) {
             }
 
             // 2. Insert new notification
+            const targetRfi = rfiId ? rfis.find((item) => item.id === rfiId) : null;
+            const notificationProjectId = options.projectId
+                || targetRfi?.projectId
+                || activeProject?.id
+                || null;
+
             const { error: notificationError } = await supabase.from('notifications').insert([{
                 user_id: userId,
                 title,
                 message,
-                rfi_id: rfiId
+                rfi_id: rfiId,
+                project_id: notificationProjectId,
             }]);
             if (notificationError) throw notificationError;
 
