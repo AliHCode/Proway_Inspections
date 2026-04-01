@@ -1,9 +1,73 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { App as CapacitorApp } from '@capacitor/app';
 import { useAuth } from '../context/AuthContext';
 import InstallAppPrompt from './InstallAppPrompt';
 import NotificationPrompt from './NotificationPrompt';
+
+const APP_BACK_OVERLAY_SELECTORS = [
+    '.modal-overlay',
+    '.markup-studio-overlay',
+    '.filter-sidebar-overlay.open',
+    '.action-sheet-overlay.open',
+    '.dm-modal-overlay',
+    '.notif-overlay-v2',
+    '.rfi-archive-preview-backdrop',
+    '.rfi-archive-bulk-overlay',
+    '.studio-internal-drawer.open .drawer-header button',
+].join(', ');
+
+function isElementVisible(element) {
+    if (!element || typeof window === 'undefined') return false;
+    const style = window.getComputedStyle(element);
+    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+}
+
+function getNumericZIndex(element) {
+    if (!element || typeof window === 'undefined') return 0;
+    const zIndex = window.getComputedStyle(element).zIndex;
+    const parsed = Number.parseInt(zIndex, 10);
+    return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function isStandaloneDisplayMode() {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function isMobileViewport() {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 1024px)').matches;
+}
+
+function dismissTopOverlayOrMenu() {
+    const mobileMenuButton = document.querySelector('.header-menu-btn.mobile-only');
+    if (document.querySelector('.header-dropdown.premium-menu') && mobileMenuButton) {
+        mobileMenuButton.click();
+        return true;
+    }
+
+    const projectButton = document.querySelector('.header-project-selector-pill');
+    if (document.querySelector('.header-project-dropdown') && projectButton) {
+        projectButton.click();
+        return true;
+    }
+
+    const notificationButton = document.querySelector('.notification-trigger');
+    if (document.querySelector('.notification-dropdown') && notificationButton) {
+        notificationButton.click();
+        return true;
+    }
+
+    const activeOverlays = Array.from(document.querySelectorAll(APP_BACK_OVERLAY_SELECTORS))
+        .filter(isElementVisible)
+        .sort((a, b) => getNumericZIndex(b) - getNumericZIndex(a));
+
+    if (activeOverlays.length === 0) return false;
+
+    activeOverlays[0].click();
+    return true;
+}
 
 function ConnectivityBanner() {
     const [isOnline, setIsOnline] = useState(window.navigator.onLine);
@@ -50,6 +114,7 @@ export default function AppExperienceEnhancements() {
     const location = useLocation();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const lastPathRef = useRef(location.pathname);
     
     // Determine the user's root dashboard path
     const getDashboardPath = () => {
@@ -60,44 +125,47 @@ export default function AppExperienceEnhancements() {
         return '/';
     };
 
+    useEffect(() => {
+        lastPathRef.current = location.pathname;
+    }, [location.pathname]);
+
+    const handleMobileAppBack = (source = 'browser') => {
+        const dashboardPath = getDashboardPath();
+        const previousPath = lastPathRef.current;
+
+        if (dismissTopOverlayOrMenu()) {
+            return true;
+        }
+
+        const wasOnDashboard = previousPath === dashboardPath || previousPath === '/';
+
+        if (!wasOnDashboard) {
+            navigate(dashboardPath, { replace: true });
+            return true;
+        }
+
+        if (source === 'capacitor') {
+            CapacitorApp.exitApp();
+            return true;
+        }
+
+        // iOS/standalone PWAs cannot be force-closed reliably, but we can
+        // keep the user at the dashboard instead of replaying browser history.
+        try {
+            window.close();
+        } catch {
+            // Ignore unsupported close attempts.
+        }
+        navigate(dashboardPath, { replace: true });
+        return true;
+    };
+
     // Hardware Back Button Interceptor (Android / Native PWAs)
     useEffect(() => {
         let listenerPromise;
         try {
             listenerPromise = CapacitorApp.addListener('backButton', () => {
-                // 1. Check for Active Overlays / Modals / Drawers
-                // These are common classes we use for "always-on-top" elements
-                const overlaySelectors = [
-                    '.modal-overlay',                // Standard Auth/Detail/Chat Modals
-                    '.markup-studio-overlay',        // Image Editor
-                    '.filter-sidebar-overlay.open',  // Mobile Review Filters
-                    '.studio-internal-drawer.open .drawer-header button' // Admin settings drawer close button
-                ].join(', ');
-
-                const activeOverlays = Array.from(document.querySelectorAll(overlaySelectors));
-                
-                if (activeOverlays.length > 0) {
-                    // Found an open overlay! Dismiss the top-most one.
-                    const topElement = activeOverlays[activeOverlays.length - 1];
-                    topElement.click(); 
-                    return; // Stop here, do NOT navigate away
-                }
-
-                // 2. If no overlays are open, process standard Back behavior
-                const currentPath = location.pathname;
-                const dashboardPath = getDashboardPath();
-                
-                // Is the user exactly on their root dashboard?
-                const isRootDashboard = currentPath === dashboardPath || currentPath === '/';
-
-                if (isRootDashboard) {
-                    // User is on a main dashboard, force close the app
-                    CapacitorApp.exitApp();
-                } else {
-                    // User is deeper in the app (Settings, Summary, RFI Sheet, etc.)
-                    // Force them straight back to their dashboard, skipping intermediate history
-                    navigate(dashboardPath, { replace: true });
-                }
+                handleMobileAppBack('capacitor');
             });
         } catch (err) {
             // Ignore errors: This just means the app is running in a standard web browser, not a native Capacitor wrapper.
@@ -109,7 +177,18 @@ export default function AppExperienceEnhancements() {
                 listenerPromise.then(h => h.remove()).catch(() => {});
             }
         };
-    }, [location.pathname, navigate, user]);
+    }, [navigate, user]);
+
+    useEffect(() => {
+        if (!user || !isMobileViewport() || !isStandaloneDisplayMode()) return undefined;
+
+        const handlePopState = () => {
+            handleMobileAppBack('browser');
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [navigate, user, location.pathname]);
 
     useEffect(() => {
         let isDown = false;
