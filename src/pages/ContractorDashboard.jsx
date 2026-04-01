@@ -159,7 +159,7 @@ export default function ContractorDashboard() {
                         </button>
                         {contractorPermissions.canManageContractorPermissions && (
                             <button
-                                className="btn-command"
+                                className="btn-command desktop-only"
                                 onClick={() => navigate('/contractor/team')}
                                 style={{ background: 'var(--clr-bg-elevated)', color: 'var(--clr-text-primary)', border: '1px solid var(--clr-border)' }}
                             >
