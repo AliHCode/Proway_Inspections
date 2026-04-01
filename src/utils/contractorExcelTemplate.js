@@ -345,6 +345,23 @@ function copyTemplateSheet(templateSheet, workbook, nextName) {
         }
     });
 
+    // ExcelJS drops edge border styling on merged slave cells unless we reapply
+    // the original template styles after merging. This keeps generated sheets
+    // visually identical to the contractor's uploaded workbook.
+    templateSheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+        const targetRow = worksheet.getRow(rowNumber);
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+            const targetCell = targetRow.getCell(colNumber);
+            targetCell.style = cloneSerializable(cell.style) || {};
+            targetCell.numFmt = cell.numFmt;
+            targetCell.font = cloneSerializable(cell.font);
+            targetCell.alignment = cloneSerializable(cell.alignment);
+            targetCell.border = cloneSerializable(cell.border);
+            targetCell.fill = cloneSerializable(cell.fill);
+            targetCell.protection = cloneSerializable(cell.protection);
+        });
+    });
+
     const backgroundImageId = templateSheet.getBackgroundImageId?.();
     if (backgroundImageId !== undefined && backgroundImageId !== null) {
         worksheet.addBackgroundImage(backgroundImageId);
@@ -478,9 +495,15 @@ export async function exportMappedRfiWorkbook({
     }
 
     const workbook = await loadWorkbookFromSource(config.templatePublicUrl);
-    const templateSheet = workbook.getWorksheet(config.templateSheetName || workbook.worksheets[0]?.name);
+    const sourceWorkbook = await loadWorkbookFromSource(config.templatePublicUrl);
+    const targetSheetName = config.templateSheetName || workbook.worksheets[0]?.name;
+    const templateSheet = workbook.getWorksheet(targetSheetName);
+    const pristineTemplateSheet = sourceWorkbook.getWorksheet(targetSheetName);
     if (!templateSheet) {
         throw new Error('The selected template sheet could not be found.');
+    }
+    if (!pristineTemplateSheet) {
+        throw new Error('The source template sheet could not be found.');
     }
 
     const mappings = (config.mappings || []).filter((item) => item.cell && (item.fieldKey || item.prefix));
@@ -510,7 +533,7 @@ export async function exportMappedRfiWorkbook({
             const nextName = getUniqueSheetName(rfi?.customFields?.rfi_no || `RFI ${index + 1}`, existingNames);
             existingNames.add(nextName);
 
-            const clone = copyTemplateSheet(templateSheet, workbook, nextName);
+            const clone = copyTemplateSheet(pristineTemplateSheet, workbook, nextName);
             fillWorksheet(clone, rfi);
         }
     } else {
@@ -519,7 +542,7 @@ export async function exportMappedRfiWorkbook({
             const nextName = getUniqueSheetName(rfi?.customFields?.rfi_no || `RFI ${index + 1}`, existingNames);
             existingNames.add(nextName);
 
-            const clone = copyTemplateSheet(templateSheet, workbook, nextName);
+            const clone = copyTemplateSheet(pristineTemplateSheet, workbook, nextName);
             fillWorksheet(clone, rfi);
         }
     }
