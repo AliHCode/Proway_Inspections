@@ -1,3 +1,4 @@
+import ExcelJS from 'exceljs';
 import { supabase } from './supabaseClient';
 
 const STORAGE_BUCKET = 'rfi-images';
@@ -169,13 +170,7 @@ function buildMappedCellValue(rfi, mapping) {
     return prefix || null;
 }
 
-async function loadExcelJsModule() {
-    const mod = await import('exceljs');
-    return mod.default || mod;
-}
-
 async function loadWorkbookFromSource(source) {
-    const ExcelJS = await loadExcelJsModule();
     const workbook = new ExcelJS.Workbook();
 
     let buffer;

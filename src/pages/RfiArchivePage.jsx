@@ -454,7 +454,7 @@ export default function RfiArchivePage() {
                                         <div className="rfi-archive-item-actions compact">
                                             <button
                                                 type="button"
-                                                className="rfi-archive-action-btn"
+                                                className="rfi-archive-action-btn btn-loading-stable btn-loading-preview"
                                                 disabled={!hasFiles || rowBusy}
                                                 onClick={() => handlePreviewLatest(rfi)}
                                             >
@@ -463,7 +463,7 @@ export default function RfiArchivePage() {
                                             </button>
                                             <button
                                                 type="button"
-                                                className="rfi-archive-action-btn"
+                                                className="rfi-archive-action-btn btn-loading-stable btn-loading-download"
                                                 disabled={!hasFiles || rowBusy}
                                                 onClick={() => handleDownloadRfi(rfi)}
                                             >
@@ -477,7 +477,7 @@ export default function RfiArchivePage() {
                                                 <div className="rfi-archive-inline-upload-head">
                                                     <strong>Upload scanned PDFs</strong>
                                                     {hasFiles && (
-                                                        <button type="button" className="rfi-archive-action-btn danger" onClick={() => handleDeleteLatest(rfi)} disabled={rowBusy}>
+                                                        <button type="button" className="rfi-archive-action-btn danger btn-loading-stable btn-loading-remove" onClick={() => handleDeleteLatest(rfi)} disabled={rowBusy}>
                                                             {removingRfiId === rfi.id ? <RefreshCw size={15} className="spin-slow" /> : <Trash2 size={15} />}
                                                             {removingRfiId === rfi.id ? 'Removing...' : 'Remove Latest'}
                                                         </button>
@@ -498,7 +498,7 @@ export default function RfiArchivePage() {
                                                     </label>
                                                     {pendingHere && pendingUpload.files.length > 0 && (
                                                         <>
-                                                            <button type="button" className="rfi-archive-action-btn primary" onClick={() => handleUpload(rfi)} disabled={uploading}>
+                                                            <button type="button" className="rfi-archive-action-btn primary btn-loading-stable btn-loading-upload" onClick={() => handleUpload(rfi)} disabled={uploading}>
                                                                 <Upload size={15} />
                                                                 {uploading ? 'Uploading...' : 'Upload'}
                                                             </button>
@@ -565,7 +565,7 @@ export default function RfiArchivePage() {
                                 onChange={(event) => setRangeTo(event.target.value)}
                                 placeholder="To RFI no"
                             />
-                            <button type="button" className="rfi-archive-action-btn primary" onClick={handleDownloadRange} disabled={bulkDownloading || loadingArchive}>
+                            <button type="button" className="rfi-archive-action-btn primary btn-loading-stable btn-loading-range" onClick={handleDownloadRange} disabled={bulkDownloading || loadingArchive}>
                                 <Download size={15} />
                                 {bulkDownloading ? 'Preparing...' : 'Download Range'}
                             </button>

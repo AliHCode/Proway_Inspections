@@ -142,7 +142,7 @@ export default function RFIDetailModal({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                             {onDownloadCustomReport && (
                                 <button
-                                    className="btn-change-decision-compat"
+                                    className="btn-change-decision-compat btn-loading-stable btn-loading-report"
                                     onClick={handleDownloadCustomReport}
                                     disabled={isDownloadingCustomReport}
                                     title="Download custom Excel report"

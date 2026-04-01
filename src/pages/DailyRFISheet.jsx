@@ -866,7 +866,7 @@ export default function DailyRFISheet() {
                                         <>
                                 {activeTab === 'daily' && customWorkbookEnabled && (
                                     <button
-                                        className="btn btn-sm"
+                                        className="btn btn-sm btn-loading-stable btn-loading-custom"
                                         style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '600', padding: '0.4rem 0.75rem' }}
                                         onClick={() => handleExportCustomWorkbook(currentRfis, `Contractor_RFI_Workbook_${currentDate}`)}
                                         disabled={exportBusy}
@@ -877,7 +877,7 @@ export default function DailyRFISheet() {
                                     </button>
                                 )}
                                 <button
-                                    className="btn btn-sm"
+                                    className="btn btn-sm btn-loading-stable btn-loading-pdf"
                                     style={{ backgroundColor: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
                                     onClick={() => handleExportPdf(currentRfis)}
                                     disabled={exportBusy}
@@ -887,7 +887,7 @@ export default function DailyRFISheet() {
                                     {exportingPdf ? 'Generating PDF...' : 'PDF'}
                                 </button>
                                 <button
-                                    className="btn btn-sm"
+                                    className="btn btn-sm btn-loading-stable btn-loading-excel"
                                     style={{ backgroundColor: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
                                     onClick={() => handleExportExcel(currentRfis)}
                                     disabled={exportBusy}
