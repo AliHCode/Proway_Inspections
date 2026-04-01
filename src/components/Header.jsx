@@ -14,6 +14,7 @@ import NotificationCenter from './NotificationCenter';
 import MFAEnrollmentModal from './MFAEnrollmentModal';
 import { toast } from 'react-hot-toast';
 import { syncPushSubscriptionForUser, unregisterCurrentPushSubscription } from '../utils/pushNotifications';
+import { getMobileAppNavigationOptions } from '../utils/mobileAppNavigation';
 
 let desktopSidebarShouldStayOpen = false;
 const DESKTOP_OVERLAY_SELECTORS = [
@@ -224,7 +225,7 @@ export default function Header() {
             return;
         }
 
-        navigate(targetPath);
+        navigate(targetPath, getMobileAppNavigationOptions(location.pathname, targetPath, dashPath));
         setMenuOpen(false);
     };
 

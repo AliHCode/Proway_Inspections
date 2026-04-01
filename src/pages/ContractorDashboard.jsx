@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRFI } from '../context/RFIContext';
 import { getToday } from '../utils/rfiLogic';
@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
 import { useProject } from '../context/ProjectContext';
+import { getMobileAppNavigationOptions } from '../utils/mobileAppNavigation';
 
 export default function ContractorDashboard() {
     const { user } = useAuth();
@@ -31,8 +32,14 @@ export default function ContractorDashboard() {
     const { activeProject, projectFields, orderedTableColumns, columnWidthMap, getTableColumnStyle, showEscalatedBadge, contractorPermissions } = useProject();
     const activeProjectName = activeProject?.name || 'ProWay Project';
     const navigate = useNavigate();
+    const location = useLocation();
+    const dashPath = '/contractor';
     const today = getToday();
     const stats = getStats(today);
+
+    const navigateWithAppHistory = (targetPath) => {
+        navigate(targetPath, getMobileAppNavigationOptions(location.pathname, targetPath, dashPath));
+    };
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -150,7 +157,7 @@ export default function ContractorDashboard() {
                     <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                         <button
                             className="btn-command"
-                            onClick={() => navigate('/contractor/rfi-sheet')}
+                            onClick={() => navigateWithAppHistory('/contractor/rfi-sheet')}
                             disabled={!contractorPermissions.canFileRfis}
                             title={contractorPermissions.canFileRfis ? 'File RFIs' : 'View-only access for this project'}
                             style={contractorPermissions.canFileRfis ? undefined : { opacity: 0.7, cursor: 'not-allowed' }}
@@ -160,7 +167,7 @@ export default function ContractorDashboard() {
                         {contractorPermissions.canManageContractorPermissions && (
                             <button
                                 className="btn-command desktop-only"
-                                onClick={() => navigate('/contractor/team')}
+                                onClick={() => navigateWithAppHistory('/contractor/team')}
                                 style={{ background: 'var(--clr-bg-elevated)', color: 'var(--clr-text-primary)', border: '1px solid var(--clr-border)' }}
                             >
                                 <Users size={18} strokeWidth={2.2} /> Manage Team
@@ -188,7 +195,7 @@ export default function ContractorDashboard() {
                             {actionRequiredRfis.slice(0, 5).map(rfi => (
                                 <button
                                     key={rfi.id}
-                                    onClick={() => navigate(`/contractor/rfi-sheet?rfi=${rfi.id}`)}
+                                    onClick={() => navigateWithAppHistory(`/contractor/rfi-sheet?rfi=${rfi.id}`)}
                                     style={{
                                         background: 'var(--clr-bg-elevated)', border: '1px solid var(--clr-danger-border)', borderRadius: '8px', padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--clr-danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s', boxShadow: 'var(--shadow-sm)'
                                     }}
@@ -200,7 +207,7 @@ export default function ContractorDashboard() {
                             ))}
                             {actionRequiredRfis.length > 5 && (
                                 <button
-                                    onClick={() => navigate('/contractor/rfi-sheet')}
+                                    onClick={() => navigateWithAppHistory('/contractor/rfi-sheet')}
                                     style={{ background: 'transparent', border: 'none', color: 'var(--clr-danger)', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
                                 >
                                     View all {actionRequiredRfis.length}
@@ -291,7 +298,7 @@ export default function ContractorDashboard() {
                     <div className="bento-span-8 premium-card">
                         <div className="section-header" style={{ border: 'none', padding: 0, marginBottom: '1.5rem' }}>
                             <h2 style={{ fontSize: '1rem', fontWeight: 600 }}><TrendingUp size={18} style={{ marginRight: '0.5rem' }} /> Recent Activity</h2>
-                            <button className="btn btn-ghost" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--clr-brand-secondary)' }} onClick={() => navigate('/contractor/summary')}>
+                            <button className="btn btn-ghost" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--clr-brand-secondary)' }} onClick={() => navigateWithAppHistory('/contractor/summary')}>
                                 View All History →
                             </button>
                         </div>

@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useRFI } from '../context/RFIContext';
 import { useAuth } from '../context/AuthContext';
 import { Bell, Check, X, BellDot, BellRing, Trash2, CheckCircle2, XCircle, MessageCircle, UserPlus, FilePlus, AlertCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { buildNotificationOpenPath } from '../utils/notificationLinks';
+import { getMobileAppNavigationOptions } from '../utils/mobileAppNavigation';
 
 export default function NotificationCenter({ isOpen, onToggle }) {
     const { rfis, notifications, markNotificationRead, markAllNotificationsRead, deleteNotification, deleteAllNotifications, unreadCount } = useRFI();
@@ -12,6 +13,8 @@ export default function NotificationCenter({ isOpen, onToggle }) {
     const isConsultant = user?.role === 'consultant';
     const dropdownRef = useRef(null);
     const navigate = useNavigate();
+    const location = useLocation();
+    const dashPath = user?.role === 'admin' ? '/admin' : user?.role === 'contractor' ? '/contractor' : '/consultant';
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -33,7 +36,8 @@ export default function NotificationCenter({ isOpen, onToggle }) {
     const handleNotificationClick = (notification) => {
         markNotificationRead(notification.id);
         if (onToggle) onToggle(false);
-        navigate(buildNotificationOpenPath(notification.rfi_id));
+        const targetPath = buildNotificationOpenPath(notification.rfi_id);
+        navigate(targetPath, getMobileAppNavigationOptions(location.pathname, targetPath, dashPath));
     };
 
     return (

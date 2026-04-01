@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRFI } from '../context/RFIContext';
 import { getToday } from '../utils/rfiLogic';
@@ -19,13 +19,20 @@ import {
 } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
 import { exportToExcel, exportToPDF } from '../utils/exportUtils';
+import { getMobileAppNavigationOptions } from '../utils/mobileAppNavigation';
 
 export default function ConsultantDashboard() {
     const { user } = useAuth();
     const { rfis, getStats, getReviewQueue } = useRFI();
     const navigate = useNavigate();
+    const location = useLocation();
+    const dashPath = '/consultant';
     const today = getToday();
     const queue = getReviewQueue(today);
+
+    const navigateWithAppHistory = (targetPath) => {
+        navigate(targetPath, getMobileAppNavigationOptions(location.pathname, targetPath, dashPath));
+    };
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -79,10 +86,10 @@ export default function ConsultantDashboard() {
                         <h1 className="welcome-user-mono">{user?.name?.split(' ')[0] || 'Consultant'}</h1>
                     </div>
                     <div className="premium-actions" style={{ display: 'flex', gap: '0.75rem' }}>
-                        <button className="btn-command" onClick={() => navigate('/consultant/review')}>
+                        <button className="btn-command" onClick={() => navigateWithAppHistory('/consultant/review')}>
                             <FileSearch size={18} strokeWidth={2.5} /> Review RFIs
                         </button>
-                        <button className="btn btn-ghost" style={{ backgroundColor: 'rgba(255,255,255,0.5)', backdropFilter: 'blur(4px)', fontSize: '0.85rem' }} onClick={() => navigate('/consultant/rejection-journey')}>
+                        <button className="btn btn-ghost" style={{ backgroundColor: 'rgba(255,255,255,0.5)', backdropFilter: 'blur(4px)', fontSize: '0.85rem' }} onClick={() => navigateWithAppHistory('/consultant/rejection-journey')}>
                             <GitBranch size={16} /> Rejection Journey
                         </button>
                     </div>
@@ -225,7 +232,7 @@ export default function ConsultantDashboard() {
                                         <span>{queue.pending.length} new RFI{queue.pending.length > 1 ? 's' : ''} pending first review</span>
                                     </div>
                                 )}
-                                <button className="btn btn-primary" onClick={() => navigate('/consultant/review')} style={{ width: '100%', marginTop: '0.5rem', borderRadius: '12px', padding: '0.75rem' }}>
+                                <button className="btn btn-primary" onClick={() => navigateWithAppHistory('/consultant/review')} style={{ width: '100%', marginTop: '0.5rem', borderRadius: '12px', padding: '0.75rem' }}>
                                     <FileSearch size={18} style={{ marginRight: '0.5rem' }} /> Open Review Queue
                                 </button>
                             </div>

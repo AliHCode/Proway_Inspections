@@ -219,7 +219,9 @@ export default function AppExperienceEnhancements() {
         }
 
         const handlePopState = () => {
-            handleMobileAppBack('browser');
+            window.setTimeout(() => {
+                handleMobileAppBack('browser');
+            }, 0);
         };
 
         window.addEventListener('popstate', handlePopState);
