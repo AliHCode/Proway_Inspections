@@ -744,26 +744,36 @@ export default function ReviewQueue() {
                                 return (
                                     <>
                             <button
-                                className="btn btn-sm"
+                                className="btn btn-sm btn-progress-static"
                                 style={{ backgroundColor: 'var(--clr-bg-elevated)', color: 'var(--clr-text-main)', border: '1px solid var(--clr-border)', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
                                 onClick={handleExportPdf}
                                 disabled={exportBusy || filteredItems.length === 0}
                                 title="Export to PDF"
                                 aria-label="Export to PDF"
                             >
-                                {exportingPdf ? <RefreshCw size={16} className="spin-slow" /> : <FileDown size={17} />}
-                                {exportingPdf ? '...' : 'PDF'}
+                                <span className="btn-progress-icon">
+                                    {exportingPdf ? <RefreshCw size={16} className="spin-slow" /> : <FileDown size={17} />}
+                                </span>
+                                <span className="btn-progress-label">
+                                    <span className="btn-progress-visible">{exportingPdf ? '...' : 'PDF'}</span>
+                                    <span className="btn-progress-measure" aria-hidden="true">PDF</span>
+                                </span>
                             </button>
                             <button
-                                className="btn btn-sm"
+                                className="btn btn-sm btn-progress-static"
                                 style={{ backgroundColor: 'var(--clr-bg-elevated)', color: 'var(--clr-text-main)', border: '1px solid var(--clr-border)', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
                                 onClick={handleExportExcel}
                                 disabled={exportBusy || filteredItems.length === 0}
                                 title="Export to Excel"
                                 aria-label="Export to Excel"
                             >
-                                {exportingExcel ? <RefreshCw size={16} className="spin-slow" /> : <Table size={17} />}
-                                {exportingExcel ? '...' : 'Excel'}
+                                <span className="btn-progress-icon">
+                                    {exportingExcel ? <RefreshCw size={16} className="spin-slow" /> : <Table size={17} />}
+                                </span>
+                                <span className="btn-progress-label">
+                                    <span className="btn-progress-visible">{exportingExcel ? '...' : 'Excel'}</span>
+                                    <span className="btn-progress-measure" aria-hidden="true">Excel</span>
+                                </span>
                             </button>
                                     </>
                                 );

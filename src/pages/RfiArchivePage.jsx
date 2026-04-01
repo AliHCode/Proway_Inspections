@@ -454,21 +454,31 @@ export default function RfiArchivePage() {
                                         <div className="rfi-archive-item-actions compact">
                                             <button
                                                 type="button"
-                                                className="rfi-archive-action-btn"
+                                                className="rfi-archive-action-btn btn-progress-static"
                                                 disabled={!hasFiles || rowBusy}
                                                 onClick={() => handlePreviewLatest(rfi)}
                                             >
-                                                {previewingRfiId === rfi.id ? <RefreshCw size={15} className="spin-slow" /> : <Eye size={15} />}
-                                                {previewingRfiId === rfi.id ? '...' : 'Preview'}
+                                                <span className="btn-progress-icon">
+                                                    {previewingRfiId === rfi.id ? <RefreshCw size={15} className="spin-slow" /> : <Eye size={15} />}
+                                                </span>
+                                                <span className="btn-progress-label">
+                                                    <span className="btn-progress-visible">{previewingRfiId === rfi.id ? '...' : 'Preview'}</span>
+                                                    <span className="btn-progress-measure" aria-hidden="true">Preview</span>
+                                                </span>
                                             </button>
                                             <button
                                                 type="button"
-                                                className="rfi-archive-action-btn"
+                                                className="rfi-archive-action-btn btn-progress-static"
                                                 disabled={!hasFiles || rowBusy}
                                                 onClick={() => handleDownloadRfi(rfi)}
                                             >
-                                                {downloadingRfiId === rfi.id ? <RefreshCw size={15} className="spin-slow" /> : <Download size={15} />}
-                                                {downloadingRfiId === rfi.id ? '...' : 'Download'}
+                                                <span className="btn-progress-icon">
+                                                    {downloadingRfiId === rfi.id ? <RefreshCw size={15} className="spin-slow" /> : <Download size={15} />}
+                                                </span>
+                                                <span className="btn-progress-label">
+                                                    <span className="btn-progress-visible">{downloadingRfiId === rfi.id ? '...' : 'Download'}</span>
+                                                    <span className="btn-progress-measure" aria-hidden="true">Download</span>
+                                                </span>
                                             </button>
                                         </div>
 
@@ -477,9 +487,14 @@ export default function RfiArchivePage() {
                                                 <div className="rfi-archive-inline-upload-head">
                                                     <strong>Upload scanned PDFs</strong>
                                                     {hasFiles && (
-                                                        <button type="button" className="rfi-archive-action-btn danger" onClick={() => handleDeleteLatest(rfi)} disabled={rowBusy}>
-                                                            {removingRfiId === rfi.id ? <RefreshCw size={15} className="spin-slow" /> : <Trash2 size={15} />}
-                                                            {removingRfiId === rfi.id ? '...' : 'Remove Latest'}
+                                                        <button type="button" className="rfi-archive-action-btn danger btn-progress-static" onClick={() => handleDeleteLatest(rfi)} disabled={rowBusy}>
+                                                            <span className="btn-progress-icon">
+                                                                {removingRfiId === rfi.id ? <RefreshCw size={15} className="spin-slow" /> : <Trash2 size={15} />}
+                                                            </span>
+                                                            <span className="btn-progress-label">
+                                                                <span className="btn-progress-visible">{removingRfiId === rfi.id ? '...' : 'Remove Latest'}</span>
+                                                                <span className="btn-progress-measure" aria-hidden="true">Remove Latest</span>
+                                                            </span>
                                                         </button>
                                                     )}
                                                 </div>
@@ -498,9 +513,14 @@ export default function RfiArchivePage() {
                                                     </label>
                                                     {pendingHere && pendingUpload.files.length > 0 && (
                                                         <>
-                                                            <button type="button" className="rfi-archive-action-btn primary" onClick={() => handleUpload(rfi)} disabled={uploading}>
-                                                                <Upload size={15} />
-                                                                {uploading ? '...' : 'Upload'}
+                                                            <button type="button" className="rfi-archive-action-btn primary btn-progress-static" onClick={() => handleUpload(rfi)} disabled={uploading}>
+                                                                <span className="btn-progress-icon">
+                                                                    {uploading ? <RefreshCw size={15} className="spin-slow" /> : <Upload size={15} />}
+                                                                </span>
+                                                                <span className="btn-progress-label">
+                                                                    <span className="btn-progress-visible">{uploading ? '...' : 'Upload'}</span>
+                                                                    <span className="btn-progress-measure" aria-hidden="true">Upload</span>
+                                                                </span>
                                                             </button>
                                                             <button type="button" className="rfi-archive-action-btn" onClick={() => setPendingUpload({ rfiId: '', files: [] })} disabled={uploading}>
                                                                 Clear
@@ -565,9 +585,14 @@ export default function RfiArchivePage() {
                                 onChange={(event) => setRangeTo(event.target.value)}
                                 placeholder="To RFI no"
                             />
-                            <button type="button" className="rfi-archive-action-btn primary" onClick={handleDownloadRange} disabled={bulkDownloading || loadingArchive}>
-                                <Download size={15} />
-                                {bulkDownloading ? '...' : 'Download Range'}
+                            <button type="button" className="rfi-archive-action-btn primary btn-progress-static" onClick={handleDownloadRange} disabled={bulkDownloading || loadingArchive}>
+                                <span className="btn-progress-icon">
+                                    {bulkDownloading ? <RefreshCw size={15} className="spin-slow" /> : <Download size={15} />}
+                                </span>
+                                <span className="btn-progress-label">
+                                    <span className="btn-progress-visible">{bulkDownloading ? '...' : 'Download Range'}</span>
+                                    <span className="btn-progress-measure" aria-hidden="true">Download Range</span>
+                                </span>
                             </button>
                         </div>
                     </div>

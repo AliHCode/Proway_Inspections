@@ -148,15 +148,6 @@ export default function ContractorDashboard() {
                         <h1 className="welcome-user-mono">{user?.name?.split(' ')[0] || 'Contractor'}</h1>
                     </div>
                     <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                        {contractorPermissions.canManageContractorPermissions && (
-                            <button
-                                className="btn-command"
-                                onClick={() => navigate('/contractor/team')}
-                                style={{ background: 'var(--clr-bg-elevated)', color: 'var(--clr-text-primary)', border: '1px solid var(--clr-border)' }}
-                            >
-                                <Users size={18} strokeWidth={2.2} /> Manage Team
-                            </button>
-                        )}
                         <button
                             className="btn-command"
                             onClick={() => navigate('/contractor/rfi-sheet')}
@@ -166,6 +157,15 @@ export default function ContractorDashboard() {
                         >
                             <Plus size={18} strokeWidth={2.5} /> {contractorPermissions.canFileRfis ? 'File RFIs' : 'View RFIs'}
                         </button>
+                        {contractorPermissions.canManageContractorPermissions && (
+                            <button
+                                className="btn-command"
+                                onClick={() => navigate('/contractor/team')}
+                                style={{ background: 'var(--clr-bg-elevated)', color: 'var(--clr-text-primary)', border: '1px solid var(--clr-border)' }}
+                            >
+                                <Users size={18} strokeWidth={2.2} /> Manage Team
+                            </button>
+                        )}
                     </div>
                 </header>
 

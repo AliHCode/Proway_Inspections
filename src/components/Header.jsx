@@ -16,6 +16,16 @@ import { toast } from 'react-hot-toast';
 import { syncPushSubscriptionForUser, unregisterCurrentPushSubscription } from '../utils/pushNotifications';
 
 let desktopSidebarShouldStayOpen = false;
+const DESKTOP_OVERLAY_SELECTORS = [
+    '.modal-overlay',
+    '.action-sheet-overlay.open',
+    '.dm-modal-overlay',
+    '.notif-overlay-v2',
+    '.markup-studio-overlay',
+    '.filter-sidebar-overlay.open',
+    '.rfi-archive-preview-backdrop',
+    '.rfi-archive-bulk-overlay',
+].join(', ');
 
 export default function Header() {
     const { user, logout, mfaFactors } = useAuth();
@@ -31,6 +41,7 @@ export default function Header() {
     const [notifPermission, setNotifPermission] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported');
     const [pushBadge, setPushBadge] = useState({ state: 'checking', label: 'Push: Checking' });
     const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(desktopSidebarShouldStayOpen);
+    const [desktopOverlayActive, setDesktopOverlayActive] = useState(false);
 
     const projectRef = useRef(null);
     const menuRef = useRef(null);
@@ -100,6 +111,35 @@ export default function Header() {
 
     useEffect(() => {
         document.body.classList.remove('no-scroll');
+    }, [location.pathname]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+
+        const syncDesktopOverlayState = () => {
+            const hasActiveOverlay = Array.from(document.querySelectorAll(DESKTOP_OVERLAY_SELECTORS)).some((element) => {
+                const style = window.getComputedStyle(element);
+                return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+            });
+            setDesktopOverlayActive(hasActiveOverlay);
+        };
+
+        syncDesktopOverlayState();
+
+        const observer = new MutationObserver(syncDesktopOverlayState);
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['class', 'style'],
+        });
+
+        window.addEventListener('resize', syncDesktopOverlayState);
+
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', syncDesktopOverlayState);
+        };
     }, [location.pathname]);
 
     useEffect(() => {
@@ -313,7 +353,7 @@ export default function Header() {
     return (
         <>
             <aside
-                className={`desktop-sidebar-nav desktop-only ${desktopSidebarExpanded ? 'expanded' : ''}`}
+                className={`desktop-sidebar-nav desktop-only ${desktopSidebarExpanded ? 'expanded' : ''} ${desktopOverlayActive ? 'overlay-active' : ''}`}
                 aria-label="Desktop navigation"
                 onMouseEnter={() => {
                     desktopSidebarShouldStayOpen = true;

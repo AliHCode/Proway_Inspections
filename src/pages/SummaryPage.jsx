@@ -418,20 +418,30 @@ export default function SummaryPage() {
 
                     <div className="summ-export-group">
                         <button
-                            className="btn btn-secondary"
+                            className="btn btn-secondary btn-progress-static"
                             onClick={handleExcel}
                             disabled={!filtered.length || exportBusy}
                         >
-                            {exportingExcel ? <RefreshCw size={16} className="spin-slow" /> : <Table size={16} />}
-                            {exportingExcel ? '...' : 'Excel'}
+                            <span className="btn-progress-icon">
+                                {exportingExcel ? <RefreshCw size={16} className="spin-slow" /> : <Table size={16} />}
+                            </span>
+                            <span className="btn-progress-label">
+                                <span className="btn-progress-visible">{exportingExcel ? '...' : 'Excel'}</span>
+                                <span className="btn-progress-measure" aria-hidden="true">Excel</span>
+                            </span>
                         </button>
                         <button
-                            className="btn btn-primary"
+                            className="btn btn-primary btn-progress-static"
                             onClick={handlePDF}
                             disabled={!filtered.length || exportBusy}
                         >
-                            {exportingPdf ? <RefreshCw size={16} className="spin-slow" /> : <FileText size={16} />}
-                            {exportingPdf ? '...' : 'PDF'}
+                            <span className="btn-progress-icon">
+                                {exportingPdf ? <RefreshCw size={16} className="spin-slow" /> : <FileText size={16} />}
+                            </span>
+                            <span className="btn-progress-label">
+                                <span className="btn-progress-visible">{exportingPdf ? '...' : 'PDF'}</span>
+                                <span className="btn-progress-measure" aria-hidden="true">PDF</span>
+                            </span>
                         </button>
                     </div>
                 </div>

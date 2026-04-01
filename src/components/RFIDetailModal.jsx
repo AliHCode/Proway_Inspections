@@ -142,13 +142,18 @@ export default function RFIDetailModal({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                             {onDownloadCustomReport && (
                                 <button
-                                    className="btn-change-decision-compat"
+                                    className="btn-change-decision-compat btn-progress-static"
                                     onClick={handleDownloadCustomReport}
                                     disabled={isDownloadingCustomReport}
                                     title="Download custom Excel report"
                                 >
-                                    {isDownloadingCustomReport ? <RefreshCw size={14} className="spin-slow" /> : <FileDown size={14} />}
-                                    <span>{isDownloadingCustomReport ? '...' : 'Custom Report'}</span>
+                                    <span className="btn-progress-icon">
+                                        {isDownloadingCustomReport ? <RefreshCw size={14} className="spin-slow" /> : <FileDown size={14} />}
+                                    </span>
+                                    <span className="btn-progress-label">
+                                        <span className="btn-progress-visible">{isDownloadingCustomReport ? '...' : 'Custom Report'}</span>
+                                        <span className="btn-progress-measure" aria-hidden="true">Custom Report</span>
+                                    </span>
                                 </button>
                             )}
                             <button className="btn-close-hex" onClick={onClose}>

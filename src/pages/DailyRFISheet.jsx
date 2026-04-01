@@ -866,35 +866,40 @@ export default function DailyRFISheet() {
                                         <>
                                 {activeTab === 'daily' && customWorkbookEnabled && (
                                     <button
-                                        className="btn btn-sm"
+                                        className="btn btn-sm btn-progress-static"
                                         style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '600', padding: '0.4rem 0.75rem' }}
                                         onClick={() => handleExportCustomWorkbook(currentRfis, `Contractor_RFI_Workbook_${currentDate}`)}
                                         disabled={exportBusy}
                                         title="Export custom contractor workbook"
                                     >
-                                        {exportingCustomWorkbook ? <RefreshCw size={16} className="spin-slow" /> : <FileDown size={17} />}
-                                        {exportingCustomWorkbook ? '...' : 'Custom Excel'}
+                                        <span className="btn-progress-icon">
+                                            {exportingCustomWorkbook ? <RefreshCw size={16} className="spin-slow" /> : <FileDown size={17} />}
+                                        </span>
+                                        <span className="btn-progress-label">
+                                            <span className="btn-progress-visible">{exportingCustomWorkbook ? '...' : 'Custom Excel'}</span>
+                                            <span className="btn-progress-measure" aria-hidden="true">Custom Excel</span>
+                                        </span>
                                     </button>
                                 )}
                                 <button
                                     className="btn btn-sm"
                                     style={{ backgroundColor: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
                                     onClick={() => handleExportPdf(currentRfis)}
-                                    disabled={exportBusy}
+                                    disabled={exportingCustomWorkbook}
                                     title="Export to PDF"
                                 >
-                                    {exportingPdf ? <RefreshCw size={16} className="spin-slow" /> : <FileDown size={17} />}
-                                    {exportingPdf ? '...' : 'PDF'}
+                                    <FileDown size={17} />
+                                    PDF
                                 </button>
                                 <button
                                     className="btn btn-sm"
                                     style={{ backgroundColor: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: '500', padding: '0.4rem 0.75rem' }}
                                     onClick={() => handleExportExcel(currentRfis)}
-                                    disabled={exportBusy}
+                                    disabled={exportingCustomWorkbook}
                                     title="Export to Excel"
                                 >
-                                    {exportingExcel ? <RefreshCw size={16} className="spin-slow" /> : <Table size={17} />}
-                                    {exportingExcel ? '...' : 'Excel'}
+                                    <Table size={17} />
+                                    Excel
                                 </button>
                                 <button
                                     className="fullscreen-btn"
