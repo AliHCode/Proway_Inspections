@@ -375,7 +375,6 @@ export default function Header() {
                 <div className="desktop-sidebar-scroll">
                     {navSections.map((section) => (
                         <div key={section.label || 'default'} className="desktop-sidebar-section">
-                            {section.label && <div className="desktop-sidebar-section-title">{section.label}</div>}
                             <div className="desktop-sidebar-section-items">
                                 {section.items.map((item) => {
                                     const Icon = item.icon;

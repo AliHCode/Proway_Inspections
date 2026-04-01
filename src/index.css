@@ -3673,15 +3673,13 @@ input:checked+.premium-slider:before {
   background: none;
   border: none;
   color: var(--clr-brand-primary);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.9rem;
   cursor: pointer;
   padding: 0;
 }
 
 .auth-forgot-link {
-  font-size: 0.9rem;
-  font-weight: 600;
   color: var(--clr-brand-primary);
   text-transform: none;
 }

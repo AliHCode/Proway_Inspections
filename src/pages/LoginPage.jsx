@@ -259,7 +259,7 @@ export default function LoginPage() {
                                             className="auth-inline-link auth-forgot-link"
                                             onClick={() => navigate('/forgot-password')}
                                         >
-                                            FORGOT?
+                                            Forgot?
                                         </button>
                                     )}
                                 </div>
