@@ -13781,10 +13781,10 @@ body,
   }
 
   .desktop-sidebar-section-title {
-    display: block;
-    min-height: 1rem;
-    padding: 0 0.85rem;
-    margin-bottom: 0.45rem;
+    position: absolute;
+    top: -0.42rem;
+    left: 0.85rem;
+    z-index: 1;
     font-size: 0.74rem;
     font-weight: 700;
     letter-spacing: 0.04em;
@@ -13793,6 +13793,7 @@ body,
     visibility: hidden;
     pointer-events: none;
     white-space: nowrap;
+    transform: translateY(-100%);
     transition: opacity 160ms ease;
   }
 
@@ -13816,6 +13817,10 @@ body,
     flex: 1;
     overflow-y: auto;
     padding: 0.75rem 0.4rem 1rem;
+  }
+
+  .desktop-sidebar-section {
+    position: relative;
   }
 
   .desktop-sidebar-section + .desktop-sidebar-section {
