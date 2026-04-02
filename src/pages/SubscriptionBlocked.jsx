@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useProject } from '../context/ProjectContext';
 import { useAuth } from '../context/AuthContext';
-import { ShieldAlert, Mail, Building2, Lock, Clock } from 'lucide-react';
+import { ShieldAlert, MessageSquare, Building2, Lock, Clock } from 'lucide-react';
 import Header from '../components/Header';
 import { useEffect } from 'react';
 
@@ -12,7 +12,6 @@ export default function SubscriptionBlocked() {
     const access = checkProjectAccess();
 
     useEffect(() => {
-        // Admins should never see this page even if a project is locked/expired
         if (user?.role === 'admin' || access.allowed) {
             const home = user?.role === 'admin' ? '/admin' : 
                         user?.role === 'contractor' ? '/contractor' : 
@@ -22,133 +21,52 @@ export default function SubscriptionBlocked() {
     }, [access.allowed, navigate, user?.role]);
 
     const isLocked = access.reason === 'locked';
-    const isExpired = access.reason === 'expired';
 
     return (
-        <div className="page-wrapper premium-dashboard" style={{ minHeight: '100vh' }}>
-            <Header />
-            <main className="dashboard-page" style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                padding: '2rem',
-                maxWidth: '520px',
-                margin: '0 auto',
-                marginTop: '3rem',
-            }}>
-                <div className="premium-card" style={{
-                    width: '100%',
-                    padding: '2.5rem 2rem',
-                    textAlign: 'center',
-                }}>
-                    {/* Icon */}
-                    <div style={{
-                        width: '64px',
-                        height: '64px',
-                        borderRadius: '16px',
-                        background: isLocked ? '#fef3c7' : '#fef2f2',
-                        color: isLocked ? '#d97706' : '#dc2626',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        margin: '0 auto 1.5rem',
-                    }}>
-                        {isLocked ? <Lock size={32} /> : <ShieldAlert size={32} />}
-                    </div>
+        <div className="restriction-page">
+            <Header transparent hideNavigation />
+            
+            <main className="restriction-card">
+                {/* Icon Wrapper */}
+                <div className={`restriction-icon-wrapper ${isLocked ? 'locked' : 'expired'}`}>
+                    {isLocked ? <Lock size={40} strokeWidth={1.5} /> : <ShieldAlert size={40} strokeWidth={1.5} />}
+                </div>
 
-                    {/* Title */}
-                    <h1 style={{ 
-                        fontSize: '1.5rem', 
-                        fontWeight: 800, 
-                        color: '#0f172a', 
-                        marginBottom: '0.75rem',
-                        letterSpacing: '-0.02em',
-                    }}>
-                        {isLocked ? 'Project Locked' : 'Access Restricted'}
-                    </h1>
+                {/* Title */}
+                <h1 className="restriction-title">
+                    {isLocked ? 'Project Locked' : 'Access Restricted'}
+                </h1>
 
-                    {/* Project Badge */}
-                    <div style={{
-                        background: '#f8fafc',
-                        padding: '0.75rem 1rem',
-                        borderRadius: '10px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        marginBottom: '1.25rem',
-                        border: '1px solid #e2e8f0',
-                        fontSize: '0.85rem',
-                    }}>
-                        <Building2 size={16} style={{ color: '#64748b' }} />
-                        <span style={{ fontWeight: 600, color: '#334155' }}>{activeProject?.name || 'Unknown Project'}</span>
-                    </div>
+                {/* Project Identification */}
+                <div className="restriction-project-tag">
+                    <Building2 size={18} />
+                    <span>{activeProject?.name || 'Assigned Project'}</span>
+                </div>
 
-                    {/* Description */}
-                    <p style={{ 
-                        color: '#64748b', 
-                        lineHeight: 1.6, 
-                        marginBottom: '1.75rem', 
-                        fontSize: '0.85rem',
-                        maxWidth: '380px',
-                        margin: '0 auto 1.75rem',
-                    }}>
-                        {access.message || 'Access to this project has been restricted by the administrator. This may be due to an expired subscription or a maintenance lock.'}
-                    </p>
-
-                    {/* Reason Badge */}
-                    <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.4rem',
-                        background: isLocked ? '#fffbeb' : '#fef2f2',
-                        color: isLocked ? '#d97706' : '#dc2626',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        padding: '0.35rem 0.75rem',
-                        borderRadius: '6px',
-                        marginBottom: '1.75rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                    }}>
-                        {isLocked ? <Lock size={13} /> : <Clock size={13} />}
-                        {isLocked ? 'Manually Locked' : 'Subscription Expired'}
-                    </div>
-
-                    {/* Actions */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                        <button
-                            onClick={() => navigate('/support')}
-                            style={{ 
-                                width: '100%', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center', 
-                                gap: '0.5rem',
-                                padding: '0.85rem',
-                                borderRadius: '10px',
-                                border: 'none',
-                                background: '#0f172a',
-                                color: '#fff',
-                                fontWeight: 700,
-                                fontSize: '0.85rem',
-                                cursor: 'pointer',
-                                textDecoration: 'none',
-                                transition: 'all 0.2s',
-                                fontFamily: 'inherit',
-                            }}
-                        >
-                            <Mail size={16} /> Contact Administrator
-                        </button>
+                {/* Status Indicator */}
+                <div>
+                    <div className={`restriction-status-pill ${isLocked ? 'locked' : 'expired'}`}>
+                        {isLocked ? <Lock size={14} /> : <Clock size={14} />}
+                        {isLocked ? 'Maintenance Lock' : 'Subscription Expired'}
                     </div>
                 </div>
 
-                <p style={{ 
-                    marginTop: '1.5rem', 
-                    color: '#94a3b8', 
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                }}>
+                {/* Narrative */}
+                <p className="restriction-description">
+                    {access.message || 'Access to this project has been restricted. This typically occurs during maintenance or when a subscription cycle completes.'}
+                </p>
+
+                {/* Primary Action */}
+                <button
+                    className="restriction-action-btn"
+                    onClick={() => navigate('/support')}
+                >
+                    <MessageSquare size={20} />
+                    Contact Administrator
+                </button>
+
+                {/* Footer Attribution */}
+                <p className="restriction-footer">
                     ProWay Inspection Management &copy; {new Date().getFullYear()}
                 </p>
             </main>

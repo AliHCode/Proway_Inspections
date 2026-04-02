@@ -47,6 +47,7 @@ export default function Header() {
     const projectRef = useRef(null);
     const menuRef = useRef(null);
     const notifRef = useRef(null);
+    const desktopSidebarRef = useRef(null);
 
     if (!user) return null;
 
@@ -161,6 +162,59 @@ export default function Header() {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [projectMenuOpen, menuOpen, notifMenuOpen]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+
+        const desktopMedia = window.matchMedia('(min-width: 1024px)');
+        const COLLAPSED_TRIGGER_WIDTH = 72;
+        const EXPANDED_RELEASE_X = 310;
+
+        const syncSidebarHoverRail = (event) => {
+            if (!desktopMedia.matches) {
+                if (desktopSidebarShouldStayOpen) {
+                    desktopSidebarShouldStayOpen = false;
+                    setDesktopSidebarExpanded(false);
+                }
+                return;
+            }
+
+            const sidebarRect = desktopSidebarRef.current?.getBoundingClientRect();
+            const isInsideSidebar = !!sidebarRect
+                && event.clientX >= sidebarRect.left
+                && event.clientX <= sidebarRect.right
+                && event.clientY >= sidebarRect.top
+                && event.clientY <= sidebarRect.bottom;
+
+            if (isInsideSidebar || event.clientX <= COLLAPSED_TRIGGER_WIDTH) {
+                if (!desktopSidebarShouldStayOpen) {
+                    desktopSidebarShouldStayOpen = true;
+                    setDesktopSidebarExpanded(true);
+                }
+                return;
+            }
+
+            if (desktopSidebarShouldStayOpen && event.clientX > EXPANDED_RELEASE_X) {
+                desktopSidebarShouldStayOpen = false;
+                setDesktopSidebarExpanded(false);
+            }
+        };
+
+        const handleMediaChange = () => {
+            if (!desktopMedia.matches) {
+                desktopSidebarShouldStayOpen = false;
+                setDesktopSidebarExpanded(false);
+            }
+        };
+
+        window.addEventListener('pointermove', syncSidebarHoverRail);
+        desktopMedia.addEventListener?.('change', handleMediaChange);
+
+        return () => {
+            window.removeEventListener('pointermove', syncSidebarHoverRail);
+            desktopMedia.removeEventListener?.('change', handleMediaChange);
+        };
+    }, []);
 
     const handleEnableNotifications = async () => {
         if (typeof Notification === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -361,6 +415,7 @@ export default function Header() {
     return (
         <>
             <aside
+                ref={desktopSidebarRef}
                 className={`desktop-sidebar-nav desktop-only ${desktopSidebarExpanded ? 'expanded' : ''} ${desktopOverlayActive ? 'overlay-active' : ''}`}
                 aria-label="Desktop navigation"
                 onMouseEnter={() => {
