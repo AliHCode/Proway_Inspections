@@ -57,6 +57,20 @@ export default function RFIDetailModal({
         return columns.filter(col => !skip.has(col.field_key));
     }, [orderedColumns, projectFields]);
 
+    const latestReviewerFeedback = useMemo(() => (
+        [...(rfi?.internalReviews || [])]
+            .filter((review) => review.reviewer_id === user?.id)
+            .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0] || null
+    ), [rfi?.internalReviews, user?.id]);
+
+    const canChangeOwnMultiReviewDecision = Boolean(
+        activeProject?.multi_review_enabled
+        && onEditDecision
+        && user?.role === 'consultant'
+        && latestReviewerFeedback
+        && (rfi?.status === RFI_STATUS.PENDING || rfi?.status === RFI_STATUS.VERIFICATION_PENDING || rfi?.status === RFI_STATUS.INFO_REQUESTED)
+    );
+
     async function handleResolve() {
         if (!resolveFile) {
             alert('Please select a final photo first.');
@@ -184,6 +198,15 @@ export default function RFIDetailModal({
                                         <span>Change Decision</span>
                                     </button>
                                 )}
+                                {canChangeOwnMultiReviewDecision && (
+                                    <button
+                                        className="btn-change-decision-compat"
+                                        onClick={() => onEditDecision(rfi)}
+                                    >
+                                        <Edit3 size={14} />
+                                        <span>Change Decision</span>
+                                    </button>
+                                )}
                             </div>
 
                             {rfi.status === RFI_STATUS.PENDING && (!rfi.internalReviews || rfi.internalReviews.length === 0) && (
@@ -206,18 +229,6 @@ export default function RFIDetailModal({
                                             </button>
                                         </div>
                                     )}
-                                </div>
-                            )}
-
-                            {activeProject?.multi_review_enabled && rfi.status === RFI_STATUS.PENDING && rfi.internalReviews?.length > 0 && (
-                                <div className="rfi-verdict-card pending">
-                                    <div className="verdict-status">
-                                        <ClipboardList size={20} />
-                                        <span>Awaiting Official Final Verdict</span>
-                                    </div>
-                                    <p className="verdict-helper">
-                                        Consultant feedback has been recorded in the decision history below. The official RFI status changes only when a consultant finalizes the verdict.
-                                    </p>
                                 </div>
                             )}
 

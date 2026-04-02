@@ -246,10 +246,12 @@ export default function ReviewQueue() {
         if (!firstFeedback) return null;
         if (firstFeedback.status_recommendation === 'approved') return 'approved';
         if (firstFeedback.status_recommendation === 'rejected') return 'rejected';
+        if (firstFeedback.status_recommendation === 'cancelled') return 'cancelled';
         return null;
     };
 
     const getAllowedDecisionActions = (rfi) => {
+        const reviewerFeedback = getLatestFeedbackByReviewer(rfi?.internalReviews || [], user?.id);
         if (!activeProject?.multi_review_enabled) {
             return {
                 approve: rfi.status !== 'approved',
@@ -264,7 +266,7 @@ export default function ReviewQueue() {
             approve: direction !== 'rejected',
             conditional: true,
             reject: direction !== 'approved',
-            cancel: false,
+            cancel: !direction || direction === 'cancelled' || reviewerFeedback?.status_recommendation === 'cancelled',
         };
     };
 
@@ -549,6 +551,7 @@ export default function ReviewQueue() {
         const isAssignee = rfi.assignedTo === user.id;
         const isReviewer = rfi.reviewedBy === user.id;
         const isNotAssigned = !rfi.assignedTo && !rfi.reviewedBy;
+        const reviewerFeedback = getLatestFeedbackByReviewer(rfi.internalReviews || [], user.id);
 
         // ─── CLAIM MODE: show Claim button if unclaimed ───
         if (assignmentMode === 'claim') {
@@ -595,6 +598,23 @@ export default function ReviewQueue() {
         const isActionable = rfi.status === 'pending' || rfi.status === 'verification_pending' || rfi.status === 'info_requested';
 
         if (!isActionable) {
+            return (
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <button
+                        onClick={() => {
+                            setDetailTarget(rfi);
+                            setScrollTrigger(prev => prev + 1);
+                        }}
+                        className="btn-review-mini"
+                        title="View Details"
+                    >
+                        <ClipboardList size={16} /> Details
+                    </button>
+                </div>
+            );
+        }
+
+        if (activeProject?.multi_review_enabled && reviewerFeedback) {
             return (
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
                     <button
@@ -1134,7 +1154,7 @@ export default function ReviewQueue() {
                     onReject={() => { setActionSheetStep('reject'); setActionSheetTarget(detailTarget); setDetailTarget(null); }}
                     onCancel={() => { setActionSheetStep('cancel'); setActionSheetTarget(detailTarget); setDetailTarget(null); }}
                     onEditDecision={(r) => {
-                        setSheetRemarks('');
+                        setSheetRemarks(getLatestFeedbackByReviewer(r.internalReviews, user.id)?.remarks || '');
                         setSheetFiles([]);
                         setSheetError('');
                         setSheetIsFinal(activeProject?.multi_review_enabled ? false : true);
@@ -1205,10 +1225,13 @@ export default function ReviewQueue() {
                             )}
                             <div style={{ flex: 1, textAlign: actionSheetStep === 'menu' ? 'center' : 'left' }}>
                                 <h3 className="action-sheet-title">
-                                    {actionSheetStep === 'menu' ? 
-                                        (actionSheetTarget.status === 'pending' ? `Review RFI #${actionSheetTarget.customFields?.rfi_no || actionSheetTarget.serialNo}` : 'Change Decision') : 
+                                    {actionSheetStep === 'menu' ?
+                                        (((activeProject?.multi_review_enabled && getLatestFeedbackByReviewer(actionSheetTarget.internalReviews, user.id))
+                                            || actionSheetTarget.status !== 'pending')
+                                            ? 'Change Decision'
+                                            : `Review RFI #${actionSheetTarget.customFields?.rfi_no || actionSheetTarget.serialNo}`) :
                                      actionSheetStep === 'approve' ? (approveMode === 'conditional' ? 'Conditionally Approve' : 'Approve RFI') :
-                                     actionSheetStep === 'reject' ? 'Reject RFI' : 
+                                     actionSheetStep === 'reject' ? 'Reject RFI' :
                                      actionSheetStep === 'cancel' ? 'Cancel RFI' : 'Review Details'}
                                 </h3>
                                 {actionSheetStep === 'menu' && (
@@ -1226,9 +1249,9 @@ export default function ReviewQueue() {
                         </div>
                     </div>
 
-                    <div className="action-sheet-body">
-                        {actionSheetStep === 'menu' && actionSheetTarget.internalReviews?.length > 0 && (
-                            <div className="sheet-history-section">
+                        <div className="action-sheet-body">
+                            {actionSheetStep === 'menu' && actionSheetTarget.internalReviews?.length > 0 && (
+                                <div className="sheet-history-section">
                                 <h4 className="sheet-section-title">Decision History ({actionSheetTarget.internalReviews.length})</h4>
                                 <div className="sheet-history-list">
                                     {getOrderedFeedback(actionSheetTarget.internalReviews).map((rev, idx) => (
@@ -1263,15 +1286,8 @@ export default function ReviewQueue() {
                             </div>
                         )}
 
-                        {actionSheetStep === 'menu' ? (
-                            <div className="action-sheet-grid">
-                                {activeProject?.multi_review_enabled && (
-                                    <div className="sheet-multi-review-note full-width">
-                                        {actionSheetTarget.internalReviews?.length > 0
-                                            ? 'Consultant feedback is saved in decision history. Check Finalize Official Verdict only when you want to publish the official project decision.'
-                                            : 'The first consultant recommendation sets the review direction. Later consultants can continue that path until one consultant finalizes the official verdict.'}
-                                    </div>
-                                )}
+                            {actionSheetStep === 'menu' ? (
+                              <div className="action-sheet-grid">
                                 {getAllowedDecisionActions(actionSheetTarget).approve && (
                                     <button className="sheet-btn sheet-btn-approve" onClick={() => { setApproveMode('full'); setSheetRemarks(getLatestFeedbackByReviewer(actionSheetTarget.internalReviews, user.id)?.remarks || ''); setActionSheetStep('approve'); }}>
                                         <CheckCircle size={24} /> Approve
@@ -1293,7 +1309,7 @@ export default function ReviewQueue() {
                                 {getAllowedDecisionActions(actionSheetTarget).cancel && (
                                     <button 
                                         className="sheet-btn sheet-btn-cancel" 
-                                        onClick={() => setActionSheetStep('cancel')}
+                                        onClick={() => { setSheetRemarks(getLatestFeedbackByReviewer(actionSheetTarget.internalReviews, user.id)?.remarks || ''); setActionSheetStep('cancel'); }}
                                     >
                                         <Ban size={24} /> Cancel
                                     </button>

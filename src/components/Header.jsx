@@ -27,8 +27,6 @@ const DESKTOP_OVERLAY_SELECTORS = [
     '.rfi-archive-preview-backdrop',
     '.rfi-archive-bulk-overlay',
 ].join(', ');
-const TRANSIENT_RETURN_SKIP_MS = 15000;
-
 export default function Header() {
     const { user, logout, mfaFactors } = useAuth();
     const { projects, activeProject, changeActiveProject, contractorPermissions, checkProjectAccess } = useProject();
@@ -49,7 +47,6 @@ export default function Header() {
     const menuRef = useRef(null);
     const notifRef = useRef(null);
     const desktopSidebarRef = useRef(null);
-    const hiddenAtRef = useRef(0);
 
     if (!user) return null;
 
@@ -101,28 +98,7 @@ export default function Header() {
     }, []);
 
     useEffect(() => {
-        const safeRefresh = async () => {
-            if (document.visibilityState === 'hidden') return;
-            const hiddenForMs = hiddenAtRef.current ? Date.now() - hiddenAtRef.current : Number.POSITIVE_INFINITY;
-            if (hiddenForMs < TRANSIENT_RETURN_SKIP_MS) return;
-            await refreshPushBadge();
-        };
-
-        safeRefresh();
-        const handleVisibility = () => {
-            if (document.visibilityState === 'hidden') {
-                hiddenAtRef.current = Date.now();
-                return;
-            }
-            safeRefresh();
-        };
-        window.addEventListener('focus', safeRefresh);
-        document.addEventListener('visibilitychange', handleVisibility);
-
-        return () => {
-            window.removeEventListener('focus', safeRefresh);
-            document.removeEventListener('visibilitychange', handleVisibility);
-        };
+        refreshPushBadge();
     }, [user?.id, refreshPushBadge]);
 
     useEffect(() => {
