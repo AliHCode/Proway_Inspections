@@ -25,6 +25,7 @@ const RFIContext = createContext(null);
 const NOTIFICATION_PROMPT_SEEN_KEY = 'proway_notification_prompt_seen_v1';
 const DISMISSED_NOTIFICATIONS_KEY = 'proway_dismissed_notifications_v1';
 const RFI_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000; // 12 hours
+const TRANSIENT_RETURN_SKIP_MS = 15000;
 
 
 function normalizeRfiRecord(rfi = {}) {
@@ -203,6 +204,7 @@ export function RFIProvider({ children }) {
     const fetchingConsultantsRef = useRef(null);
     const fetchingContractorsRef = useRef(null);
     const lastRfiFetchRef = useRef(0);
+    const hiddenAtRef = useRef(0);
     // Shared profile cache for Realtime event handlers (avoids extra DB queries)
     const userMapRef = useRef({});
     // Tracks whether the Realtime WebSocket is currently connected
@@ -735,7 +737,16 @@ export function RFIProvider({ children }) {
         // This covers: switching back from another app on mobile, long idle tabs,
         // and PWA resume from home screen.
         const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                hiddenAtRef.current = Date.now();
+                return;
+            }
+
             if (document.visibilityState === 'visible') {
+                const hiddenForMs = hiddenAtRef.current ? Date.now() - hiddenAtRef.current : Number.POSITIVE_INFINITY;
+                if (hiddenForMs < TRANSIENT_RETURN_SKIP_MS) {
+                    return;
+                }
                 fetchAllRFIs();
                 if (user) fetchNotifications();
             }
@@ -1180,23 +1191,31 @@ export function RFIProvider({ children }) {
                         const targetRfi = rfis.find((r) => r.id === payload.rfiId);
                         const queuedAttachments = deserializeQueuedImages(payload.consultantAttachments || []);
                         const uploadedUrls = await normalizeImagesForSubmission(queuedAttachments);
-                        const mergedImages = [
-                            ...(targetRfi?.images || []),
-                            ...uploadedUrls,
-                        ];
-                        const { error } = await supabase.from('rfis').update({
-                            status: payload.status || RFI_STATUS.APPROVED,
-                            reviewed_by: payload.reviewedBy,
-                            reviewed_at: getNowLocalISO(),
-                            remarks: payload.remarks?.trim() ? payload.remarks.trim() : null,
-                            carryover_to: null,
-                            images: mergedImages,
-                            // assigned_to: payload.assignedTo || targetRfi?.assignedTo // REMOVED: Don't overwrite consultant assignee
-                        }).eq('id', payload.rfiId);
-                        if (error) throw error;
+                        const recommendationStatus = payload.status || RFI_STATUS.APPROVED;
+                        const recommendationRemarks = payload.remarks?.trim() ? payload.remarks.trim() : null;
 
-                        if (targetRfi) {
-                            await notifyContractorAboutStatusChange(targetRfi, payload.status || RFI_STATUS.APPROVED, payload.remarks, payload.assignedTo);
+                        if (payload.multiReviewEnabled) {
+                            await logInternalReview(payload.rfiId, recommendationStatus, recommendationRemarks, uploadedUrls);
+                        }
+
+                        if (payload.isFinal !== false) {
+                            const mergedImages = [
+                                ...(targetRfi?.images || []),
+                                ...uploadedUrls,
+                            ];
+                            const { error } = await supabase.from('rfis').update({
+                                status: recommendationStatus,
+                                reviewed_by: payload.reviewedBy,
+                                reviewed_at: getNowLocalISO(),
+                                remarks: recommendationRemarks,
+                                carryover_to: null,
+                                images: mergedImages,
+                            }).eq('id', payload.rfiId);
+                            if (error) throw error;
+
+                            if (targetRfi) {
+                                await notifyContractorAboutStatusChange(targetRfi, recommendationStatus, payload.remarks, payload.assignedTo);
+                            }
                         }
                     }
 
@@ -1204,22 +1223,29 @@ export function RFIProvider({ children }) {
                         const targetRfi = rfis.find((r) => r.id === payload.rfiId);
                         const queuedAttachments = deserializeQueuedImages(payload.consultantAttachments || []);
                         const uploadedUrls = await normalizeImagesForSubmission(queuedAttachments);
-                        const mergedImages = [
-                            ...(targetRfi?.images || []),
-                            ...uploadedUrls,
-                        ];
-                        const { error } = await supabase.from('rfis').update({
-                            status: RFI_STATUS.REJECTED,
-                            reviewed_by: payload.reviewedBy,
-                            reviewed_at: getNowLocalISO(),
-                            remarks: payload.remarks || null,
-                            images: mergedImages,
-                            // assigned_to: payload.assignedTo || targetRfi?.assignedTo // REMOVED: Don't overwrite consultant assignee
-                        }).eq('id', payload.rfiId);
-                        if (error) throw error;
+                        const recommendationRemarks = payload.remarks || null;
 
-                        if (targetRfi) {
-                            await notifyContractorAboutStatusChange(targetRfi, RFI_STATUS.REJECTED, payload.remarks, payload.assignedTo);
+                        if (payload.multiReviewEnabled) {
+                            await logInternalReview(payload.rfiId, RFI_STATUS.REJECTED, recommendationRemarks, uploadedUrls);
+                        }
+
+                        if (payload.isFinal !== false) {
+                            const mergedImages = [
+                                ...(targetRfi?.images || []),
+                                ...uploadedUrls,
+                            ];
+                            const { error } = await supabase.from('rfis').update({
+                                status: RFI_STATUS.REJECTED,
+                                reviewed_by: payload.reviewedBy,
+                                reviewed_at: getNowLocalISO(),
+                                remarks: recommendationRemarks,
+                                images: mergedImages,
+                            }).eq('id', payload.rfiId);
+                            if (error) throw error;
+
+                            if (targetRfi) {
+                                await notifyContractorAboutStatusChange(targetRfi, RFI_STATUS.REJECTED, payload.remarks, payload.assignedTo);
+                            }
                         }
                     }
 
@@ -1256,17 +1282,69 @@ export function RFIProvider({ children }) {
         }
     }
 
-    /** Submit an Internal Consultant Review */
+    function getOrderedReviewHistory(reviews = []) {
+        return [...(reviews || [])].sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+    }
+
+    function getFirstReviewDirection(reviews = []) {
+        const firstReview = getOrderedReviewHistory(reviews)[0];
+        if (!firstReview) return null;
+        if (firstReview.status_recommendation === RFI_STATUS.APPROVED) return RFI_STATUS.APPROVED;
+        if (firstReview.status_recommendation === RFI_STATUS.REJECTED) return RFI_STATUS.REJECTED;
+        return null;
+    }
+
+    function isAllowedMultiReviewDecision(rfi, nextStatus) {
+        if (!activeProject?.multi_review_enabled) return true;
+        if (nextStatus === RFI_STATUS.CANCELLED) return false;
+
+        const firstDirection = getFirstReviewDirection(rfi?.internalReviews || []);
+        if (!firstDirection) return true;
+
+        if (firstDirection === RFI_STATUS.APPROVED) {
+            return nextStatus === RFI_STATUS.APPROVED || nextStatus === RFI_STATUS.CONDITIONAL_APPROVE;
+        }
+
+        if (firstDirection === RFI_STATUS.REJECTED) {
+            return nextStatus === RFI_STATUS.REJECTED || nextStatus === RFI_STATUS.CONDITIONAL_APPROVE;
+        }
+
+        return true;
+    }
+
+    function getMultiReviewConstraintMessage(rfi, nextStatus) {
+        if (!activeProject?.multi_review_enabled) return '';
+        if (nextStatus === RFI_STATUS.CANCELLED) {
+            return 'Cancellation is not available when multi-consultant review is enabled.';
+        }
+
+        const firstDirection = getFirstReviewDirection(rfi?.internalReviews || []);
+        if (firstDirection === RFI_STATUS.APPROVED && nextStatus === RFI_STATUS.REJECTED) {
+            return 'This RFI is already on an approval path. Later consultants can only approve or conditionally approve it.';
+        }
+        if (firstDirection === RFI_STATUS.REJECTED && nextStatus === RFI_STATUS.APPROVED) {
+            return 'This RFI is already on a rejection path. Later consultants can only reject or conditionally approve it.';
+        }
+        return '';
+    }
+
+    /** Submit consultant feedback into the shared decision history */
     async function submitInternalReview(rfiId, statusRecommendation, remarks, images = []) {
         if (!user?.id || !activeProject?.id) throw new Error("Missing auth/project context");
 
         setLoadingAction(true);
         try {
+            const targetRfi = rfis.find(r => r.id === rfiId);
+            if (!targetRfi) throw new Error("RFI not found");
+
+            if (!isAllowedMultiReviewDecision(targetRfi, statusRecommendation)) {
+                toast.error(getMultiReviewConstraintMessage(targetRfi, statusRecommendation));
+                return false;
+            }
+
             const data = await logInternalReview(rfiId, statusRecommendation, remarks, images);
             if (!data) throw new Error("Failed to log review");
-
-            const targetRfi = rfis.find(r => r.id === rfiId);
-            if (targetRfi) {
+            if (false && targetRfi) {
                 // Progressive Notification: Notify the contractor that a review has been added
                 const rfiNo = targetRfi.customFields?.rfi_no || targetRfi.serialNo || '—';
                 let displayRec = statusRecommendation === 'conditional_approve' ? 'Conditionally Approved' : statusRecommendation.toUpperCase();
@@ -1289,11 +1367,16 @@ export function RFIProvider({ children }) {
                 return r;
             }));
 
-            toast.success("Feedback submitted successfully.");
+            await logAuditEvent(rfiId, 'consultant_feedback_added', {
+                recommendation: statusRecommendation,
+                remarks: remarks?.trim() || null,
+            });
+
+            toast.success("Consultant feedback saved to decision history.");
             return true;
         } catch (error) {
             console.error('Error submitting internal review:', error);
-            toast.error("Failed to submit feedback.");
+            toast.error("Failed to save consultant feedback.");
             return false;
         } finally {
             setLoadingAction(false);
@@ -1312,8 +1395,12 @@ export function RFIProvider({ children }) {
 
         const newStatus = mode === 'conditional' ? RFI_STATUS.CONDITIONAL_APPROVE : RFI_STATUS.APPROVED;
 
-        // --- NEW COLLABORATIVE LOGIC ---
-        if (!isFinal) {
+        if (activeProject?.multi_review_enabled && !isAllowedMultiReviewDecision(targetRfi, newStatus)) {
+            toast.error(getMultiReviewConstraintMessage(targetRfi, newStatus));
+            return;
+        }
+
+        if (activeProject?.multi_review_enabled && !isFinal) {
             let imageUrls = [];
             if (consultantAttachments.length > 0) {
                 try {
@@ -1323,13 +1410,10 @@ export function RFIProvider({ children }) {
             
             const success = await submitInternalReview(rfiId, mode === 'conditional' ? 'conditional_approve' : 'approved', remarks, imageUrls);
             if (success) {
-                // We no longer append intermediate images to the main RFI record.
-                // They stay in the rfi_reviews table for specific attribution.
                 await fetchAllRFIs(); 
             }
             return;
         }
-        // -------------------------------
 
         if (!navigator.onLine) {
             const queuedAttachments = await serializeImagesForQueue(consultantAttachments || []);
@@ -1341,7 +1425,10 @@ export function RFIProvider({ children }) {
                     reviewedBy,
                     remarks,
                     consultantAttachments: queuedAttachments,
-                    assignedTo
+                    assignedTo,
+                    isFinal,
+                    multiReviewEnabled: Boolean(activeProject?.multi_review_enabled),
+                    status: newStatus
                 },
             });
 
@@ -1349,11 +1436,27 @@ export function RFIProvider({ children }) {
                 r.id === rfiId
                     ? {
                         ...r,
-                        status: newStatus,
-                        reviewedBy,
-                        reviewedAt: getNowLocalISO(),
-                        remarks: remarks?.trim() ? remarks.trim() : null,
-                        assignedTo: assignedTo || r.assignedTo
+                        ...(isFinal ? {
+                            status: newStatus,
+                            reviewedBy,
+                            reviewedAt: getNowLocalISO(),
+                            remarks: remarks?.trim() ? remarks.trim() : null,
+                            assignedTo: assignedTo || r.assignedTo
+                        } : {}),
+                        ...(activeProject?.multi_review_enabled ? {
+                            internalReviews: [
+                                ...(r.internalReviews || []),
+                                {
+                                    id: `offline-review-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                                    reviewer_id: reviewedBy,
+                                    reviewer: { name: user?.name || 'You', avatar_url: user?.avatar_url || null },
+                                    status_recommendation: newStatus,
+                                    remarks: remarks?.trim() ? remarks.trim() : '',
+                                    images: [],
+                                    created_at: getNowLocalISO(),
+                                }
+                            ]
+                        } : {})
                       }
                     : r
             )));
@@ -1363,6 +1466,10 @@ export function RFIProvider({ children }) {
 
         try {
             const normalizedAttachments = await normalizeImagesForSubmission(consultantAttachments || []);
+            if (activeProject?.multi_review_enabled) {
+                const recommendationSaved = await submitInternalReview(rfiId, newStatus, remarks, normalizedAttachments);
+                if (!recommendationSaved) return;
+            }
             const mergedImages = [
                 ...(targetRfi.images || []),
                 ...normalizedAttachments,
@@ -1400,8 +1507,12 @@ export function RFIProvider({ children }) {
             return;
         }
 
-        // --- NEW COLLABORATIVE LOGIC ---
-        if (!isFinal) {
+        if (activeProject?.multi_review_enabled && !isAllowedMultiReviewDecision(targetRfi, RFI_STATUS.REJECTED)) {
+            toast.error(getMultiReviewConstraintMessage(targetRfi, RFI_STATUS.REJECTED));
+            return;
+        }
+
+        if (activeProject?.multi_review_enabled && !isFinal) {
             let imageUrls = [];
             if (consultantAttachments.length > 0) {
                 try {
@@ -1412,7 +1523,6 @@ export function RFIProvider({ children }) {
             if (success) await fetchAllRFIs();
             return;
         }
-        // -------------------------------
 
         if (!navigator.onLine) {
             const queuedAttachments = await serializeImagesForQueue(consultantAttachments || []);
@@ -1424,7 +1534,9 @@ export function RFIProvider({ children }) {
                     reviewedBy,
                     remarks,
                     consultantAttachments: queuedAttachments,
-                    assignedTo
+                    assignedTo,
+                    isFinal,
+                    multiReviewEnabled: Boolean(activeProject?.multi_review_enabled)
                 },
             });
 
@@ -1432,11 +1544,27 @@ export function RFIProvider({ children }) {
                 r.id === rfiId
                     ? {
                         ...r,
-                        status: RFI_STATUS.REJECTED,
-                        reviewedBy,
-                        reviewedAt: getNowLocalISO(),
-                        remarks: remarks || null,
-                        assignedTo: assignedTo || r.assignedTo
+                        ...(isFinal ? {
+                            status: RFI_STATUS.REJECTED,
+                            reviewedBy,
+                            reviewedAt: getNowLocalISO(),
+                            remarks: remarks || null,
+                            assignedTo: assignedTo || r.assignedTo
+                        } : {}),
+                        ...(activeProject?.multi_review_enabled ? {
+                            internalReviews: [
+                                ...(r.internalReviews || []),
+                                {
+                                    id: `offline-review-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                                    reviewer_id: reviewedBy,
+                                    reviewer: { name: user?.name || 'You', avatar_url: user?.avatar_url || null },
+                                    status_recommendation: RFI_STATUS.REJECTED,
+                                    remarks: remarks?.trim() || '',
+                                    images: [],
+                                    created_at: getNowLocalISO(),
+                                }
+                            ]
+                        } : {})
                       }
                     : r
             )));
@@ -1446,6 +1574,10 @@ export function RFIProvider({ children }) {
 
         try {
             const normalizedAttachments = await normalizeImagesForSubmission(consultantAttachments || []);
+            if (activeProject?.multi_review_enabled) {
+                const recommendationSaved = await submitInternalReview(rfiId, RFI_STATUS.REJECTED, remarks, normalizedAttachments);
+                if (!recommendationSaved) return;
+            }
             const mergedImages = [
                 ...(targetRfi.images || []),
                 ...normalizedAttachments,
@@ -1478,11 +1610,10 @@ export function RFIProvider({ children }) {
             return;
         }
 
-        // --- NEW COLLABORATIVE LOGIC ---
-        if (!isFinal) {
-            return await submitInternalReview(rfiId, 'cancelled', reason);
+        if (activeProject?.multi_review_enabled) {
+            toast.error('Cancellation is not available for multi-consultant reviews.');
+            return false;
         }
-        // -------------------------------
 
         if (!navigator.onLine) {
             await enqueuePendingAction({

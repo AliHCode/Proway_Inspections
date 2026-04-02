@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
-import { X, Calendar, MapPin, Tag, MessageSquare, History, List, Upload, CheckCircle, ClipboardList, XCircle, Hand, Ban, Edit3, Users, FileDown, RefreshCw } from 'lucide-react';
+import { X, Calendar, MapPin, Tag, MessageSquare, History, List, Upload, CheckCircle, ClipboardList, Hand, Edit3, FileDown, RefreshCw } from 'lucide-react';
 import ThreadedComments from './ThreadedComments';
 import AuditLog from './AuditLog';
 import StatusBadge from './StatusBadge';
@@ -25,13 +25,10 @@ export default function RFIDetailModal({
 }) {
     const [activeTab, setActiveTab] = useState('review');
     const [tabScrollTrigger, setTabScrollTrigger] = useState(0);
-    const { rfis, updateRFI, claimRFI, submitInternalReview } = useRFI();
+    const { rfis, updateRFI, claimRFI } = useRFI();
     const { activeProject, assignmentMode } = useProject();
     const { user } = useAuth();
     
-    const [showInternalReviewForm, setShowInternalReviewForm] = useState(false);
-    const [internalStatus, setInternalStatus] = useState('approved');
-    const [internalRemarks, setInternalRemarks] = useState('');
     const fileInputRef = useRef(null);
     const [resolveFile, setResolveFile] = useState(null);
     const [isResolving, setIsResolving] = useState(false);
@@ -165,13 +162,6 @@ export default function RFIDetailModal({
 
                 <div className="rfi-universal-tabs">
                     <button onClick={() => handleTabClick('review')} className={`rfi-tab-btn ${activeTab === 'review' ? 'active' : ''}`}><CheckCircle size={18} /><span>Review</span></button>
-                    {user?.role === 'consultant' && activeProject?.multi_review_enabled && (
-                        <button onClick={() => handleTabClick('internal')} className={`rfi-tab-btn ${activeTab === 'internal' ? 'active' : ''}`}>
-                            <Users size={18} />
-                            <span>Team Feedback</span>
-                            {rfi.internalReviews?.length > 0 && <span className="tab-badge-mini">{rfi.internalReviews.length}</span>}
-                        </button>
-                    )}
                     <button onClick={() => handleTabClick('details')} className={`rfi-tab-btn ${activeTab === 'details' ? 'active' : ''}`}><List size={18} /><span>Details</span></button>
                     <button onClick={() => handleTabClick('discussion')} className={`rfi-tab-btn ${activeTab === 'discussion' ? 'active' : ''}`}><MessageSquare size={18} /><span>Chat</span></button>
                     <button onClick={() => handleTabClick('audit')} className={`rfi-tab-btn ${activeTab === 'audit' ? 'active' : ''}`}><History size={18} /><span>History</span></button>
@@ -185,7 +175,7 @@ export default function RFIDetailModal({
                         <div className="rfi-tab-panel-full review-panel">
                             <div className="panel-header-row" style={{ alignItems: 'center', marginBottom: '0.5rem' }}>
                                 <h4 className="panel-heading" style={{ margin: 0 }}>Decision History</h4>
-                                {rfi.status !== RFI_STATUS.PENDING && rfi.status !== RFI_STATUS.VERIFICATION_PENDING && onEditDecision && user.role === 'consultant' && user.id === rfi.reviewedBy && (
+                                {rfi.status !== RFI_STATUS.PENDING && rfi.status !== RFI_STATUS.VERIFICATION_PENDING && onEditDecision && user.role === 'consultant' && user.id === rfi.reviewedBy && !activeProject?.multi_review_enabled && (
                                     <button 
                                         className="btn-change-decision-compat"
                                         onClick={() => onEditDecision(rfi)}
@@ -219,16 +209,33 @@ export default function RFIDetailModal({
                                 </div>
                             )}
 
+                            {activeProject?.multi_review_enabled && rfi.status === RFI_STATUS.PENDING && rfi.internalReviews?.length > 0 && (
+                                <div className="rfi-verdict-card pending">
+                                    <div className="verdict-status">
+                                        <ClipboardList size={20} />
+                                        <span>Awaiting Official Final Verdict</span>
+                                    </div>
+                                    <p className="verdict-helper">
+                                        Consultant feedback has been recorded in the decision history below. The official RFI status changes only when a consultant finalizes the verdict.
+                                    </p>
+                                </div>
+                            )}
+
                             <div className="verdict-history-feed">
-                                {/* 1. Show all internal recommendations/signatures */}
-                                {rfi.internalReviews?.map((rev) => (
+                                {/* 1. Show all consultant recommendations/signatures */}
+                                {[...(rfi.internalReviews || [])]
+                                    .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0))
+                                    .map((rev) => (
                                     <div key={rev.id} className="verdict-bubble">
                                         <div className="bubble-avatar">
                                             <UserAvatar name={rev.reviewer?.name} avatarUrl={rev.reviewer?.avatar_url} size={40} />
                                         </div>
                                         <div className="bubble-content">
                                             <div className="bubble-header">
-                                                <span className="bubble-name">{rev.reviewer?.name || 'Consultant'}</span>
+                                                <span className="bubble-name">
+                                                    {rev.reviewer?.name || 'Consultant'}
+                                                    {rev.created_at && <span className="final-tag">{formatDateDisplay(rev.created_at.split('T')[0])}</span>}
+                                                </span>
                                                 <div className={`compact-status-badge ${rev.status_recommendation}`}>
                                                     {rev.status_recommendation === 'conditional_approve' ? 'Cond. Approved' : rev.status_recommendation.toUpperCase()}
                                                 </div>
@@ -297,87 +304,6 @@ export default function RFIDetailModal({
                                     )}
                                 </div>
                             )}
-                        </div>
-                    )}
-
-                    {activeTab === 'internal' && user?.role === 'consultant' && activeProject?.multi_review_enabled && (
-                        <div className="rfi-tab-panel-full internal-panel">
-                            <div className="panel-header-row">
-                                <h4 className="panel-heading">Team Feedback Log</h4>
-                                {!showInternalReviewForm && rfi.status === RFI_STATUS.PENDING && (
-                                    <button className="btn-add-internal-compact" onClick={() => setShowInternalReviewForm(true)}>
-                                        <Users size={14} /> + New Review
-                                    </button>
-                                )}
-                            </div>
-                            
-                            {showInternalReviewForm && (
-                                <div className="internal-review-form-flat">
-                                    <div className="form-title">Submit Technical Review</div>
-                                    <div className="form-body">
-                                        <div className="field-group">
-                                            <label>Recommendation</label>
-                                            <select value={internalStatus} onChange={(e) => setInternalStatus(e.target.value)}>
-                                                <option value="approved">Approve</option>
-                                                <option value="conditional_approve">Conditionally Approve</option>
-                                                <option value="rejected">Reject</option>
-                                            </select>
-                                        </div>
-                                        <div className="field-group">
-                                            <label>Technical Remarks</label>
-                                            <textarea 
-                                                value={internalRemarks} 
-                                                onChange={(e) => setInternalRemarks(e.target.value)} 
-                                                rows={3} 
-                                                placeholder="Provide internal feedback or technical notes..."
-                                            />
-                                        </div>
-                                        <div className="form-actions">
-                                            <button className="btn-cancel-flat" onClick={() => setShowInternalReviewForm(false)}>Cancel</button>
-                                            <button 
-                                                className="btn-submit-flat"
-                                                disabled={!internalRemarks.trim()}
-                                                onClick={async () => {
-                                                    const success = await submitInternalReview(rfi.id, internalStatus, internalRemarks);
-                                                    if (success) {
-                                                        setShowInternalReviewForm(false);
-                                                        setInternalRemarks('');
-                                                    }
-                                                }}
-                                            >
-                                                Post Review
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="internal-reviews-feed">
-                                {rfi.internalReviews?.length > 0 ? (
-                                    [...rfi.internalReviews].reverse().map(rev => (
-                                        <div key={rev.id} className="internal-feed-item">
-                                            <div className="feed-avatar">
-                                                <UserAvatar name={rev.reviewer?.name} avatarUrl={rev.reviewer?.avatar_url} size={32} />
-                                            </div>
-                                            <div className="feed-content">
-                                                <div className="feed-header">
-                                                    <span className="feed-name">{rev.reviewer?.name || 'Consultant'}</span>
-                                                    <div className={`feed-badge ${rev.status_recommendation}`}>
-                                                        {rev.status_recommendation === 'conditional_approve' ? 'COND. APPROVE' : rev.status_recommendation.toUpperCase()}
-                                                    </div>
-                                                    <span className="feed-time">{formatDateDisplay(rev.created_at?.split('T')[0])}</span>
-                                                </div>
-                                                <div className="feed-remarks">{rev.remarks}</div>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="empty-feed">
-                                        <div className="empty-icon"><Users size={32} /></div>
-                                        <p>No internal technical reviews have been logged for this RFI yet.</p>
-                                    </div>
-                                )}
-                            </div>
                         </div>
                     )}
 

@@ -13,6 +13,7 @@ const LAST_VERIFIED_AT_KEY = 'saa_last_verified_at';
 const LAST_VERIFIED_USER_KEY = 'saa_last_verified_user_id';
 const AUTH_BOOT_TIMEOUT_MS = 8000;
 const OFFLINE_AUTH_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const TRANSIENT_RETURN_SKIP_MS = 15000;
 
 function getLocalInstanceId() {
     let id = localStorage.getItem(INSTANCE_ID_KEY);
@@ -72,6 +73,7 @@ export function AuthProvider({ children }) {
     const initialized = useRef(false);
     const isFetchingProfileRef = useRef(null); // Tracks the ID being fetched
     const userRef = useRef(null); // Keep a ref to current user for event handlers
+    const hiddenAtRef = useRef(0);
 
     // Keep userRef in sync
     useEffect(() => {
@@ -86,7 +88,19 @@ export function AuthProvider({ children }) {
 
         // ── Visibilitychange: prevent stuck spinner when tab resumes from background ──
         function handleVisibilityChange() {
+            if (document.visibilityState === 'hidden') {
+                hiddenAtRef.current = Date.now();
+                return;
+            }
+
             if (document.visibilityState === 'visible' && userRef.current) {
+                const hiddenForMs = hiddenAtRef.current ? Date.now() - hiddenAtRef.current : Number.POSITIVE_INFINITY;
+                if (hiddenForMs < TRANSIENT_RETURN_SKIP_MS) {
+                    setLoading(false);
+                    setAuthResolved(true);
+                    return;
+                }
+
                 // App came back from background and we already have a user — clear any
                 // lingering loading state so the UI doesn't stay frozen on a spinner.
                 setLoading(false);

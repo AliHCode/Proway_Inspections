@@ -7,8 +7,6 @@ import { getToday, formatDateDisplay, getNowLocalISO, getThumbnailUrl } from '..
 import Header from '../components/Header';
 import DateNavigator from '../components/DateNavigator';
 import StatusBadge from '../components/StatusBadge';
-import ApproveModal from '../components/ApproveModal';
-import RejectModal from '../components/RejectModal';
 import RFIDetailModal from '../components/RFIDetailModal';
 import FieldMarkupStudio from '../components/FieldMarkupStudio';
 import UserAvatar from '../components/UserAvatar';
@@ -239,6 +237,43 @@ export default function ReviewQueue() {
         && !loadingFields
         && orderedTableColumns.length > 0
     );
+
+    const getOrderedFeedback = (reviews = []) =>
+        [...(reviews || [])].sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+
+    const getFirstFeedbackDirection = (reviews = []) => {
+        const firstFeedback = getOrderedFeedback(reviews)[0];
+        if (!firstFeedback) return null;
+        if (firstFeedback.status_recommendation === 'approved') return 'approved';
+        if (firstFeedback.status_recommendation === 'rejected') return 'rejected';
+        return null;
+    };
+
+    const getAllowedDecisionActions = (rfi) => {
+        if (!activeProject?.multi_review_enabled) {
+            return {
+                approve: rfi.status !== 'approved',
+                conditional: rfi.status !== 'conditional_approve',
+                reject: rfi.status !== 'rejected',
+                cancel: rfi.status !== 'cancelled',
+            };
+        }
+
+        const direction = getFirstFeedbackDirection(rfi?.internalReviews || []);
+        return {
+            approve: direction !== 'rejected',
+            conditional: true,
+            reject: direction !== 'approved',
+            cancel: false,
+        };
+    };
+
+    const getLatestFeedbackByReviewer = (reviews = [], reviewerId) => {
+        if (!reviewerId) return null;
+        return [...(reviews || [])]
+            .filter((review) => review.reviewer_id === reviewerId)
+            .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0] || null;
+    };
 
     useEffect(() => {
         const projectId = activeProject?.id || null;
@@ -1102,6 +1137,7 @@ export default function ReviewQueue() {
                         setSheetRemarks('');
                         setSheetFiles([]);
                         setSheetError('');
+                        setSheetIsFinal(activeProject?.multi_review_enabled ? false : true);
                         setActionSheetStep('menu');
                         setActionSheetTarget(r);
                         setDetailTarget(null);
@@ -1193,9 +1229,9 @@ export default function ReviewQueue() {
                     <div className="action-sheet-body">
                         {actionSheetStep === 'menu' && actionSheetTarget.internalReviews?.length > 0 && (
                             <div className="sheet-history-section">
-                                <h4 className="sheet-section-title">Team Feedback ({actionSheetTarget.internalReviews.length})</h4>
+                                <h4 className="sheet-section-title">Decision History ({actionSheetTarget.internalReviews.length})</h4>
                                 <div className="sheet-history-list">
-                                    {actionSheetTarget.internalReviews.map((rev, idx) => (
+                                    {getOrderedFeedback(actionSheetTarget.internalReviews).map((rev, idx) => (
                                         <div key={rev.id || idx} className="sheet-history-item">
                                             <div className="bubble-avatar">
                                                 <UserAvatar name={rev.reviewer?.name} avatarUrl={rev.reviewer?.avatar_url} size={32} />
@@ -1229,34 +1265,35 @@ export default function ReviewQueue() {
 
                         {actionSheetStep === 'menu' ? (
                             <div className="action-sheet-grid">
-                                {actionSheetTarget.status !== 'approved' && (
-                                    <button className="sheet-btn sheet-btn-approve" onClick={() => { setApproveMode('full'); setActionSheetStep('approve'); }}>
+                                {activeProject?.multi_review_enabled && (
+                                    <div className="sheet-multi-review-note full-width">
+                                        {actionSheetTarget.internalReviews?.length > 0
+                                            ? 'Consultant feedback is saved in decision history. Check Finalize Official Verdict only when you want to publish the official project decision.'
+                                            : 'The first consultant recommendation sets the review direction. Later consultants can continue that path until one consultant finalizes the official verdict.'}
+                                    </div>
+                                )}
+                                {getAllowedDecisionActions(actionSheetTarget).approve && (
+                                    <button className="sheet-btn sheet-btn-approve" onClick={() => { setApproveMode('full'); setSheetRemarks(getLatestFeedbackByReviewer(actionSheetTarget.internalReviews, user.id)?.remarks || ''); setActionSheetStep('approve'); }}>
                                         <CheckCircle size={24} /> Approve
                                     </button>
                                 )}
-                                {actionSheetTarget.status !== 'conditional_approve' && (
-                                    <button className="sheet-btn sheet-btn-cond" onClick={() => { setApproveMode('conditional'); setActionSheetStep('approve'); }}>
+                                {getAllowedDecisionActions(actionSheetTarget).conditional && (
+                                    <button className="sheet-btn sheet-btn-cond" onClick={() => { setApproveMode('conditional'); setSheetRemarks(getLatestFeedbackByReviewer(actionSheetTarget.internalReviews, user.id)?.remarks || ''); setActionSheetStep('approve'); }}>
                                         <CheckCircle size={24} /> <span style={{fontSize: '0.7rem'}}>COND. APPROVE</span>
                                     </button>
                                 )}
-                                {actionSheetTarget.status !== 'rejected' && (
+                                {getAllowedDecisionActions(actionSheetTarget).reject && (
                                     <button 
                                         className="sheet-btn sheet-btn-reject" 
-                                        onClick={() => setActionSheetStep('reject')}
-                                        disabled={activeProject?.multi_review_enabled && actionSheetTarget.internalReviews?.some(r => r.status_recommendation === 'approved')}
-                                        style={{ opacity: (activeProject?.multi_review_enabled && actionSheetTarget.internalReviews?.some(r => r.status_recommendation === 'approved')) ? 0.4 : 1, cursor: (activeProject?.multi_review_enabled && actionSheetTarget.internalReviews?.some(r => r.status_recommendation === 'approved')) ? 'not-allowed' : undefined }}
-                                        title={(activeProject?.multi_review_enabled && actionSheetTarget.internalReviews?.some(r => r.status_recommendation === 'approved')) ? "Cannot reject because a consultant has internally approved this RFI." : ""}
+                                        onClick={() => { setSheetRemarks(getLatestFeedbackByReviewer(actionSheetTarget.internalReviews, user.id)?.remarks || ''); setActionSheetStep('reject'); }}
                                     >
                                         <XCircle size={24} /> Reject
                                     </button>
                                 )}
-                                {actionSheetTarget.status !== 'cancelled' && (
+                                {getAllowedDecisionActions(actionSheetTarget).cancel && (
                                     <button 
                                         className="sheet-btn sheet-btn-cancel" 
                                         onClick={() => setActionSheetStep('cancel')}
-                                        disabled={activeProject?.multi_review_enabled && actionSheetTarget.internalReviews?.some(r => r.status_recommendation === 'approved')}
-                                        style={{ opacity: (activeProject?.multi_review_enabled && actionSheetTarget.internalReviews?.some(r => r.status_recommendation === 'approved')) ? 0.4 : 1, cursor: (activeProject?.multi_review_enabled && actionSheetTarget.internalReviews?.some(r => r.status_recommendation === 'approved')) ? 'not-allowed' : undefined }}
-                                        title={(activeProject?.multi_review_enabled && actionSheetTarget.internalReviews?.some(r => r.status_recommendation === 'approved')) ? "Cannot cancel because a consultant has internally approved this RFI." : ""}
                                     >
                                         <Ban size={24} /> Cancel
                                     </button>
@@ -1274,14 +1311,14 @@ export default function ReviewQueue() {
 
                                 <div className="sheet-form-field">
                                     <label className="sheet-form-label">
-                                        {actionSheetStep === 'approve' ? (approveMode === 'conditional' ? 'Conditions (Required)' : 'Remarks (Optional)') :
-                                         actionSheetStep === 'reject' ? 'Corrective Actions (Required)' : 'Cancellation Reason (Required)'}
+                                        {actionSheetStep === 'approve' ? (approveMode === 'conditional' ? 'Conditions (Required)' : 'Consultant Remarks (Optional)') :
+                                         actionSheetStep === 'reject' ? 'Consultant Remarks (Required)' : 'Cancellation Reason (Required)'}
                                     </label>
                                     <textarea 
                                         className="sheet-form-textarea"
                                         value={sheetRemarks}
                                         onChange={e => { setSheetRemarks(e.target.value); setSheetError(''); }}
-                                        placeholder="Add notes, conditions or corrective actions..."
+                                        placeholder="Add notes, conditions or consultant remarks..."
                                         rows={3}
                                     />
                                 </div>
@@ -1326,7 +1363,7 @@ export default function ReviewQueue() {
                                             />
                                             <div className="finalize-text">
                                                 <span className="finalize-title">Finalize Official Verdict</span>
-                                                <span className="finalize-desc">Checked will notify contractor and update global status. Unchecked saves as internal recommendation.</span>
+                                                <span className="finalize-desc">Checked will notify the contractor and update the official RFI status. Unchecked saves consultant feedback to decision history only.</span>
                                             </div>
                                         </label>
                                     </div>
@@ -1362,7 +1399,7 @@ export default function ReviewQueue() {
                                             }
                                         }}
                                     >
-                                        {sheetSubmitting ? <RefreshCw size={16} className="spin-slow" /> : <Send size={16} />} {sheetSubmitting ? 'Submitting...' : `Confirm ${actionSheetStep === 'approve' ? 'Approval' : actionSheetStep === 'reject' ? 'Rejection' : 'Cancellation'}`}
+                                        {sheetSubmitting ? <RefreshCw size={16} className="spin-slow" /> : <Send size={16} />} {sheetSubmitting ? 'Submitting...' : (activeProject?.multi_review_enabled && !sheetIsFinal ? 'Save Feedback' : `Confirm ${actionSheetStep === 'approve' ? 'Approval' : actionSheetStep === 'reject' ? 'Rejection' : 'Cancellation'}`)}
                                     </button>
                                 </div>
                             </div>
@@ -1695,6 +1732,15 @@ export default function ReviewQueue() {
                 
                 .sheet-btn-details { background: #eff6ff; color: #2563eb; border-color: #dbeafe; }
                 .sheet-btn-details:active { background: #dbeafe; transform: scale(0.97); }
+                .sheet-multi-review-note {
+                    padding: 0.9rem 1rem;
+                    border-radius: 1rem;
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    color: #475569;
+                    font-size: 0.82rem;
+                    line-height: 1.5;
+                }
 
                 /* Action Sheet Multi-Step Form Styling */
                 .action-sheet-panel.expanded {
