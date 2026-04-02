@@ -12,7 +12,7 @@ import RejectModal from '../components/RejectModal';
 import RFIDetailModal from '../components/RFIDetailModal';
 import FieldMarkupStudio from '../components/FieldMarkupStudio';
 import UserAvatar from '../components/UserAvatar';
-import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
+import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 import { CheckCircle, XCircle, Ban, X, FileDown, Table, ClipboardList, Filter, Maximize2, Minimize2, RotateCcw, User, UserPlus, Hand, ArrowLeft, Camera, Upload, Send, Edit3, RefreshCw } from 'lucide-react';
 
 export default function ReviewQueue() {
@@ -719,7 +719,7 @@ export default function ReviewQueue() {
         setExportingExcel(true);
         try {
             await new Promise((resolve) => setTimeout(resolve, 0));
-            exportToExcel(filteredItems, `ProWay_Inspections_${currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template);
+            await exportToExcel(filteredItems, `ProWay_Inspections_${currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template);
         } catch (error) {
             console.error('Review queue Excel export failed:', error);
         } finally {

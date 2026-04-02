@@ -22,7 +22,6 @@ import {
     ClipboardList,
     Users
 } from 'lucide-react';
-import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
 import { useProject } from '../context/ProjectContext';
 import { getMobileAppNavigationOptions } from '../utils/mobileAppNavigation';
 

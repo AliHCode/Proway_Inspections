@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProjectProvider, useProject } from './context/ProjectContext';
@@ -13,15 +14,9 @@ import DailyRFISheet from './pages/DailyRFISheet';
 import ConsultantDashboard from './pages/ConsultantDashboard';
 import ReviewQueue from './pages/ReviewQueue';
 import RejectionJourneyBoard from './pages/RejectionJourneyBoard';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminDataManager from './pages/AdminDataManager';
-import UsersPage from './pages/UsersPage';
-import AdminFormatDesigner from './pages/AdminFormatDesigner';
-import AdminExcelTemplatePage from './pages/AdminExcelTemplatePage';
 import PendingApproval from './pages/PendingApproval';
 import SummaryPage from './pages/SummaryPage';
 import RfiArchivePage from './pages/RfiArchivePage';
-import RegisteredDevicesPage from './pages/RegisteredDevicesPage';
 import NotificationRedirect from './pages/NotificationRedirect';
 import SubscriptionBlocked from './pages/SubscriptionBlocked';
 import SettingsPage from './pages/SettingsPage';
@@ -31,6 +26,13 @@ import SupportPage from './pages/SupportPage';
 import SubscriptionGuard from './components/SubscriptionGuard';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminDataManager = lazy(() => import('./pages/AdminDataManager'));
+const UsersPage = lazy(() => import('./pages/UsersPage'));
+const AdminFormatDesigner = lazy(() => import('./pages/AdminFormatDesigner'));
+const AdminExcelTemplatePage = lazy(() => import('./pages/AdminExcelTemplatePage'));
+const RegisteredDevicesPage = lazy(() => import('./pages/RegisteredDevicesPage'));
 
 function ProtectedRoute({ children, allowedRoles }) {
     const { user, authResolved, mfaResolved, mfaRequired } = useAuth();
@@ -64,6 +66,7 @@ function AppRoutes() {
     if (!authResolved || !mfaResolved || !projectsResolved) return <LoadingSpinner />;
 
     return (
+        <Suspense fallback={<LoadingSpinner />}>
         <Routes>
             <Route path="/" element={user ? (
                 mfaRequired ? <LoginPage /> :
@@ -96,6 +99,7 @@ function AppRoutes() {
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
     );
 }
 

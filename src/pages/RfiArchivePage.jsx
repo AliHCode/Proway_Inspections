@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import JSZip from 'jszip';
 import toast from 'react-hot-toast';
 import { Download, Eye, FileText, Search, Trash2, Upload, X, RefreshCw } from 'lucide-react';
 import Header from '../components/Header';
@@ -19,6 +18,17 @@ import {
 } from '../utils/rfiScannedDocs';
 
 const READY_STATUSES = new Set([RFI_STATUS.APPROVED, RFI_STATUS.CONDITIONAL_APPROVE]);
+let jsZipPromise;
+
+async function loadJsZip() {
+    if (!jsZipPromise) {
+        jsZipPromise = import('jszip').then((jsZipModule) => (
+            jsZipModule.default || jsZipModule
+        ));
+    }
+
+    return jsZipPromise;
+}
 
 function formatBytes(bytes = 0) {
     if (!bytes) return '0 KB';
@@ -270,6 +280,7 @@ export default function RfiArchivePage() {
     };
 
     const downloadDocsAsZip = async (docs, zipNameBase, labelResolver) => {
+        const JSZip = await loadJsZip();
         const zip = new JSZip();
         const grouped = docs.reduce((accumulator, doc) => {
             if (!accumulator[doc.rfi_id]) accumulator[doc.rfi_id] = [];

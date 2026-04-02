@@ -284,14 +284,18 @@ export default function RejectionJourneyBoard() {
                             <div className="rj-export-btns">
                                 <button
                                     className="btn btn-sm btn-export"
-                                    onClick={() => exportToPDF(exportRfis, `Rejected_RFIs_${showAll ? 'All' : currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template)}
+                                    onClick={async () => {
+                                        await exportToPDF(exportRfis, `Rejected_RFIs_${showAll ? 'All' : currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template);
+                                    }}
                                     title="Export to PDF"
                                 >
                                     <FileDown size={17} /> PDF
                                 </button>
                                 <button
                                     className="btn btn-sm btn-export"
-                                    onClick={() => exportToExcel(exportRfis, `Rejected_RFIs_${showAll ? 'All' : currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template)}
+                                    onClick={async () => {
+                                        await exportToExcel(exportRfis, `Rejected_RFIs_${showAll ? 'All' : currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template);
+                                    }}
                                     title="Export to Excel"
                                 >
                                     <Table size={17} /> Excel

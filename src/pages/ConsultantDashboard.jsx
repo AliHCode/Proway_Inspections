@@ -18,7 +18,6 @@ import {
     GitBranch,
 } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
-import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 import { getMobileAppNavigationOptions } from '../utils/mobileAppNavigation';
 
 export default function ConsultantDashboard() {

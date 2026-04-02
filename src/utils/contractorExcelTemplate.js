@@ -1,5 +1,16 @@
-import ExcelJS from 'exceljs';
 import { supabase } from './supabaseClient';
+
+let excelJsPromise;
+
+async function loadExcelJs() {
+    if (!excelJsPromise) {
+        excelJsPromise = import('exceljs').then((excelJsModule) => (
+            excelJsModule.default || excelJsModule
+        ));
+    }
+
+    return excelJsPromise;
+}
 
 const STORAGE_BUCKET = 'rfi-images';
 const TEMPLATE_CONFIG_KEY = 'contractorExcelTemplate';
@@ -171,6 +182,7 @@ function buildMappedCellValue(rfi, mapping) {
 }
 
 async function loadWorkbookFromSource(source) {
+    const ExcelJS = await loadExcelJs();
     const workbook = new ExcelJS.Workbook();
 
     let buffer;

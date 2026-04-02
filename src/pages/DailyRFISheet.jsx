@@ -13,7 +13,7 @@ import EditRFIModal from '../components/EditRFIModal';
 import FieldMarkupStudio from '../components/FieldMarkupStudio';
 import CreateRevisionModal from '../components/CreateRevisionModal';
 import { Plus, Trash2, Send, RefreshCw, X, MessageSquare, FileDown, Table, ClipboardList, Brush, Maximize2, Minimize2, RotateCcw, List } from 'lucide-react';
-import { exportToExcel, exportToPDF, generateDailyReport } from '../utils/exportUtils';
+import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 import { useProject } from '../context/ProjectContext';
 import { exportMappedRfiWorkbook, hasContractorExcelTemplate } from '../utils/contractorExcelTemplate';
 
@@ -304,7 +304,7 @@ export default function DailyRFISheet() {
         setExportingExcel(true);
         try {
             await new Promise((resolve) => setTimeout(resolve, 0));
-            exportToExcel(items, `ProWay_Contractor_Report_${currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template);
+            await exportToExcel(items, `ProWay_Contractor_Report_${currentDate}`, orderedTableColumns, columnWidthMap, activeProject?.export_template);
         } catch (error) {
             console.error('Excel export failed:', error);
             toast.error(error.message || 'Failed to generate Excel export.');

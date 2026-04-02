@@ -1,8 +1,32 @@
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
 import { formatDateDisplay } from './rfiLogic';
 import { sanitizeColumnWidth, widthPxToExcelChars } from './tableLayout';
+
+let pdfDepsPromise;
+let excelDepsPromise;
+
+async function loadPdfDeps() {
+    if (!pdfDepsPromise) {
+        pdfDepsPromise = Promise.all([
+            import('jspdf'),
+            import('jspdf-autotable'),
+        ]).then(([jsPdfModule, autoTableModule]) => ({
+            jsPDF: jsPdfModule.default || jsPdfModule.jsPDF || jsPdfModule,
+            autoTable: autoTableModule.default || autoTableModule,
+        }));
+    }
+
+    return pdfDepsPromise;
+}
+
+async function loadExcelDeps() {
+    if (!excelDepsPromise) {
+        excelDepsPromise = import('xlsx').then((xlsxModule) => ({
+            XLSX: xlsxModule.default || xlsxModule,
+        }));
+    }
+
+    return excelDepsPromise;
+}
 
 const PDF_PX_TO_PT = 0.6;
 const PX_TO_MM = 0.264583;
@@ -489,12 +513,13 @@ function prepareDataForExport(rfis, orderedTableColumns = [], template = null) {
 /**
  * Export RFIs to Excel Spreadsheet (.xlsx)
  */
-export function exportToExcel(rfis, filename = 'RFI_Report', projectFields = [], columnWidthMap = {}, projectTemplate = null) {
+export async function exportToExcel(rfis, filename = 'RFI_Report', projectFields = [], columnWidthMap = {}, projectTemplate = null) {
     if (!rfis || rfis.length === 0) {
         alert("No data available to export.");
         return;
     }
 
+    const { XLSX } = await loadExcelDeps();
     const template = normalizeExportTemplate(projectTemplate, filename);
     const resolvedColumnWidthMap = resolveColumnWidthMap(columnWidthMap, template);
     const exportData = prepareDataForExport(rfis, projectFields, template);
@@ -580,6 +605,7 @@ export function exportToExcel(rfis, filename = 'RFI_Report', projectFields = [],
  * Export RFIs to PDF Document (.pdf)
  */
 export async function buildExportPdfDocument(rfis, title = 'ProWay Inspections - RFI Report', projectFields = [], columnWidthMap = {}, projectTemplate = null) {
+    const { jsPDF, autoTable } = await loadPdfDeps();
     const doc = new jsPDF('landscape'); // Landscape for better table fit
     const template = normalizeExportTemplate(projectTemplate, title);
     const resolvedColumnWidthMap = resolveColumnWidthMap(columnWidthMap, template);
@@ -706,6 +732,7 @@ export async function exportToPDF(rfis, title = 'ProWay Inspections - RFI Report
  * Generate a branded Daily Inspection Report PDF
  */
 export async function buildDailyReportPdfDocument(rfis, date, projectName = 'ProWay Project', projectFields = [], columnWidthMap = {}, projectTemplate = null) {
+    const { jsPDF, autoTable } = await loadPdfDeps();
     const doc = new jsPDF('landscape');
     const template = normalizeExportTemplate(projectTemplate, 'RFI Summary');
     const resolvedColumnWidthMap = resolveColumnWidthMap(columnWidthMap, template);

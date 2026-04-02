@@ -334,7 +334,7 @@ export default function SummaryPage() {
         setExportingExcel(true);
         try {
             await new Promise((resolve) => setTimeout(resolve, 0));
-            exportToExcel(filtered, exportName, orderedTableColumns, columnWidthMap, activeProject?.export_template);
+            await exportToExcel(filtered, exportName, orderedTableColumns, columnWidthMap, activeProject?.export_template);
         } finally {
             setExportingExcel(false);
         }
