@@ -1968,47 +1968,23 @@ input:checked+.premium-slider:before {
   position: relative;
   z-index: 1;
   width: min(100%, 44rem);
-  padding: clamp(2rem, 4vw, 4rem) 0 1rem;
+  padding: clamp(1.25rem, 3vw, 2.4rem) 0 1rem;
   text-align: center;
 }
 
-.project-blocked-shell::before {
-  content: "";
-  display: block;
-  width: 5.5rem;
-  height: 3px;
-  margin: 0 auto 1.8rem;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0));
-}
-
-.project-blocked-orb {
-  width: 5.25rem;
-  height: 5.25rem;
-  margin: 0 auto 1.25rem;
-  border-radius: 1.75rem;
+.project-blocked-icon {
+  margin: 0 auto 0.9rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.project-blocked-orb.locked {
-  background: linear-gradient(180deg, rgba(245, 158, 11, 0.14), rgba(245, 158, 11, 0.05));
+.project-blocked-icon.locked {
   color: #b45309;
 }
 
-.project-blocked-orb.expired {
-  background: linear-gradient(180deg, rgba(239, 68, 68, 0.14), rgba(239, 68, 68, 0.05));
+.project-blocked-icon.expired {
   color: #dc2626;
-}
-
-.project-blocked-eyebrow {
-  margin: 0 0 0.7rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: #94a3b8;
 }
 
 .project-blocked-title {
@@ -2021,7 +1997,7 @@ input:checked+.premium-slider:before {
 }
 
 .project-blocked-project-line {
-  margin-top: 1rem;
+  margin-top: 0.8rem;
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
@@ -2030,34 +2006,29 @@ input:checked+.premium-slider:before {
   font-weight: 600;
 }
 
-.project-blocked-divider {
-  width: min(100%, 22rem);
-  height: 1px;
-  margin: 1.6rem auto 1.5rem;
-  background: linear-gradient(90deg, rgba(148, 163, 184, 0), rgba(148, 163, 184, 0.6), rgba(148, 163, 184, 0));
-}
-
 .project-blocked-description {
   width: min(100%, 31rem);
-  margin: 0 auto;
+  margin: 1.35rem auto 0;
   color: #64748b;
   font-size: 1rem;
   line-height: 1.72;
 }
 
 .project-blocked-status {
-  margin-top: 1.4rem;
-  display: inline-flex;
+  margin-top: 1.7rem;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.42rem;
-  font-size: 0.84rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+  opacity: 0.92;
 }
 
 .project-blocked-status.locked {
-  color: #b45309;
+  color: #a16207;
 }
 
 .project-blocked-status.expired {
@@ -2066,7 +2037,7 @@ input:checked+.premium-slider:before {
 
 .project-blocked-support-btn {
   width: min(100%, 24rem);
-  margin-top: 2rem;
+  margin-top: 1.9rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2091,7 +2062,7 @@ input:checked+.premium-slider:before {
 }
 
 .project-blocked-footer {
-  margin: 2rem 0 0;
+  margin: 1.9rem 0 0;
   color: #94a3b8;
   font-size: 0.8rem;
   font-weight: 600;

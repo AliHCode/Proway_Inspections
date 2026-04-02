@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useProject } from '../context/ProjectContext';
 import { useAuth } from '../context/AuthContext';
-import { ShieldAlert, Mail, Building2, Lock, Clock } from 'lucide-react';
+import { Ban, Mail, Building2, Lock, Clock } from 'lucide-react';
 import Header from '../components/Header';
 import { useEffect } from 'react';
 
@@ -29,13 +29,9 @@ export default function SubscriptionBlocked() {
             <Header />
             <main className="dashboard-page project-blocked-page">
                 <section className="project-blocked-shell">
-                    <div className={`project-blocked-orb ${isLocked ? 'locked' : 'expired'}`}>
-                        {isLocked ? <Lock size={34} /> : <ShieldAlert size={34} />}
+                    <div className={`project-blocked-icon ${isLocked ? 'locked' : 'expired'}`}>
+                        {isLocked ? <Lock size={34} strokeWidth={1.8} /> : <Ban size={34} strokeWidth={1.8} />}
                     </div>
-
-                    <p className="project-blocked-eyebrow">
-                        {isLocked ? 'Project access paused' : 'Project subscription inactive'}
-                    </p>
 
                     <h1 className="project-blocked-title">
                         {isLocked ? 'Project Locked' : 'Access Restricted'}
@@ -45,8 +41,6 @@ export default function SubscriptionBlocked() {
                         <Building2 size={16} />
                         <span>{activeProject?.name || 'Unknown Project'}</span>
                     </div>
-
-                    <div className="project-blocked-divider" />
 
                     <p className="project-blocked-description">
                         {access.message || 'Access to this project has been restricted by the administrator. This may be due to an expired subscription or a maintenance lock.'}
