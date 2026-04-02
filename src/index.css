@@ -13986,14 +13986,13 @@ body,
   }
 
   .desktop-sidebar-nav.overlay-active {
-    z-index: 10000001;
+    z-index: 950;
     width: 64px !important;
-    background: rgba(241, 245, 249, 0.52);
-    border-right-color: rgba(203, 213, 225, 0.72);
-    backdrop-filter: blur(16px) saturate(135%);
-    -webkit-backdrop-filter: blur(16px) saturate(135%);
+    background: rgba(255, 255, 255, 0.78);
+    border-right-color: rgba(203, 213, 225, 0.5);
     box-shadow: none !important;
     pointer-events: none;
+    opacity: 0.92;
   }
 
   .desktop-sidebar-nav:hover,
@@ -14116,7 +14115,8 @@ body,
   .desktop-sidebar-nav.overlay-active .desktop-sidebar-brand,
   .desktop-sidebar-nav.overlay-active .desktop-sidebar-scroll,
   .desktop-sidebar-nav.overlay-active .desktop-sidebar-item {
-    filter: blur(1.5px);
+    filter: blur(2.4px);
+    opacity: 0.7;
   }
 
   .desktop-sidebar-item:hover {
