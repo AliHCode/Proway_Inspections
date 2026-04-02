@@ -15,6 +15,18 @@ function projectFieldsCacheKey(projectId) {
     return `${PROJECT_FIELDS_CACHE_PREFIX}:${projectId}`;
 }
 
+function readCachedProjectFields(projectId) {
+    if (!projectId) return null;
+    try {
+        const raw = localStorage.getItem(projectFieldsCacheKey(projectId));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
 export function ProjectProvider({ children }) {
     const { user, mfaRequired, mfaResolved } = useAuth();
     const [projects, setProjects] = useState([]);
@@ -179,6 +191,7 @@ export function ProjectProvider({ children }) {
     const fetchProjectFields = useCallback(async (projectId) => {
         if (!projectId) {
             setProjectFields([]);
+            setLoadingFields(false);
             setFieldsResolvedProjectId(null);
             return;
         }
@@ -187,9 +200,16 @@ export function ProjectProvider({ children }) {
         // These keys are already rendered as hardcoded table columns everywhere —
         // keep them out of projectFields so they don't appear twice.
         // Reset state immediately for the new project to prevent stale fields from previous project
-        setProjectFields([]);
+        const cachedFields = readCachedProjectFields(projectId);
+        const isSameProjectRefresh = fieldsResolvedProjectId === projectId;
+        if (cachedFields) {
+            setProjectFields(cachedFields);
+            setFieldsResolvedProjectId(projectId);
+        } else if (!isSameProjectRefresh) {
+            setProjectFields([]);
+            setFieldsResolvedProjectId(null);
+        }
         setLoadingFields(true);
-        setFieldsResolvedProjectId(null);
         try {
             const { data, error } = await supabase
                 .from('project_fields')
@@ -205,14 +225,10 @@ export function ProjectProvider({ children }) {
             }
         } catch (err) {
             console.error("Error loading project fields:", err);
-            try {
-                const cached = localStorage.getItem(projectFieldsCacheKey(projectId));
-                if (cached) {
-                    setProjectFields(JSON.parse(cached));
-                } else {
-                    setProjectFields([]);
-                }
-            } catch {
+            if (cachedFields) {
+                setProjectFields(cachedFields);
+                setFieldsResolvedProjectId(projectId);
+            } else if (!isSameProjectRefresh) {
                 setProjectFields([]);
             }
         } finally {
@@ -222,7 +238,7 @@ export function ProjectProvider({ children }) {
             setLoadingFields(false);
             setFieldsResolvedProjectId(projectId);
         }
-    }, []);
+    }, [fieldsResolvedProjectId]);
 
     // ─── Fetch project members ───
     const fetchProjectMembers = useCallback(async (projectId) => {
