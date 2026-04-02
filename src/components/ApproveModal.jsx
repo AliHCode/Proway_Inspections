@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
-import { X, Upload, Brush, Send, Camera, MapPin } from 'lucide-react';
+import { X, Upload, Brush, Send, Camera, MapPin, RefreshCw } from 'lucide-react';
 import FieldMarkupStudio from './FieldMarkupStudio';
 
 function StatusBadgeStrip({ mode }) {
@@ -51,6 +51,7 @@ export default function ApproveModal({ rfi, onApprove, onClose, contractors = []
     const [files, setFiles] = useState([]);
     const [markupIndex, setMarkupIndex] = useState(null);
     const [isDragOver, setIsDragOver] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef(null);
 
     const mergedData = useMemo(() => {
@@ -68,10 +69,17 @@ export default function ApproveModal({ rfi, onApprove, onClose, contractors = []
         const mention = `@${toMentionKey(name)}`;
         setRemarks(prev => (prev.trim().length ? `${prev} ${mention}` : mention));
     }
-    function handleSubmit(e) {
+    async function handleSubmit(e) {
         e?.preventDefault();
-        onApprove(rfi.id, remarks.trim(), files, mode === 'conditional' ? 'conditional_approve' : 'approved', null);
-        onClose();
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+
+        try {
+            await onApprove(rfi.id, remarks.trim(), files, mode === 'conditional' ? 'conditional_approve' : 'approved', null);
+            onClose();
+        } finally {
+            setIsSubmitting(false);
+        }
     }
     function getPreviewUrl(file) { return typeof file === 'string' ? file : URL.createObjectURL(file); }
     function removeFile(index) { setFiles(prev => prev.filter((_, i) => i !== index)); }
@@ -88,7 +96,7 @@ export default function ApproveModal({ rfi, onApprove, onClose, contractors = []
     const canSubmit = isConditional ? remarks.trim().length > 0 : true;
 
     return (
-        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
+        <div className="modal-overlay" onClick={() => { if (!isSubmitting) onClose(); }} style={{ zIndex: 1100 }}>
             <div
                 className="modal-content review-action-modal"
                 onClick={e => e.stopPropagation()}
@@ -105,7 +113,7 @@ export default function ApproveModal({ rfi, onApprove, onClose, contractors = []
                             {mergedData.location && <><span className="ram-dot">·</span><MapPin size={12} />{mergedData.location}</>}
                         </div>
                     </div>
-                    <button className="ram-close" onClick={onClose}><X size={18} /></button>
+                    <button className="ram-close" onClick={onClose} disabled={isSubmitting}><X size={18} /></button>
                 </div>
 
                 {/* ── Body ───────────────────────────────────────────────── */}
@@ -136,7 +144,7 @@ export default function ApproveModal({ rfi, onApprove, onClose, contractors = []
                         {contractors.length > 0 && (
                             <div className="ram-mentions">
                                 {contractors.slice(0, 10).map(c => (
-                                    <button key={c.id} type="button" className="ram-mention-chip" onClick={() => appendMention(c.name)}>
+                            <button key={c.id} type="button" className="ram-mention-chip" onClick={() => appendMention(c.name)} disabled={isSubmitting}>
                                         @{toMentionKey(c.name)}
                                     </button>
                                 ))}
@@ -149,16 +157,16 @@ export default function ApproveModal({ rfi, onApprove, onClose, contractors = []
                         <SectionLabel right={<button type="button" className="ram-add-photo-btn" onClick={() => fileInputRef.current?.click()}><Camera size={14} /> Add Photos</button>}>
                             Evidence Photos (Optional)
                         </SectionLabel>
-                        <input ref={fileInputRef} type="file" multiple accept="image/*,application/pdf" style={{ display: 'none' }}
+                        <input ref={fileInputRef} type="file" multiple accept="image/*,application/pdf" style={{ display: 'none' }} disabled={isSubmitting}
                             onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
 
                         {files.length === 0 ? (
                             <div
                                 className={`ram-dropzone ${isDragOver ? 'drag-over' : ''}`}
-                                onClick={() => fileInputRef.current?.click()}
-                                onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
+                                onClick={() => { if (!isSubmitting) fileInputRef.current?.click(); }}
+                                onDragOver={e => { if (isSubmitting) return; e.preventDefault(); setIsDragOver(true); }}
                                 onDragLeave={() => setIsDragOver(false)}
-                                onDrop={e => { e.preventDefault(); setIsDragOver(false); addFiles(e.dataTransfer.files); }}
+                                onDrop={e => { if (isSubmitting) return; e.preventDefault(); setIsDragOver(false); addFiles(e.dataTransfer.files); }}
                             >
                                 <div className="ram-dropzone-icon"><Upload size={22} /></div>
                                 <p className="ram-dropzone-title">Drag and drop files here</p>
@@ -170,12 +178,12 @@ export default function ApproveModal({ rfi, onApprove, onClose, contractors = []
                                     <div key={idx} className="ram-thumb-wrap">
                                         <img src={getPreviewUrl(file)} alt={`Evidence ${idx + 1}`} className="ram-thumb" />
                                         <div className="ram-thumb-overlay">
-                                            <button type="button" className="ram-thumb-btn" onClick={() => setMarkupIndex(idx)}><Brush size={13} /></button>
-                                            <button type="button" className="ram-thumb-btn ram-thumb-del" onClick={() => removeFile(idx)}><X size={13} /></button>
+                                            <button type="button" className="ram-thumb-btn" onClick={() => setMarkupIndex(idx)} disabled={isSubmitting}><Brush size={13} /></button>
+                                            <button type="button" className="ram-thumb-btn ram-thumb-del" onClick={() => removeFile(idx)} disabled={isSubmitting}><X size={13} /></button>
                                         </div>
                                     </div>
                                 ))}
-                                <div className="ram-thumb-add" onClick={() => fileInputRef.current?.click()}><Upload size={18} /></div>
+                                <div className="ram-thumb-add" onClick={() => { if (!isSubmitting) fileInputRef.current?.click(); }}><Upload size={18} /></div>
                             </div>
                         )}
                     </div>
@@ -183,15 +191,15 @@ export default function ApproveModal({ rfi, onApprove, onClose, contractors = []
 
                 {/* ── Footer ─────────────────────────────────────────────── */}
                 <div className="ram-footer">
-                    <button type="button" className="ram-btn-ghost" onClick={onClose}>Keep Pending</button>
+                    <button type="button" className="ram-btn-ghost" onClick={onClose} disabled={isSubmitting}>Keep Pending</button>
                     <button
                         type="button"
                         className="ram-btn-primary"
                         style={{ background: accentColor, opacity: (isConditional && !remarks.trim()) ? 0.5 : 1, cursor: (isConditional && !remarks.trim()) ? 'not-allowed' : 'pointer' }}
-                        disabled={!canSubmit}
+                        disabled={!canSubmit || isSubmitting}
                         onClick={handleSubmit}
                     >
-                        <Send size={15} /> {confirmLabel}
+                        {isSubmitting ? <RefreshCw size={15} className="spin-slow" /> : <Send size={15} />} {isSubmitting ? 'Submitting...' : confirmLabel}
                     </button>
                 </div>
             </div>

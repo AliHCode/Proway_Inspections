@@ -35,6 +35,7 @@ export default function ReviewQueue() {
     const [sheetAssignedTo, setSheetAssignedTo] = useState('');
     const [sheetMarkupIndex, setSheetMarkupIndex] = useState(null);
     const [sheetError, setSheetError] = useState('');
+    const [sheetSubmitting, setSheetSubmitting] = useState(false);
     const [filterOptions, setFilterOptions] = useState({
         status: 'all', // all, to_review, approved, conditional, rejected
         showOnlyMe: false
@@ -321,6 +322,12 @@ export default function ReviewQueue() {
     useEffect(() => {
         setFilterPopoverOpen(false);
     }, [location.pathname]);
+
+    useEffect(() => {
+        if (!actionSheetTarget) {
+            setSheetSubmitting(false);
+        }
+    }, [actionSheetTarget]);
 
     const shouldShowTable = Boolean(activeProject?.id && readyTableProjectId === activeProject.id);
 
@@ -1147,7 +1154,7 @@ export default function ReviewQueue() {
             {/* Bottom Action Sheet (RFI Decision Center) */}
             <div 
                 className={`action-sheet-overlay ${actionSheetTarget ? 'open' : ''}`}
-                onClick={() => setActionSheetTarget(null)}
+                onClick={() => { if (!sheetSubmitting) setActionSheetTarget(null); }}
             />
             {actionSheetTarget && (
                 <div className={`action-sheet-panel ${actionSheetStep !== 'menu' ? 'expanded' : ''}`}>
@@ -1156,7 +1163,7 @@ export default function ReviewQueue() {
                     <div className="action-sheet-header">
                         <div style={{ display: 'flex', alignItems: 'center', marginBottom: actionSheetStep === 'menu' ? '4px' : '15px' }}>
                             {actionSheetStep !== 'menu' && (
-                                <button className="sheet-back-btn" onClick={() => setActionSheetStep('menu')}>
+                                <button className="sheet-back-btn" onClick={() => setActionSheetStep('menu')} disabled={sheetSubmitting}>
                                     <ArrowLeft size={20} />
                                 </button>
                             )}
@@ -1328,7 +1335,9 @@ export default function ReviewQueue() {
                                 <div className="action-sheet-footer">
                                     <button 
                                         className={`sheet-submit-btn ${actionSheetStep}`}
+                                        disabled={sheetSubmitting}
                                         onClick={async () => {
+                                            if (sheetSubmitting) return;
                                             const isConditional = actionSheetStep === 'approve' && approveMode === 'conditional';
                                             const isReject = actionSheetStep === 'reject';
                                             const isCancel = actionSheetStep === 'cancel';
@@ -1338,17 +1347,22 @@ export default function ReviewQueue() {
                                                 return;
                                             }
 
-                                            if (actionSheetStep === 'approve') {
-                                                await approveRFI(actionSheetTarget.id, user.id, sheetRemarks.trim(), sheetFiles, null, sheetIsFinal, approveMode);
-                                            } else if (isReject) {
-                                                await rejectRFI(actionSheetTarget.id, user.id, sheetRemarks.trim(), sheetFiles, null, sheetIsFinal);
-                                            } else if (isCancel) {
-                                                await cancelRFI(actionSheetTarget.id, user.id, sheetRemarks.trim(), null, sheetIsFinal);
+                                            setSheetSubmitting(true);
+                                            try {
+                                                if (actionSheetStep === 'approve') {
+                                                    await approveRFI(actionSheetTarget.id, user.id, sheetRemarks.trim(), sheetFiles, null, sheetIsFinal, approveMode);
+                                                } else if (isReject) {
+                                                    await rejectRFI(actionSheetTarget.id, user.id, sheetRemarks.trim(), sheetFiles, null, sheetIsFinal);
+                                                } else if (isCancel) {
+                                                    await cancelRFI(actionSheetTarget.id, user.id, sheetRemarks.trim(), null, sheetIsFinal);
+                                                }
+                                                setActionSheetTarget(null);
+                                            } finally {
+                                                setSheetSubmitting(false);
                                             }
-                                            setActionSheetTarget(null);
                                         }}
                                     >
-                                        <Send size={16} /> Confirm {actionSheetStep === 'approve' ? 'Approval' : actionSheetStep === 'reject' ? 'Rejection' : 'Cancellation'}
+                                        {sheetSubmitting ? <RefreshCw size={16} className="spin-slow" /> : <Send size={16} />} {sheetSubmitting ? 'Submitting...' : `Confirm ${actionSheetStep === 'approve' ? 'Approval' : actionSheetStep === 'reject' ? 'Rejection' : 'Cancellation'}`}
                                     </button>
                                 </div>
                             </div>
