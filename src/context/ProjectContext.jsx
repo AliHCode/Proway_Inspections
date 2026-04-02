@@ -16,7 +16,7 @@ function projectFieldsCacheKey(projectId) {
 }
 
 export function ProjectProvider({ children }) {
-    const { user } = useAuth();
+    const { user, mfaRequired, mfaResolved } = useAuth();
     const [projects, setProjects] = useState([]);
     const [activeProject, setActiveProject] = useState(null);
     const [loadingProjects, setLoadingProjects] = useState(true);
@@ -145,7 +145,7 @@ export function ProjectProvider({ children }) {
     const lastProjectUserId = useRef(null);
 
     useEffect(() => {
-        if (!user) {
+        if (!user || !mfaResolved || mfaRequired) {
             lastProjectUserId.current = null;
             setProjects([]);
             setActiveProject(null);
@@ -173,7 +173,7 @@ export function ProjectProvider({ children }) {
             setProjectsResolved(true);
         }
         fetchProjects();
-    }, [user, fetchProjects, restoreProjectCache]);
+    }, [user, mfaRequired, mfaResolved, fetchProjects, restoreProjectCache]);
 
     // ─── Fetch project fields when active project changes ───
     const fetchProjectFields = useCallback(async (projectId) => {

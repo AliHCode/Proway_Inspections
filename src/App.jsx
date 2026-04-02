@@ -33,9 +33,10 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 
 function ProtectedRoute({ children, allowedRoles }) {
-    const { user, authResolved } = useAuth();
-    if (!authResolved) return <LoadingSpinner />;
+    const { user, authResolved, mfaResolved, mfaRequired } = useAuth();
+    if (!authResolved || !mfaResolved) return <LoadingSpinner />;
     if (!user) return <Navigate to="/" replace />;
+    if (mfaRequired) return <Navigate to="/" replace />;
     if (allowedRoles && !allowedRoles.includes(user.role)) {
         const home = user.role === 'admin' ? '/admin' : user.role === 'contractor' ? '/contractor' : user.role === 'consultant' ? '/consultant' : '/';
         return <Navigate to={home} replace />;
@@ -44,11 +45,12 @@ function ProtectedRoute({ children, allowedRoles }) {
 }
 
 function ContractorLeadRoute({ children }) {
-    const { user, authResolved } = useAuth();
+    const { user, authResolved, mfaResolved, mfaRequired } = useAuth();
     const { contractorPermissions, projectsResolved } = useProject();
 
-    if (!authResolved || !projectsResolved) return <LoadingSpinner />;
+    if (!authResolved || !mfaResolved || !projectsResolved) return <LoadingSpinner />;
     if (!user) return <Navigate to="/" replace />;
+    if (mfaRequired) return <Navigate to="/" replace />;
     if (user.role !== 'contractor') return <Navigate to="/" replace />;
     if (!contractorPermissions?.canManageContractorPermissions) {
         return <Navigate to="/contractor" replace />;
@@ -57,13 +59,14 @@ function ContractorLeadRoute({ children }) {
 }
 
 function AppRoutes() {
-    const { user, authResolved } = useAuth();
+    const { user, authResolved, mfaResolved, mfaRequired } = useAuth();
     const { projects, projectsResolved } = useProject();
-    if (!authResolved || !projectsResolved) return <LoadingSpinner />;
+    if (!authResolved || !mfaResolved || !projectsResolved) return <LoadingSpinner />;
 
     return (
         <Routes>
             <Route path="/" element={user ? (
+                mfaRequired ? <LoginPage /> :
                 user.role === 'pending' || user.role === 'rejected' ? <PendingApproval /> :
                 <Navigate to={user.role === 'admin' ? '/admin' : user.role === 'contractor' ? '/contractor' : '/consultant'} replace />
             ) : <LoginPage />} />

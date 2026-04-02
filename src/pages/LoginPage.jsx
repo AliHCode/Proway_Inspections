@@ -4,10 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { USER_ROLES } from '../utils/constants';
 import { Eye, EyeOff, Clock, Shield, Lock, User, Mail, Building, ChevronRight } from 'lucide-react';
 import MFALoginChallenge from '../components/MFALoginChallenge';
-import { supabase } from '../utils/supabaseClient';
 
 export default function LoginPage() {
-    const { user, login, register, logout } = useAuth();
+    const { user, login, register, logout, mfaRequired, mfaChallengeFactor } = useAuth();
     const navigate = useNavigate();
     const [isRegister, setIsRegister] = useState(false);
     const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', company: '' });
@@ -15,7 +14,6 @@ export default function LoginPage() {
     const [successMessage, setSuccessMessage] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [mfaChallengeFactor, setMfaChallengeFactor] = useState(null);
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -46,19 +44,6 @@ export default function LoginPage() {
                 }
                 const result = await login(form.email, form.password);
                 if (result.success) {
-                    // Check if MFA is required
-                    const { data: { next, current }, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-                    
-                    if (!aalError && next === 'aal2' && current !== 'aal2') {
-                        // User has MFA enabled, need to challenge
-                        const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
-                        if (!factorsError && factors.all.length > 0) {
-                            setMfaChallengeFactor(factors.all[0]);
-                            setLoading(false);
-                            return;
-                        }
-                    }
-
                     setTimeout(() => {
                         navigate('/');
                     }, 500);
@@ -74,6 +59,32 @@ export default function LoginPage() {
     function handleChange(field, value) {
         setForm((prev) => ({ ...prev, [field]: value }));
         setError('');
+    }
+
+    if (user && mfaRequired && mfaChallengeFactor) {
+        return (
+            <div className="auth-container">
+                <div className="auth-form-section">
+                    <div className="auth-logo-top">
+                        <img src="/dashboardlogo.png" alt="ClearLine Logo" />
+                    </div>
+
+                    <div className="auth-form-wrapper">
+                        <MFALoginChallenge 
+                            factor={mfaChallengeFactor} 
+                            onVerify={() => navigate('/')} 
+                            onCancel={logout} 
+                        />
+                    </div>
+                </div>
+
+                <div className="auth-branding-section">
+                    <video autoPlay loop muted playsInline className="auth-branding-video">
+                        <source src="/authpage.mp4" type="video/mp4" />
+                    </video>
+                </div>
+            </div>
+        );
     }
 
     if (user && user.role === USER_ROLES.PENDING) {
@@ -177,14 +188,7 @@ export default function LoginPage() {
                     </div>
 
 
-                    {mfaChallengeFactor ? (
-                        <MFALoginChallenge 
-                            factor={mfaChallengeFactor} 
-                            onVerify={() => navigate('/')} 
-                            onCancel={() => setMfaChallengeFactor(null)} 
-                        />
-                    ) : (
-                        <form onSubmit={handleSubmit} className="auth-form-premium">
+                    <form onSubmit={handleSubmit} className="auth-form-premium">
                             {isRegister && (
                                 <>
                                     <div className="auth-form-grid">
@@ -324,8 +328,7 @@ export default function LoginPage() {
                                 )}
                             </div>
 
-                        </form>
-                    )}
+                    </form>
                 </div>
             </div>
 

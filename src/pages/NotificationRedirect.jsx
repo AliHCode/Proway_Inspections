@@ -4,14 +4,18 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { getNotificationDestinationForRole } from '../utils/notificationLinks';
 
 export default function NotificationRedirect() {
-    const { user, loading } = useAuth();
+    const { user, loading, mfaResolved, mfaRequired } = useAuth();
     const location = useLocation();
 
-    if (loading) {
+    if (loading || !mfaResolved) {
         return <LoadingSpinner message="Opening notification..." />;
     }
 
     if (!user) {
+        return <Navigate to="/" replace />;
+    }
+
+    if (mfaRequired) {
         return <Navigate to="/" replace />;
     }
 

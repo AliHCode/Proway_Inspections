@@ -164,7 +164,7 @@ function canUserDiscussRfiRecord(rfi, user, activeProject, activeProjectMembersh
 
 export function RFIProvider({ children }) {
     const { activeProject, projects, activeProjectMembership, contractorPermissions, checkProjectAccess } = useProject();
-    const { user } = useAuth();
+    const { user, mfaRequired, mfaResolved } = useAuth();
     const [rfis, setRfis] = useState([]);
     const [loadingRfis, setLoadingRfis] = useState(true);
     const [loadingAction, setLoadingAction] = useState(false);
@@ -207,6 +207,17 @@ export function RFIProvider({ children }) {
     const userMapRef = useRef({});
     // Tracks whether the Realtime WebSocket is currently connected
     const realtimeConnectedRef = useRef(false);
+
+    useEffect(() => {
+        if (!user || !mfaResolved || mfaRequired) {
+            setRfis([]);
+            setNotifications([]);
+            setConsultants([]);
+            setContractors([]);
+            setLoadingRfis(false);
+            setPendingSyncCount(0);
+        }
+    }, [user, mfaRequired, mfaResolved]);
 
     
     // Derived filtered notifications
@@ -325,6 +336,12 @@ export function RFIProvider({ children }) {
     }, [uploadImages]);
 
     const fetchAllRFIs = useCallback(async () => {
+        if (!user?.id || !mfaResolved || mfaRequired) {
+            setRfis([]);
+            setLoadingRfis(false);
+            return;
+        }
+
         if (!activeProject?.id) {
             setRfis([]);
             setLoadingRfis(false);
@@ -406,10 +423,10 @@ export function RFIProvider({ children }) {
         }
 
         performFetch();
-    }, [activeProject, checkProjectAccess, persistRfiCache, restoreRfiCache]);
+    }, [activeProject, checkProjectAccess, persistRfiCache, restoreRfiCache, user?.id, mfaRequired, mfaResolved]);
 
     const fetchNotifications = useCallback(async () => {
-        if (!user?.id) {
+        if (!user?.id || !mfaResolved || mfaRequired) {
             setNotifications([]);
             return;
         }
@@ -466,7 +483,7 @@ export function RFIProvider({ children }) {
                 fetchingNotifsRef.current = null;
             }
         }
-    }, [user, projects]);
+    }, [user, projects, mfaRequired, mfaResolved]);
 
     // Fetch consultants/contractors scoped to the active project's members only
     const fetchConsultants = useCallback(async (projectId) => {
@@ -570,7 +587,7 @@ export function RFIProvider({ children }) {
 
 
     useEffect(() => {
-        if (!user) return;
+        if (!user || !mfaResolved || mfaRequired) return;
 
         // Only sync push subscription if we have a valid Supabase session.
         // The user state may have been restored from cache before the session
@@ -582,9 +599,13 @@ export function RFIProvider({ children }) {
                 });
             }
         });
-    }, [user]);
+    }, [user, mfaRequired, mfaResolved]);
 
     useEffect(() => {
+        if (!mfaResolved || mfaRequired) {
+            return undefined;
+        }
+
         fetchAllRFIs();
         fetchConsultants(activeProject?.id);
         fetchContractors(activeProject?.id);
@@ -736,6 +757,8 @@ export function RFIProvider({ children }) {
         fetchNotifications,
         refreshPendingSyncCount,
         user,
+        mfaRequired,
+        mfaResolved,
     ]);
 
     // Format for DB insertion (camelCase -> snake_case)
