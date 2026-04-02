@@ -13831,6 +13831,90 @@ body,
   width: 100%;
 }
 
+.rfi-archive-bulk-upload-modal {
+  width: min(860px, 100%);
+  gap: 0.9rem;
+}
+
+.rfi-archive-bulk-upload-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.rfi-archive-bulk-upload-summary span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 0.8rem;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.rfi-archive-bulk-upload-list {
+  display: grid;
+  gap: 0.7rem;
+  max-height: min(52vh, 520px);
+  overflow-y: auto;
+  padding-right: 0.15rem;
+}
+
+.rfi-archive-bulk-upload-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: center;
+  padding: 0.9rem 0.95rem;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.rfi-archive-bulk-upload-row.matched {
+  border-color: rgba(34, 197, 94, 0.22);
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.06), #ffffff);
+}
+
+.rfi-archive-bulk-upload-row.unmatched,
+.rfi-archive-bulk-upload-row.ambiguous {
+  background: #f8fafc;
+}
+
+.rfi-archive-bulk-upload-copy,
+.rfi-archive-bulk-upload-result {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.rfi-archive-bulk-upload-copy strong,
+.rfi-archive-bulk-upload-result strong {
+  color: #0f172a;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.rfi-archive-bulk-upload-copy span,
+.rfi-archive-bulk-upload-result span {
+  color: #64748b;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.rfi-archive-bulk-upload-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
 @media (max-width: 1200px) {
   .rfi-archive-card-grid {
     grid-template-columns: 1fr;
@@ -13852,6 +13936,15 @@ body,
     width: 100%;
     border-radius: 22px 22px 0 0;
     padding: 1rem 1rem 1.15rem;
+  }
+
+  .rfi-archive-bulk-upload-row {
+    grid-template-columns: 1fr;
+  }
+
+  .rfi-archive-bulk-upload-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 

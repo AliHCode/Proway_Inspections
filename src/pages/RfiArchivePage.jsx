@@ -17,7 +17,12 @@ import {
     uploadRfiScannedDocument,
 } from '../utils/rfiScannedDocs';
 
-const READY_STATUSES = new Set([RFI_STATUS.APPROVED, RFI_STATUS.CONDITIONAL_APPROVE]);
+const ARCHIVE_ELIGIBLE_STATUSES = new Set([
+    RFI_STATUS.APPROVED,
+    RFI_STATUS.CONDITIONAL_APPROVE,
+    RFI_STATUS.REJECTED,
+    RFI_STATUS.CANCELLED,
+]);
 let jsZipPromise;
 
 async function loadJsZip() {
@@ -67,6 +72,106 @@ function buildZipName(stem) {
     return `${sanitizeFileStem(stem)}.zip`;
 }
 
+function normalizeArchiveMatchKey(value) {
+    return String(value || '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '');
+}
+
+function getFileStem(fileName = '') {
+    return String(fileName).replace(/\.[^.]+$/, '');
+}
+
+function buildBulkUploadDraft(files, rfis, archiveByRfi) {
+    const matchers = (rfis || [])
+        .map((rfi) => ({
+            rfiId: rfi.id,
+            rfiLabel: getRfiLabel(rfi),
+            normalizedLabel: normalizeArchiveMatchKey(getRfiLabel(rfi)),
+        }))
+        .filter((item) => item.normalizedLabel)
+        .sort((a, b) => b.normalizedLabel.length - a.normalizedLabel.length);
+
+    const initialRows = files.map((file) => {
+        const normalizedStem = normalizeArchiveMatchKey(getFileStem(file.name));
+        const exactMatches = matchers.filter((item) => normalizedStem.includes(item.normalizedLabel));
+        const sameLengthMatches = exactMatches.filter((item) => item.normalizedLabel.length === (exactMatches[0]?.normalizedLabel.length || 0));
+        const uniqueMatches = sameLengthMatches.filter((item, index, array) => (
+            array.findIndex((candidate) => candidate.rfiId === item.rfiId) === index
+        ));
+
+        if (!normalizedStem) {
+            return {
+                id: `${file.name}-${file.lastModified}`,
+                file,
+                status: 'unmatched',
+                reason: 'Filename is empty or unsupported.',
+                matchedRfiId: '',
+                matchedRfiLabel: '',
+                uploadFileName: '',
+            };
+        }
+
+        if (uniqueMatches.length === 0) {
+            return {
+                id: `${file.name}-${file.lastModified}`,
+                file,
+                status: 'unmatched',
+                reason: 'No RFI number was found in the filename.',
+                matchedRfiId: '',
+                matchedRfiLabel: '',
+                uploadFileName: '',
+            };
+        }
+
+        if (uniqueMatches.length > 1) {
+            return {
+                id: `${file.name}-${file.lastModified}`,
+                file,
+                status: 'ambiguous',
+                reason: `Filename matches multiple RFIs: ${uniqueMatches.map((item) => item.rfiLabel).join(', ')}`,
+                matchedRfiId: '',
+                matchedRfiLabel: '',
+                uploadFileName: '',
+            };
+        }
+
+        return {
+            id: `${file.name}-${file.lastModified}`,
+            file,
+            status: 'matched',
+            reason: '',
+            matchedRfiId: uniqueMatches[0].rfiId,
+            matchedRfiLabel: uniqueMatches[0].rfiLabel,
+            uploadFileName: '',
+        };
+    });
+
+    const groupedCounts = initialRows.reduce((accumulator, row) => {
+        if (row.status !== 'matched' || !row.matchedRfiId) return accumulator;
+        accumulator[row.matchedRfiId] = (accumulator[row.matchedRfiId] || 0) + 1;
+        return accumulator;
+    }, {});
+
+    const nextPerRfiIndex = {};
+
+    return initialRows.map((row) => {
+        if (row.status !== 'matched' || !row.matchedRfiId) return row;
+
+        nextPerRfiIndex[row.matchedRfiId] = (nextPerRfiIndex[row.matchedRfiId] || 0) + 1;
+        const existingCount = archiveByRfi[row.matchedRfiId]?.count || 0;
+        const incomingCount = groupedCounts[row.matchedRfiId] || 0;
+        const sequence = nextPerRfiIndex[row.matchedRfiId];
+        const shouldUseBaseName = existingCount === 0 && incomingCount === 1;
+        const suffix = shouldUseBaseName ? '' : `-${existingCount + sequence}`;
+
+        return {
+            ...row,
+            uploadFileName: buildPdfName(row.matchedRfiLabel, suffix),
+        };
+    });
+}
+
 function extractSortValue(label) {
     const matches = String(label || '').match(/\d+/g);
     if (!matches) return Number.MAX_SAFE_INTEGER;
@@ -98,6 +203,9 @@ export default function RfiArchivePage() {
     const [uploading, setUploading] = useState(false);
     const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
     const [bulkDownloading, setBulkDownloading] = useState(false);
+    const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
+    const [bulkUploadDraft, setBulkUploadDraft] = useState([]);
+    const [bulkUploadSubmitting, setBulkUploadSubmitting] = useState(false);
     const [previewingRfiId, setPreviewingRfiId] = useState('');
     const [downloadingRfiId, setDownloadingRfiId] = useState('');
     const [removingRfiId, setRemovingRfiId] = useState('');
@@ -109,14 +217,13 @@ export default function RfiArchivePage() {
         rfis.filter((rfi) => !rfis.some((child) => child.parentId === rfi.id))
     ), [rfis]);
 
-    const visibleRfis = useMemo(() => {
-        const base = latestRfis.filter((rfi) => READY_STATUSES.has(rfi.status));
+    const archiveEligibleRfis = useMemo(() => {
+        const base = latestRfis.filter((rfi) => ARCHIVE_ELIGIBLE_STATUSES.has(rfi.status));
         const scoped = user?.role === 'consultant' || user?.role === 'admin' || user?.role === 'contractor'
             ? base
             : [];
-
         const term = search.trim().toLowerCase();
-        const filtered = term
+        return term
             ? scoped.filter((rfi) => {
                 const rfiNo = getRfiLabel(rfi).toLowerCase();
                 const description = String(rfi.description || '').toLowerCase();
@@ -124,23 +231,7 @@ export default function RfiArchivePage() {
                 return rfiNo.includes(term) || description.includes(term) || location.includes(term);
             })
             : scoped;
-
-        return filtered.sort((a, b) => {
-            const aTime = new Date(a.reviewedAt || a.filedDate).getTime();
-            const bTime = new Date(b.reviewedAt || b.filedDate).getTime();
-            return bTime - aTime;
-        });
     }, [latestRfis, search, user?.role]);
-
-    const selectedRfi = useMemo(() => (
-        visibleRfis.find((rfi) => rfi.id === selectedRfiId) || visibleRfis[0] || null
-    ), [selectedRfiId, visibleRfis]);
-
-    const rfiRangeOptions = useMemo(() => (
-        visibleRfis
-            .map((rfi) => ({ id: rfi.id, label: getRfiLabel(rfi), sortValue: extractSortValue(getRfiLabel(rfi)) }))
-            .sort((a, b) => a.sortValue - b.sortValue || a.label.localeCompare(b.label))
-    ), [visibleRfis]);
 
     const archiveByRfi = useMemo(() => {
         const next = {};
@@ -153,6 +244,28 @@ export default function RfiArchivePage() {
         }
         return next;
     }, [archiveRows]);
+
+    const visibleRfis = useMemo(() => {
+        const roleScoped = user?.role === 'consultant'
+            ? archiveEligibleRfis.filter((rfi) => (archiveByRfi[rfi.id]?.count || 0) > 0)
+            : archiveEligibleRfis;
+
+        return roleScoped.sort((a, b) => {
+            const aTime = new Date(a.reviewedAt || a.filedDate).getTime();
+            const bTime = new Date(b.reviewedAt || b.filedDate).getTime();
+            return bTime - aTime;
+        });
+    }, [archiveByRfi, archiveEligibleRfis, user?.role]);
+
+    const selectedRfi = useMemo(() => (
+        visibleRfis.find((rfi) => rfi.id === selectedRfiId) || visibleRfis[0] || null
+    ), [selectedRfiId, visibleRfis]);
+
+    const rfiRangeOptions = useMemo(() => (
+        visibleRfis
+            .map((rfi) => ({ id: rfi.id, label: getRfiLabel(rfi), sortValue: extractSortValue(getRfiLabel(rfi)) }))
+            .sort((a, b) => a.sortValue - b.sortValue || a.label.localeCompare(b.label))
+    ), [visibleRfis]);
 
     useEffect(() => {
         if (!selectedRfi && selectedRfiId) {
@@ -186,14 +299,14 @@ export default function RfiArchivePage() {
         let isActive = true;
 
         async function loadArchiveRows() {
-            if (visibleRfis.length === 0) {
+            if (archiveEligibleRfis.length === 0) {
                 setArchiveRows([]);
                 return;
             }
 
             setLoadingArchive(true);
             try {
-                const rows = await listRfiScannedDocumentsForRfis(visibleRfis.map((rfi) => rfi.id));
+                const rows = await listRfiScannedDocumentsForRfis(archiveEligibleRfis.map((rfi) => rfi.id));
                 if (!isActive) return;
                 setArchiveRows(rows);
             } catch (error) {
@@ -209,10 +322,20 @@ export default function RfiArchivePage() {
         return () => {
             isActive = false;
         };
-    }, [docsReloadKey, visibleRfis]);
+    }, [archiveEligibleRfis, docsReloadKey]);
 
     const canUploadForRfi = (rfi) => Boolean(
         rfi && (
+            user?.role === 'admin'
+            || (
+                user?.role === 'contractor'
+                && contractorPermissions.canUploadRfiArchive
+            )
+        )
+    );
+
+    const canBulkUpload = Boolean(
+        activeProject?.id && (
             user?.role === 'admin'
             || (
                 user?.role === 'contractor'
@@ -257,6 +380,59 @@ export default function RfiArchivePage() {
             toast.error(error.message || 'Upload failed.');
         } finally {
             setUploading(false);
+        }
+    };
+
+    const handleBulkFilePick = (event) => {
+        const files = Array.from(event.target.files || []).filter((file) => (
+            file.type.includes('pdf') || /\.pdf$/i.test(file.name)
+        ));
+
+        event.target.value = '';
+
+        if (files.length === 0) {
+            toast.error('Pick one or more PDF files.');
+            return;
+        }
+
+        const nextDraft = buildBulkUploadDraft(files, archiveEligibleRfis, archiveByRfi);
+        setBulkUploadDraft(nextDraft);
+        setBulkUploadOpen(true);
+    };
+
+    const handleBulkUpload = async () => {
+        if (!activeProject?.id || !user?.id) return;
+
+        const matchedRows = bulkUploadDraft.filter((row) => row.status === 'matched' && row.matchedRfiId);
+        if (matchedRows.length === 0) {
+            toast.error('No matched PDFs are ready to upload.');
+            return;
+        }
+
+        setBulkUploadSubmitting(true);
+        try {
+            for (const row of matchedRows) {
+                await uploadRfiScannedDocument(
+                    row.matchedRfiId,
+                    row.file,
+                    activeProject.id,
+                    user.id,
+                    row.uploadFileName || row.file.name,
+                );
+            }
+
+            const skippedCount = bulkUploadDraft.length - matchedRows.length;
+            toast.success(
+                `${matchedRows.length} PDF${matchedRows.length === 1 ? '' : 's'} uploaded${skippedCount > 0 ? `, ${skippedCount} skipped` : ''}`,
+            );
+            setBulkUploadDraft([]);
+            setBulkUploadOpen(false);
+            setDocsReloadKey((value) => value + 1);
+        } catch (error) {
+            console.error('Failed to bulk upload scanned documents:', error);
+            toast.error(error.message || 'Bulk upload failed.');
+        } finally {
+            setBulkUploadSubmitting(false);
         }
     };
 
@@ -398,12 +574,25 @@ export default function RfiArchivePage() {
                         <h1>RFI Archive</h1>
                     </div>
                     <div className="rfi-archive-topbar-meta">
+                        {canBulkUpload && (
+                            <label className="rfi-archive-pill rfi-archive-pill-action">
+                                <Upload size={15} />
+                                Bulk Upload
+                                <input
+                                    type="file"
+                                    accept="application/pdf,.pdf"
+                                    multiple
+                                    hidden
+                                    onChange={handleBulkFilePick}
+                                />
+                            </label>
+                        )}
                         <button type="button" className="rfi-archive-pill rfi-archive-pill-action" onClick={() => setBulkDialogOpen(true)}>
                             <Download size={15} />
                             Bulk Download
                         </button>
                         <span className="rfi-archive-pill">{activeProject?.name || 'No active project'}</span>
-                        <span className="rfi-archive-pill">{visibleRfis.length} ready RFIs</span>
+                        <span className="rfi-archive-pill">{visibleRfis.length} {user?.role === 'consultant' ? 'archived RFIs' : 'completed RFIs'}</span>
                     </div>
                 </section>
 
@@ -419,7 +608,7 @@ export default function RfiArchivePage() {
                     </div>
 
                     <div className="rfi-archive-rail-head">
-                        <strong>Ready RFIs</strong>
+                        <strong>{user?.role === 'consultant' ? 'Uploaded archives' : 'Completed RFIs'}</strong>
                         <span>{visibleRfis.length}</span>
                     </div>
 
@@ -429,7 +618,9 @@ export default function RfiArchivePage() {
                         </div>
                     ) : visibleRfis.length === 0 ? (
                         <div className="rfi-archive-empty compact">
-                            No approved RFIs are ready yet.
+                            {user?.role === 'consultant'
+                                ? 'No scanned archive files have been uploaded yet.'
+                                : 'No completed RFIs are available for archive yet.'}
                         </div>
                     ) : (
                         <div className="rfi-archive-card-grid">
@@ -603,6 +794,81 @@ export default function RfiArchivePage() {
                                 <span className="btn-progress-label">
                                     <span className="btn-progress-visible">{bulkDownloading ? '...' : 'Download Range'}</span>
                                     <span className="btn-progress-measure" aria-hidden="true">Download Range</span>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {bulkUploadOpen && (
+                <div className="rfi-archive-bulk-overlay" onClick={() => !bulkUploadSubmitting && setBulkUploadOpen(false)}>
+                    <div className="rfi-archive-bulk-modal rfi-archive-bulk-upload-modal" onClick={(event) => event.stopPropagation()}>
+                        <div className="rfi-archive-bulk-head">
+                            <div>
+                                <strong>Bulk Auto-Match Upload</strong>
+                                <span>Name each PDF with its RFI number and the system will place it in the correct archive automatically.</span>
+                            </div>
+                            <button type="button" className="rfi-archive-action-btn" onClick={() => setBulkUploadOpen(false)} disabled={bulkUploadSubmitting}>
+                                <X size={15} />
+                                Close
+                            </button>
+                        </div>
+
+                        <div className="rfi-archive-bulk-upload-summary">
+                            <span>{bulkUploadDraft.filter((row) => row.status === 'matched').length} matched</span>
+                            <span>{bulkUploadDraft.filter((row) => row.status === 'unmatched').length} unmatched</span>
+                            <span>{bulkUploadDraft.filter((row) => row.status === 'ambiguous').length} ambiguous</span>
+                        </div>
+
+                        <div className="rfi-archive-bulk-upload-list">
+                            {bulkUploadDraft.map((row) => (
+                                <div key={row.id} className={`rfi-archive-bulk-upload-row ${row.status}`}>
+                                    <div className="rfi-archive-bulk-upload-copy">
+                                        <strong>{row.file.name}</strong>
+                                        <span>{formatBytes(row.file.size)}</span>
+                                    </div>
+                                    <div className="rfi-archive-bulk-upload-result">
+                                        {row.status === 'matched' ? (
+                                            <>
+                                                <strong>{row.matchedRfiLabel}</strong>
+                                                <span>{row.uploadFileName}</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <strong>{row.status === 'ambiguous' ? 'Needs review' : 'No match found'}</strong>
+                                                <span>{row.reason}</span>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="rfi-archive-bulk-upload-actions">
+                            <label className="rfi-archive-action-btn">
+                                <Upload size={15} />
+                                Replace PDFs
+                                <input
+                                    type="file"
+                                    accept="application/pdf,.pdf"
+                                    multiple
+                                    hidden
+                                    onChange={handleBulkFilePick}
+                                />
+                            </label>
+                            <button
+                                type="button"
+                                className={`rfi-archive-action-btn primary btn-progress-static ${bulkUploadSubmitting ? 'is-loading' : ''}`}
+                                onClick={handleBulkUpload}
+                                disabled={bulkUploadSubmitting || bulkUploadDraft.every((row) => row.status !== 'matched')}
+                            >
+                                <span className="btn-progress-icon">
+                                    {bulkUploadSubmitting ? <RefreshCw size={15} className="spin-slow" /> : <Upload size={15} />}
+                                </span>
+                                <span className="btn-progress-label">
+                                    <span className="btn-progress-visible">{bulkUploadSubmitting ? '...' : 'Upload Matched'}</span>
+                                    <span className="btn-progress-measure" aria-hidden="true">Upload Matched</span>
                                 </span>
                             </button>
                         </div>
