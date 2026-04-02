@@ -171,6 +171,14 @@ export default function Header() {
         const EXPANDED_RELEASE_X = 310;
 
         const syncSidebarHoverRail = (event) => {
+            if (desktopOverlayActive) {
+                if (desktopSidebarShouldStayOpen) {
+                    desktopSidebarShouldStayOpen = false;
+                    setDesktopSidebarExpanded(false);
+                }
+                return;
+            }
+
             if (!desktopMedia.matches) {
                 if (desktopSidebarShouldStayOpen) {
                     desktopSidebarShouldStayOpen = false;
@@ -214,7 +222,13 @@ export default function Header() {
             window.removeEventListener('pointermove', syncSidebarHoverRail);
             desktopMedia.removeEventListener?.('change', handleMediaChange);
         };
-    }, []);
+    }, [desktopOverlayActive]);
+
+    useEffect(() => {
+        if (!desktopOverlayActive) return;
+        desktopSidebarShouldStayOpen = false;
+        setDesktopSidebarExpanded(false);
+    }, [desktopOverlayActive]);
 
     const handleEnableNotifications = async () => {
         if (typeof Notification === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -419,10 +433,12 @@ export default function Header() {
                 className={`desktop-sidebar-nav desktop-only ${desktopSidebarExpanded ? 'expanded' : ''} ${desktopOverlayActive ? 'overlay-active' : ''}`}
                 aria-label="Desktop navigation"
                 onMouseEnter={() => {
+                    if (desktopOverlayActive) return;
                     desktopSidebarShouldStayOpen = true;
                     setDesktopSidebarExpanded(true);
                 }}
                 onMouseLeave={() => {
+                    if (desktopOverlayActive) return;
                     desktopSidebarShouldStayOpen = false;
                     setDesktopSidebarExpanded(false);
                 }}

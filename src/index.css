@@ -13894,17 +13894,25 @@ body,
 
   .desktop-sidebar-nav.overlay-active {
     z-index: 10000001;
-    background: rgba(248, 250, 252, 0.78);
-    border-right-color: rgba(203, 213, 225, 0.92);
-    backdrop-filter: blur(18px) saturate(160%);
-    -webkit-backdrop-filter: blur(18px) saturate(160%);
-    box-shadow: 16px 0 42px rgba(15, 23, 42, 0.16);
+    width: 64px !important;
+    background: rgba(241, 245, 249, 0.52);
+    border-right-color: rgba(203, 213, 225, 0.72);
+    backdrop-filter: blur(16px) saturate(135%);
+    -webkit-backdrop-filter: blur(16px) saturate(135%);
+    box-shadow: none !important;
+    pointer-events: none;
   }
 
   .desktop-sidebar-nav:hover,
   .desktop-sidebar-nav.expanded {
     width: 286px;
     box-shadow: 18px 0 48px rgba(15, 23, 42, 0.12);
+  }
+
+  .desktop-sidebar-nav.overlay-active:hover,
+  .desktop-sidebar-nav.overlay-active.expanded {
+    width: 64px !important;
+    box-shadow: none !important;
   }
 
   .desktop-sidebar-brand {
@@ -14010,6 +14018,12 @@ body,
     justify-content: flex-start;
     gap: 0.75rem;
     padding: 0 0.85rem;
+  }
+
+  .desktop-sidebar-nav.overlay-active .desktop-sidebar-brand,
+  .desktop-sidebar-nav.overlay-active .desktop-sidebar-scroll,
+  .desktop-sidebar-nav.overlay-active .desktop-sidebar-item {
+    filter: blur(1.5px);
   }
 
   .desktop-sidebar-item:hover {
