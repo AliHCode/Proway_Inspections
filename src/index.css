@@ -3615,6 +3615,89 @@ input:checked+.premium-slider:before {
   line-height: 1.5;
 }
 
+.auth-status-wrapper {
+  text-align: center;
+}
+
+.auth-status-shell {
+  display: grid;
+  justify-items: center;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 430px;
+  margin: 0 auto;
+}
+
+.auth-status-kicker {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 0.85rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.auth-status-kicker.pending {
+  background: rgba(15, 23, 42, 0.05);
+  color: #475569;
+}
+
+.auth-status-kicker.rejected {
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+}
+
+.auth-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f172a;
+}
+
+.auth-status-icon.pending {
+  color: #0f172a;
+}
+
+.auth-status-icon.rejected {
+  color: #dc2626;
+}
+
+.auth-status-copy {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.auth-status-title {
+  margin-bottom: 0;
+  font-size: clamp(2.35rem, 4.8vw, 3rem);
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+}
+
+.auth-status-subtitle {
+  max-width: 34rem;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: #64748b;
+}
+
+.auth-status-logout {
+  margin-top: 0.35rem;
+  max-width: 430px;
+}
+
+.auth-status-logout.rejected {
+  background: #dc2626;
+}
+
+.auth-status-logout.rejected:hover {
+  background: #b91c1c;
+}
+
 /* --- Right Side: Branding Section --- */
 .auth-branding-section {
   position: relative;
@@ -4020,6 +4103,15 @@ input:checked+.premium-slider:before {
 
   .auth-form-section {
     padding: 3rem 2rem;
+  }
+
+  .auth-status-shell {
+    max-width: 100%;
+    gap: 1.1rem;
+  }
+
+  .auth-status-title {
+    font-size: 2.35rem;
   }
 }
 

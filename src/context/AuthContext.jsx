@@ -72,6 +72,7 @@ export function AuthProvider({ children }) {
     const initialized = useRef(false);
     const isFetchingProfileRef = useRef(null); // Tracks the ID being fetched
     const userRef = useRef(null); // Keep a ref to current user for event handlers
+    const hiddenAtRef = useRef(null); // Tracks when the tab/app went to background
 
     // Keep userRef in sync
     useEffect(() => {
@@ -130,19 +131,29 @@ export function AuthProvider({ children }) {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             if (session?.user) {
                 setManualLogoutFlag(false);
+
+                // TOKEN_REFRESHED with same user: silent background refresh.
+                // Supabase fires TOKEN_REFRESHED whenever the JWT is renewed - on
+                // tab return, app resume, mobile file-picker exit, etc.
+                // If we already have the same user loaded, do NOT reset any
+                // loading/resolved states (that causes the spinner flash).
+                // Just silently refresh profile data in the background.
+                if (event === 'TOKEN_REFRESHED' && userRef.current?.id === session.user.id) {
+                    isFetchingProfileRef.current = null;
+                    fetchProfile(session.user.id, { allowRetry: false, authUser: session.user });
+                    return;
+                }
+
                 setMfaResolved(false);
 
-                // ── Fast-path: restore from cache immediately so the spinner disappears ──
-                // authResolved is set to true here — App.jsx will stop showing the spinner
-                // while fetchProfile runs in the background.
+                // Fast-path: restore from cache immediately so the spinner disappears
                 const restored = restoreCachedProfile(session.user.id);
                 if (restored) {
                     setAuthResolved(true);
                 }
 
-                // Always fetch the live profile (silently updates in background if cache hit)
-                // Reset the guard so tab-resume / token-refresh events aren't blocked
-                if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+                // Reset the guard so INITIAL_SESSION events aren't blocked
+                if (event === 'INITIAL_SESSION') {
                     isFetchingProfileRef.current = null;
                 }
                 fetchProfile(session.user.id, { allowRetry: true, authUser: session.user });
@@ -197,12 +208,16 @@ export function AuthProvider({ children }) {
 
         bootstrapAuth();
 
+        // ── Attach the visibilitychange listener ──
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
         return () => {
             bootCancelled = true;
             if (bootTimer) {
                 window.clearTimeout(bootTimer);
             }
             subscription.unsubscribe();
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
     }, []);
 

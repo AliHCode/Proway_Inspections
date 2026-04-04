@@ -4,7 +4,11 @@ import { Clock, ShieldX, LogOut } from 'lucide-react';
 export default function PendingApproval() {
     const { user, logout } = useAuth();
     const isRejected = user?.role === 'rejected';
-    const firstName = user?.name?.split(' ')[0] || 'there';
+    const statusLabel = isRejected ? 'Access Restricted' : 'Verification Pending';
+    const title = isRejected ? 'Manual Clearance Required' : 'Verifying Identity';
+    const description = isRejected
+        ? 'For security reasons, this workspace requires administrator clearance before access can be granted.'
+        : 'Your registration has been received and is now awaiting administrator approval. You will be notified by email once access is active.';
 
     return (
         <div className="auth-container">
@@ -13,29 +17,26 @@ export default function PendingApproval() {
                     <img src="/dashboardlogo.png" alt="ClearLine Logo" />
                 </div>
 
-                <div className="auth-form-wrapper" style={{ textAlign: 'center' }}>
-                    <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'center' }}>
-                        <div style={{ padding: '2rem', borderRadius: '4px', background: isRejected ? 'rgba(239, 68, 68, 0.05)' : 'rgba(16, 185, 129, 0.05)', color: isRejected ? '#ef4444' : '#10b981' }}>
-                            {isRejected ? <ShieldX size={64} strokeWidth={1.5} /> : <Clock size={64} strokeWidth={1.5} />}
+                <div className="auth-form-wrapper auth-status-wrapper">
+                    <div className={`auth-status-shell ${isRejected ? 'rejected' : 'pending'}`}>
+                        <span className={`auth-status-kicker ${isRejected ? 'rejected' : 'pending'}`}>
+                            {statusLabel}
+                        </span>
+
+                        <div className={`auth-status-icon ${isRejected ? 'rejected' : 'pending'}`} aria-hidden="true">
+                            {isRejected ? <ShieldX size={44} strokeWidth={1.7} /> : <Clock size={44} strokeWidth={1.7} />}
                         </div>
+
+                        <div className="auth-status-copy">
+                            <h1 className="auth-form-title auth-status-title">{title}</h1>
+                            <p className="auth-form-subtitle auth-status-subtitle">{description}</p>
+                        </div>
+
+                        <button className={`auth-submit-btn modern auth-status-logout ${isRejected ? 'rejected' : ''}`} onClick={logout}>
+                            <LogOut size={20} />
+                            Terminate Session
+                        </button>
                     </div>
-
-                    <h1 className="auth-form-title">
-                        {isRejected ? "Access Restricted" : "Verifying Identity"}
-                    </h1>
-                    
-                    <p className="auth-form-subtitle" style={{ marginBottom: '3rem' }}>
-                        {isRejected ? (
-                            "For security purposes, access to this workspace requires manual administrator clearance. Please contact your supervisor."
-                        ) : (
-                            "Our administrative team has been notified of your registration. You will receive an email once your profile is active."
-                        )}
-                    </p>
-
-                    <button className="auth-submit-btn modern" onClick={logout} style={{ background: isRejected ? '#ef4444' : '#111827' }}>
-                        <LogOut size={20} />
-                        Terminate Session
-                    </button>
                 </div>
             </div>
 
