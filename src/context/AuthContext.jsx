@@ -105,6 +105,7 @@ export function AuthProvider({ children }) {
         // Listen for changes on auth state (logged in, signed out, etc.)
         // This also handles the INITIAL_SESSION by default.
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            console.log('[AUTH EVENT]', event, { hasCurrentUser: !!userRef.current, sessionUserId: session?.user?.id, currentUserId: userRef.current?.id });
             if (session?.user) {
                 setManualLogoutFlag(false);
 
