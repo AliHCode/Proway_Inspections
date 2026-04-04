@@ -109,13 +109,13 @@ export function AuthProvider({ children }) {
             if (session?.user) {
                 setManualLogoutFlag(false);
 
-                // TOKEN_REFRESHED with same user: silent background refresh.
-                // Supabase fires TOKEN_REFRESHED whenever the JWT is renewed - on
-                // tab return, app resume, mobile file-picker exit, etc.
+                // Same user already loaded: silent background refresh.
+                // Supabase fires SIGNED_IN or TOKEN_REFRESHED on tab return,
+                // app resume, mobile file-picker exit, etc.
                 // If we already have the same user loaded, do NOT reset any
                 // loading/resolved states (that causes the spinner flash).
                 // Just silently refresh profile data in the background.
-                if (event === 'TOKEN_REFRESHED' && userRef.current?.id === session.user.id) {
+                if ((event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') && userRef.current?.id === session.user.id) {
                     isFetchingProfileRef.current = null;
                     fetchProfile(session.user.id, { allowRetry: false, authUser: session.user });
                     return;
