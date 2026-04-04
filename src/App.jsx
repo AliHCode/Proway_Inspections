@@ -63,10 +63,7 @@ function ContractorLeadRoute({ children }) {
 function AppRoutes() {
     const { user, authResolved, mfaResolved, mfaRequired } = useAuth();
     const { projects, projectsResolved } = useProject();
-    if (!authResolved || !mfaResolved || !projectsResolved) {
-        console.log('[SPINNER DEBUG]', { authResolved, mfaResolved, projectsResolved, user: !!user });
-        return <LoadingSpinner />;
-    }
+    if (!authResolved || !mfaResolved || !projectsResolved) return <LoadingSpinner />;
 
     return (
         <Suspense fallback={<LoadingSpinner />}>
