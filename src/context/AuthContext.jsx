@@ -85,44 +85,20 @@ export function AuthProvider({ children }) {
         let bootCancelled = false;
         let bootTimer = null;
 
-        // ── Visibilitychange: prevent stuck spinner when tab resumes from background ──
+        // Visibilitychange: track when the tab goes to background, and clear
+        // any stuck loading states when it comes back. We do NOT re-fetch the
+        // session here — Supabase's onAuthStateChange(TOKEN_REFRESHED) already
+        // handles that, and our handler above processes it silently.
         function handleVisibilityChange() {
             if (document.visibilityState === 'hidden') {
                 hiddenAtRef.current = Date.now();
                 return;
             }
-
+            // Tab/app became visible again — if we already have a user, just
+            // make sure no loading spinner is stuck from a previous state.
             if (document.visibilityState === 'visible' && userRef.current) {
-                const hiddenForMs = hiddenAtRef.current ? Date.now() - hiddenAtRef.current : Number.POSITIVE_INFINITY;
-                if (hiddenForMs < TRANSIENT_RETURN_SKIP_MS) {
-                    setLoading(false);
-                    setAuthResolved(true);
-                    return;
-                }
-
-                // App came back from background and we already have a user — clear any
-                // lingering loading state so the UI doesn't stay frozen on a spinner.
                 setLoading(false);
                 setAuthResolved(true);
-                // Silently re-verify the session in the background (no spinner shown)
-                supabase.auth.getSession().then(({ data: { session } }) => {
-                    if (session?.user) {
-                        // Session is still valid — quietly refresh the profile if needed
-                        isFetchingProfileRef.current = null; // allow next fetch
-                        fetchProfile(session.user.id, { allowRetry: false, authUser: session.user });
-                    } else {
-                        // Session was invalidated (e.g. logged in on another device)
-                        // — force a clean logout so the user isn't stuck on a loading screen
-                        console.warn('Session invalidated while tab was in background — logging out');
-                        resolveSignedOutState();
-                    }
-                }).catch((error) => {
-                    if (isOfflineLikeError(error)) {
-                        resolveSignedOutState({ allowOfflineCache: true, expectedUserId: userRef.current?.id || null });
-                        return;
-                    }
-                    resolveSignedOutState();
-                });
             }
         }
 
